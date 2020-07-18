@@ -1,0 +1,7 @@
+apiVersion: image.fluxcd.io/v1alpha1
+kind: ImageUpdateAutomation
+metadata:
+  name: imageupdateautomation-sample
+spec:
+  # Add fields here
+  foo: bar

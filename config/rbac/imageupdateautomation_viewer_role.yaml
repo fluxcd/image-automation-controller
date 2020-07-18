@@ -1,0 +1,20 @@
+# permissions for end users to view imageupdateautomations.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: imageupdateautomation-viewer-role
+rules:
+- apiGroups:
+  - image.fluxcd.io
+  resources:
+  - imageupdateautomations
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - image.fluxcd.io
+  resources:
+  - imageupdateautomations/status
+  verbs:
+  - get

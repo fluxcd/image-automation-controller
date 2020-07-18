@@ -1,3 +1,7 @@
 domain: fluxcd.io
-repo: github.com/squaremo/image-automation
+repo: github.com/squaremo/image-automation-controller
+resources:
+- group: image
+  kind: ImageUpdateAutomation
+  version: v1alpha1
 version: "2"
