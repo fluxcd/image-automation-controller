@@ -1,0 +1,3 @@
+domain: fluxcd.io
+repo: github.com/squaremo/image-automation
+version: "2"
