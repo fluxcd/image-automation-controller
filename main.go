@@ -26,6 +26,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	sourcev1alpha1 "github.com/fluxcd/source-controller/api/v1alpha1"
 	imagev1alpha1 "github.com/squaremo/image-automation-controller/api/v1alpha1"
 	"github.com/squaremo/image-automation-controller/controllers"
 	// +kubebuilder:scaffold:imports
@@ -40,6 +41,7 @@ func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
 	_ = imagev1alpha1.AddToScheme(scheme)
+	_ = sourcev1alpha1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
