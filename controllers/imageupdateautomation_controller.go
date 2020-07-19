@@ -21,11 +21,16 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	sourcev1alpha1 "github.com/fluxcd/source-controller/api/v1alpha1"
 	imagev1alpha1 "github.com/squaremo/image-automation-controller/api/v1alpha1"
 )
+
+// log level for debug info
+const debug = 1
 
 // ImageUpdateAutomationReconciler reconciles a ImageUpdateAutomation object
 type ImageUpdateAutomationReconciler struct {
@@ -36,12 +41,32 @@ type ImageUpdateAutomationReconciler struct {
 
 // +kubebuilder:rbac:groups=image.fluxcd.io,resources=imageupdateautomations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=image.fluxcd.io,resources=imageupdateautomations/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=source.fluxcd.io,resources=gitrepositories,verbs=get;list;watch
 
 func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	_ = context.Background()
-	_ = r.Log.WithValues("imageupdateautomation", req.NamespacedName)
+	ctx := context.Background()
+	log := r.Log.WithValues("imageupdateautomation", req.NamespacedName)
 
-	// your logic here
+	var update imagev1alpha1.ImageUpdateAutomation
+	if err := r.Get(ctx, req.NamespacedName, &update); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	// get the git repository object so it can be checked out
+	var repo sourcev1alpha1.GitRepository
+	repoName := types.NamespacedName{
+		Name:      update.Spec.GitRepository.Name,
+		Namespace: update.Namespace,
+	}
+	if err := r.Get(ctx, repoName, &repo); err != nil {
+		if client.IgnoreNotFound(err) == nil {
+			log.Error(err, "referenced git repository does not exist")
+			return ctrl.Result{}, nil // and assume we'll hear about it when it arrives
+		}
+		return ctrl.Result{}, err
+	}
+
+	log.V(debug).Info("found git repository", "name", repoName)
 
 	return ctrl.Result{}, nil
 }

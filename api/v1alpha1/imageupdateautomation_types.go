@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,11 +26,10 @@ import (
 
 // ImageUpdateAutomationSpec defines the desired state of ImageUpdateAutomation
 type ImageUpdateAutomationSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of ImageUpdateAutomation. Edit ImageUpdateAutomation_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// GitRepository refers to the resource carry access details to a
+	// git repository to update files in.
+	// +required
+	GitRepository corev1.LocalObjectReference `json:"gitRepository"`
 }
 
 // ImageUpdateAutomationStatus defines the observed state of ImageUpdateAutomation
@@ -50,6 +50,7 @@ type ImageUpdateAutomation struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // ImageUpdateAutomationList contains a list of ImageUpdateAutomation
 type ImageUpdateAutomationList struct {
