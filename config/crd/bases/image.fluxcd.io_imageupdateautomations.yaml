@@ -44,8 +44,22 @@ spec:
                     TODO: Add other useful fields. apiVersion, kind, uid?'
                   type: string
               type: object
+            update:
+              description: Update gives the specification for how to update the repository
+              properties:
+                imagePolicy:
+                  description: ImagePolicy if present means update all workloads using
+                    the given policy's image, to the policy's latest image reference.
+                  properties:
+                    name:
+                      description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                        TODO: Add other useful fields. apiVersion, kind, uid?'
+                      type: string
+                  type: object
+              type: object
           required:
           - gitRepository
+          - update
           type: object
         status:
           description: ImageUpdateAutomationStatus defines the observed state of ImageUpdateAutomation

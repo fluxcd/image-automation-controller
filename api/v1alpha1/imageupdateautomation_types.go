@@ -30,6 +30,18 @@ type ImageUpdateAutomationSpec struct {
 	// git repository to update files in.
 	// +required
 	GitRepository corev1.LocalObjectReference `json:"gitRepository"`
+	// Update gives the specification for how to update the repository
+	// +required
+	Update UpdateStrategy `json:"update"`
+}
+
+// UpdateStrategy is a union of the various strategies for updating
+// the git repository.
+type UpdateStrategy struct {
+	// ImagePolicy if present means update all workloads using the
+	// given policy's image, to the policy's latest image reference.
+	// +optional
+	ImagePolicy *corev1.LocalObjectReference `json:"imagePolicy,omitempty"`
 }
 
 // ImageUpdateAutomationStatus defines the observed state of ImageUpdateAutomation

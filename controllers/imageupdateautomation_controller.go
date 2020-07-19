@@ -18,9 +18,9 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"strings"
 
 	"github.com/fluxcd/pkg/ssh/knownhosts"
@@ -39,6 +39,8 @@ import (
 
 	sourcev1alpha1 "github.com/fluxcd/source-controller/api/v1alpha1"
 	imagev1alpha1 "github.com/squaremo/image-automation-controller/api/v1alpha1"
+	"github.com/squaremo/image-automation-controller/pkg/update"
+	imagev1alpha1_reflect "github.com/squaremo/image-reflector-controller/api/v1alpha1"
 )
 
 // log level for debug info
@@ -61,16 +63,16 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 	ctx := context.Background()
 	log := r.Log.WithValues("imageupdateautomation", req.NamespacedName)
 
-	var update imagev1alpha1.ImageUpdateAutomation
-	if err := r.Get(ctx, req.NamespacedName, &update); err != nil {
+	var auto imagev1alpha1.ImageUpdateAutomation
+	if err := r.Get(ctx, req.NamespacedName, &auto); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	// get the git repository object so it can be checked out
 	var origin sourcev1alpha1.GitRepository
 	originName := types.NamespacedName{
-		Name:      update.Spec.GitRepository.Name,
-		Namespace: update.GetNamespace(),
+		Name:      auto.Spec.GitRepository.Name,
+		Namespace: auto.GetNamespace(),
 	}
 	if err := r.Get(ctx, originName, &origin); err != nil {
 		// TODO status
@@ -81,14 +83,14 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, err
 	}
 
-	log.V(debug).Info("found git repository", "git-repository", originName)
+	log.V(debug).Info("found git repository", "gitrepository", originName)
 
 	tmp, err := ioutil.TempDir("", fmt.Sprintf("%s-%s", originName.Namespace, originName.Name))
 	if err != nil {
 		// TODO status
 		return ctrl.Result{}, err
 	}
-	defer os.RemoveAll(tmp)
+	//defer os.RemoveAll(tmp)
 
 	// FIXME context with deadline
 	if err := r.cloneInto(ctx, &origin, tmp); err != nil {
@@ -96,7 +98,36 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, err
 	}
 
-	log.V(debug).Info("cloned git repository", "git-repository", originName, "tmp", tmp)
+	log.V(debug).Info("cloned git repository", "gitrepository", originName, "tmp", tmp)
+
+	updateStrat := auto.Spec.Update
+	switch {
+	case updateStrat.ImagePolicy != nil:
+		var policy imagev1alpha1_reflect.ImagePolicy
+		policyName := types.NamespacedName{
+			Namespace: auto.GetNamespace(),
+			Name:      updateStrat.ImagePolicy.Name,
+		}
+		if err := r.Get(ctx, policyName, &policy); err != nil {
+			if client.IgnoreNotFound(err) == nil {
+				log.Info("referenced ImagePolicy not found")
+				return ctrl.Result{}, nil
+			}
+			return ctrl.Result{}, err
+		}
+		if err := updateAccordingToImagePolicy(ctx, tmp, &policy); err != nil {
+			if err == errImagePolicyNotReady {
+				log.Info("image policy does not have latest image ref", "imagepolicy", policyName)
+				return ctrl.Result{}, nil
+			}
+			return ctrl.Result{}, err
+		}
+	default:
+		log.Info("no update strategy given in the spec")
+		return ctrl.Result{}, nil
+	}
+
+	log.V(debug).Info("made updates to working dir", "tmp", tmp)
 
 	return ctrl.Result{}, nil
 }
@@ -107,7 +138,7 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) err
 		Complete(r)
 }
 
-// ---
+// --- git ops
 
 func (r *ImageUpdateAutomationReconciler) cloneInto(ctx context.Context, repository *sourcev1alpha1.GitRepository, path string) error {
 	// this is largely cribbed from
@@ -203,4 +234,24 @@ func publicKeyAuth(secret *corev1.Secret) (transport.AuthMethod, error) {
 	}
 	pk.HostKeyCallback = callback
 	return pk, nil
+}
+
+// --- updates
+
+var errImagePolicyNotReady = errors.New("ImagePolocy resource is not ready")
+
+// update the manifest files under path according to policy, by
+// replacing any mention of the policy's image repository with the
+// latest ref.
+func updateAccordingToImagePolicy(ctx context.Context, path string, policy *imagev1alpha1_reflect.ImagePolicy) error {
+	// the function that does the update expects an original and a
+	// replacement; but it only uses the repository part of the
+	// original, and it compares canonical forms (with the defaults
+	// filled in). Since the latest image will have the same
+	// repository, I can just pass that as the original.
+	latestRef := policy.Status.LatestImage
+	if latestRef == "" {
+		return errImagePolicyNotReady
+	}
+	return update.UpdateImageEverywhere(path, path, latestRef, latestRef)
 }
