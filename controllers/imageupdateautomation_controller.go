@@ -21,15 +21,8 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"strings"
 
-	"github.com/fluxcd/pkg/ssh/knownhosts"
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
-	//	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
-	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,6 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	sourcev1alpha1 "github.com/fluxcd/source-controller/api/v1alpha1"
+	"github.com/fluxcd/source-controller/pkg/git"
+
 	imagev1alpha1 "github.com/squaremo/image-automation-controller/api/v1alpha1"
 	"github.com/squaremo/image-automation-controller/pkg/update"
 	imagev1alpha1_reflect "github.com/squaremo/image-reflector-controller/api/v1alpha1"
@@ -141,27 +136,11 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) err
 // --- git ops
 
 func (r *ImageUpdateAutomationReconciler) cloneInto(ctx context.Context, repository *sourcev1alpha1.GitRepository, path string) error {
-	// this is largely cribbed from
-	// https://github.com/fluxcd/source-controller/blob/master/controllers/gitrepository_controller.go#L166
-	// and
-	// https://github.com/fluxcd/source-controller/blob/master/internal/git/checkout.go
-	// which is internal to that controller, and doesn't do quite what
-	// I want anyway. It'd be nice for source controller to have a
-	// convenience method for cloning a GitRepository.
-
 	url := repository.Spec.URL
-
-	// this inlines some of https://github.com/fluxcd/source-controller/blob/master/internal/git/transport.go
-	var authFromSecret func(*corev1.Secret) (transport.AuthMethod, error)
-	switch {
-	case strings.HasPrefix(url, "http"):
-		authFromSecret = basicAuth
-	case strings.HasPrefix(url, "ssh"):
-		authFromSecret = publicKeyAuth
-	}
+	authStrat := git.AuthSecretStrategyForURL(url)
 
 	var auth transport.AuthMethod
-	if repository.Spec.SecretRef != nil && authFromSecret != nil {
+	if repository.Spec.SecretRef != nil && authStrat != nil {
 		name := types.NamespacedName{
 			Namespace: repository.GetNamespace(),
 			Name:      repository.Spec.SecretRef.Name,
@@ -174,66 +153,21 @@ func (r *ImageUpdateAutomationReconciler) cloneInto(ctx context.Context, reposit
 			return err
 		}
 
-		auth, err = authFromSecret(&secret)
+		auth, err = authStrat.Method(secret)
 		if err != nil {
 			err = fmt.Errorf("auth error: %w", err)
 			return err
 		}
 	}
 
-	// For now, check out master:
-	// https://github.com/fluxcd/source-controller/blob/master/internal/git/checkout.go#L66
-	_, err := git.PlainCloneContext(ctx, path, false, &git.CloneOptions{
-		URL:               repository.Spec.URL,
-		Auth:              auth,
-		RemoteName:        originRemote,
-		ReferenceName:     plumbing.NewBranchReferenceName("master"),
-		SingleBranch:      true,
-		NoCheckout:        false,
-		Depth:             1,
-		RecurseSubmodules: 0,
-		Progress:          nil,
-		Tags:              git.NoTags,
-	})
-	if err != nil {
-		return fmt.Errorf("git clone error: %w", err)
-	}
+	// For now, check out the default branch. Using `nil` will do this
+	// for now; but, it's likely that eventually a *GitRepositoryRef
+	// will come from the image-update-automation object or the
+	// git-repository object.
+	checkoutStrat := git.CheckoutStrategyForRef(nil)
+	_, _, err := checkoutStrat.Checkout(ctx, path, url, auth)
 
-	return nil
-}
-
-func basicAuth(secret *corev1.Secret) (transport.AuthMethod, error) {
-	auth := &http.BasicAuth{}
-	if username, ok := secret.Data["username"]; ok {
-		auth.Username = string(username)
-	}
-	if password, ok := secret.Data["password"]; ok {
-		auth.Password = string(password)
-	}
-	if auth.Username == "" || auth.Password == "" {
-		return nil, fmt.Errorf("invalid '%s' secret data: required fields 'username' and 'password'", secret.Name)
-	}
-	return auth, nil
-}
-
-func publicKeyAuth(secret *corev1.Secret) (transport.AuthMethod, error) {
-	identity := secret.Data["identity"]
-	knownHosts := secret.Data["known_hosts"]
-	if len(identity) == 0 || len(knownHosts) == 0 {
-		return nil, fmt.Errorf("invalid '%s' secret data: required fields 'identity' and 'known_hosts'", secret.Name)
-	}
-
-	pk, err := ssh.NewPublicKeys("git", identity, "")
-	if err != nil {
-		return nil, err
-	}
-
-	callback, err := knownhosts.New(knownHosts)
-	if err != nil {
-		return nil, err
-	}
-	pk.HostKeyCallback = callback
-	return pk, nil
+	return err
 }
 
 // --- updates
