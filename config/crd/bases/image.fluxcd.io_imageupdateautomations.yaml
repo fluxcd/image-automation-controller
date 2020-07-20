@@ -35,6 +35,26 @@ spec:
         spec:
           description: ImageUpdateAutomationSpec defines the desired state of ImageUpdateAutomation
           properties:
+            commit:
+              description: Commit specifies how to commit to the git repo
+              properties:
+                authorEmail:
+                  description: AuthorEmail gives the email to provide when making
+                    a commit
+                  type: string
+                authorName:
+                  description: AuthorName gives the name to provide when making a
+                    commit
+                  type: string
+                messageTemplate:
+                  description: MessageTemplate provides a template for the commit
+                    message, into which will be interpolated the details of the change
+                    made.
+                  type: string
+              required:
+              - authorEmail
+              - authorName
+              type: object
             gitRepository:
               description: GitRepository refers to the resource carry access details
                 to a git repository to update files in.
@@ -45,7 +65,8 @@ spec:
                   type: string
               type: object
             update:
-              description: Update gives the specification for how to update the repository
+              description: Update gives the specification for how to update the files
+                in the repository
               properties:
                 imagePolicy:
                   description: ImagePolicy if present means update all workloads using
@@ -58,6 +79,7 @@ spec:
                   type: object
               type: object
           required:
+          - commit
           - gitRepository
           - update
           type: object

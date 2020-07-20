@@ -30,9 +30,13 @@ type ImageUpdateAutomationSpec struct {
 	// git repository to update files in.
 	// +required
 	GitRepository corev1.LocalObjectReference `json:"gitRepository"`
-	// Update gives the specification for how to update the repository
+	// Update gives the specification for how to update the files in
+	// the repository
 	// +required
 	Update UpdateStrategy `json:"update"`
+	// Commit specifies how to commit to the git repo
+	// +required
+	Commit CommitSpec `json:"commit"`
 }
 
 // UpdateStrategy is a union of the various strategies for updating
@@ -42,6 +46,20 @@ type UpdateStrategy struct {
 	// given policy's image, to the policy's latest image reference.
 	// +optional
 	ImagePolicy *corev1.LocalObjectReference `json:"imagePolicy,omitempty"`
+}
+
+// CommitSpec specifies how to commit changes to the git repository
+type CommitSpec struct {
+	// AuthorName gives the name to provide when making a commit
+	// +required
+	AuthorName string `json:"authorName"`
+	// AuthorEmail gives the email to provide when making a commit
+	// +required
+	AuthorEmail string `json:"authorEmail"`
+	// MessageTemplate provides a template for the commit message,
+	// into which will be interpolated the details of the change made.
+	// +optional
+	MessageTemplate string `json:"messageTemplate,omitempty"`
 }
 
 // ImageUpdateAutomationStatus defines the observed state of ImageUpdateAutomation

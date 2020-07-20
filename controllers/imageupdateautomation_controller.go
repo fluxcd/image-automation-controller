@@ -21,7 +21,12 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"strings"
+	"text/template"
+	"time"
 
+	gogit "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -32,7 +37,6 @@ import (
 
 	sourcev1alpha1 "github.com/fluxcd/source-controller/api/v1alpha1"
 	"github.com/fluxcd/source-controller/pkg/git"
-
 	imagev1alpha1 "github.com/squaremo/image-automation-controller/api/v1alpha1"
 	"github.com/squaremo/image-automation-controller/pkg/update"
 	imagev1alpha1_reflect "github.com/squaremo/image-reflector-controller/api/v1alpha1"
@@ -41,6 +45,8 @@ import (
 // log level for debug info
 const debug = 1
 const originRemote = "origin"
+
+const defaultMessageTemplate = `Update from image update automation`
 
 // ImageUpdateAutomationReconciler reconciles a ImageUpdateAutomation object
 type ImageUpdateAutomationReconciler struct {
@@ -87,13 +93,20 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 	}
 	//defer os.RemoveAll(tmp)
 
-	// FIXME context with deadline
-	if err := r.cloneInto(ctx, &origin, tmp); err != nil {
+	// FIXME use context with deadline for at least the following ops
+
+	access, err := r.getRepoAccess(ctx, &origin)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	var repo *gogit.Repository
+	if repo, err = cloneInto(ctx, access, tmp); err != nil {
 		// TODO status
 		return ctrl.Result{}, err
 	}
 
-	log.V(debug).Info("cloned git repository", "gitrepository", originName, "tmp", tmp)
+	log.V(debug).Info("cloned git repository", "gitrepository", originName, "working", tmp)
 
 	updateStrat := auto.Spec.Update
 	switch {
@@ -122,7 +135,14 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	log.V(debug).Info("made updates to working dir", "tmp", tmp)
+	log.V(debug).Info("made updates to working dir", "working", tmp)
+
+	if err = commitAllAndPush(ctx, repo, access, &auto.Spec.Commit); err != nil {
+		if err == errNoChanges {
+			log.Info("no changes made in working directory; no commit")
+		}
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -135,11 +155,16 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) err
 
 // --- git ops
 
-func (r *ImageUpdateAutomationReconciler) cloneInto(ctx context.Context, repository *sourcev1alpha1.GitRepository, path string) error {
-	url := repository.Spec.URL
-	authStrat := git.AuthSecretStrategyForURL(url)
+type repoAccess struct {
+	auth transport.AuthMethod
+	url  string
+}
 
-	var auth transport.AuthMethod
+func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, repository *sourcev1alpha1.GitRepository) (repoAccess, error) {
+	var access repoAccess
+	access.url = repository.Spec.URL
+	authStrat := git.AuthSecretStrategyForURL(access.url)
+
 	if repository.Spec.SecretRef != nil && authStrat != nil {
 		name := types.NamespacedName{
 			Namespace: repository.GetNamespace(),
@@ -150,29 +175,79 @@ func (r *ImageUpdateAutomationReconciler) cloneInto(ctx context.Context, reposit
 		err := r.Client.Get(ctx, name, &secret)
 		if err != nil {
 			err = fmt.Errorf("auth secret error: %w", err)
-			return err
+			return access, err
 		}
 
-		auth, err = authStrat.Method(secret)
+		access.auth, err = authStrat.Method(secret)
 		if err != nil {
 			err = fmt.Errorf("auth error: %w", err)
-			return err
+			return access, err
 		}
 	}
+	return access, nil
+}
 
+func cloneInto(ctx context.Context, access repoAccess, path string) (*gogit.Repository, error) {
 	// For now, check out the default branch. Using `nil` will do this
 	// for now; but, it's likely that eventually a *GitRepositoryRef
 	// will come from the image-update-automation object or the
 	// git-repository object.
 	checkoutStrat := git.CheckoutStrategyForRef(nil)
-	_, _, err := checkoutStrat.Checkout(ctx, path, url, auth)
+	_, _, err := checkoutStrat.Checkout(ctx, path, access.url, access.auth)
+	if err != nil {
+		return nil, err
+	}
 
-	return err
+	return gogit.PlainOpen(path)
+}
+
+var errNoChanges = errors.New("no changes in working directory")
+
+func commitAllAndPush(ctx context.Context, repo *gogit.Repository, access repoAccess, commit *imagev1alpha1.CommitSpec) error {
+	working, err := repo.Worktree()
+	if err != nil {
+		return err
+	}
+
+	status, err := working.Status()
+	if err != nil {
+		return err
+	} else if status.IsClean() {
+		return errNoChanges
+	}
+
+	msgTmpl := commit.MessageTemplate
+	if msgTmpl == "" {
+		msgTmpl = defaultMessageTemplate
+	}
+	tmpl, err := template.New("commit message").Parse(msgTmpl)
+	if err != nil {
+		return err
+	}
+	buf := &strings.Builder{}
+	if err := tmpl.Execute(buf, "no data! yet"); err != nil {
+		return err
+	}
+
+	if _, err = working.Commit(buf.String(), &gogit.CommitOptions{
+		All: true,
+		Author: &object.Signature{
+			Name:  commit.AuthorName,
+			Email: commit.AuthorEmail,
+			When:  time.Now(),
+		},
+	}); err != nil {
+		return err
+	}
+
+	return repo.PushContext(ctx, &gogit.PushOptions{
+		Auth: access.auth,
+	})
 }
 
 // --- updates
 
-var errImagePolicyNotReady = errors.New("ImagePolocy resource is not ready")
+var errImagePolicyNotReady = errors.New("ImagePolicy resource is not ready")
 
 // update the manifest files under path according to policy, by
 // replacing any mention of the policy's image repository with the
