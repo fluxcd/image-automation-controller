@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/fluxcd/source-controller v0.0.6
+	github.com/go-git/go-billy/v5 v5.0.0
 	github.com/go-git/go-git/v5 v5.1.0
 	github.com/go-logr/logr v0.1.0
 	github.com/google/go-containerregistry v0.1.1
@@ -16,3 +17,6 @@ require (
 	sigs.k8s.io/controller-runtime v0.6.1
 	sigs.k8s.io/kustomize/kyaml v0.4.1
 )
+
+//  https://github.com/sosedoff/gitkit/pull/21
+replace github.com/sosedoff/gitkit => github.com/hiddeco/gitkit v0.2.1-0.20200422093229-4355fec70348
