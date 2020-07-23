@@ -39,6 +39,7 @@ import (
 
 	sourcev1alpha1 "github.com/fluxcd/source-controller/api/v1alpha1"
 	imagev1alpha1 "github.com/squaremo/image-automation-controller/api/v1alpha1"
+	"github.com/squaremo/image-automation-controller/pkg/test"
 	imagev1alpha1_reflect "github.com/squaremo/image-reflector-controller/api/v1alpha1"
 )
 
@@ -197,6 +198,16 @@ var _ = Describe("ImageUpdateAutomation", func() {
 			commit, err := localRepo.CommitObject(head.Hash())
 			Expect(err).ToNot(HaveOccurred())
 			Expect(commit.Message).To(Equal(commitMessage))
+
+			tmp, err := ioutil.TempDir("", "gotest-imageauto")
+			Expect(err).ToNot(HaveOccurred())
+			defer os.RemoveAll(tmp)
+
+			_, err = git.PlainClone(tmp, false, &git.CloneOptions{
+				URL: repoURL,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			test.ExpectMatchingDirectories(tmp, "testdata/appconfig-expected")
 		})
 	})
 })
