@@ -1,0 +1,32 @@
+name: build
+
+on:
+  pull_request:
+  push:
+    branches:
+    - master
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+    - name: Restore go cache
+      uses: actions/cache@v1
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+    - name: Set up Go
+      uses: actions/setup-go@v2-beta
+      with:
+        go-version: 1.14.x
+    - name: Set up kubebuilder
+      # TODO replace with ../pkg/.. when that's merged
+      uses: fluxcd/kustomize-controller/.github/actions/kubebuilder@master
+    - name: Run tests
+      run: make test
+      env:
+        KUBEBUILDER_ASSETS: ${{ github.workspace }}/kubebuilder/bin
