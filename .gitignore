@@ -1,5 +1,8 @@
 notes
 
+# This is downloaded in the Makefile
+controllers/testdata/crds/*
+
 # Binaries for programs and plugins
 *.exe
 *.exe~

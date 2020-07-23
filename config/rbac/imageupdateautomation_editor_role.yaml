@@ -1,0 +1,24 @@
+# permissions for end users to edit imageupdateautomations.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: imageupdateautomation-editor-role
+rules:
+- apiGroups:
+  - image.fluxcd.io
+  resources:
+  - imageupdateautomations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - image.fluxcd.io
+  resources:
+  - imageupdateautomations/status
+  verbs:
+  - get
