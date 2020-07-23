@@ -3,6 +3,7 @@ module github.com/squaremo/image-automation-controller
 go 1.13
 
 require (
+	// If you bump this, change TOOLKIT_VERSION in the Makefile to match
 	github.com/fluxcd/source-controller v0.0.6
 	github.com/go-git/go-billy/v5 v5.0.0
 	github.com/go-git/go-git/v5 v5.1.0

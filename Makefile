@@ -4,6 +4,10 @@ IMG ?= squaremo/image-automation-controller
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
+# Version of the Toolkit from which to get CRDs. Change this if you
+# bump the go module version.
+TOOLKIT_VERSION:=v0.0.6
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -11,10 +15,25 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+TEST_CRDS:=controllers/testdata/crds
+
 all: manager
 
+# Running the tests requires the source.fluxcd.io CRDs
+test_deps: ${TEST_CRDS}/imagepolicies.yaml ${TEST_CRDS}/gitrepositories.yaml
+
+${TEST_CRDS}/gitrepositories.yaml:
+	mkdir -p ${TEST_CRDS}
+	curl -s https://raw.githubusercontent.com/fluxcd/source-controller/${TOOLKIT_VERSION}/config/crd/bases/source.fluxcd.io_gitrepositories.yaml \
+		-o ${TEST_CRDS}/gitrepositories.yaml
+
+${TEST_CRDS}/imagepolicies.yaml:
+	mkdir -p ${TEST_CRDS}
+	curl -s https://raw.githubusercontent.com/squaremo/image-reflector-controller/master/config/crd/bases/image.fluxcd.io_imagepolicies.yaml \
+		-o ${TEST_CRDS}/imagepolicies.yaml
+
 # Run tests
-test: generate fmt vet manifests
+test: test_deps generate fmt vet manifests
 	go test ./... -coverprofile cover.out
 
 # Build manager binary

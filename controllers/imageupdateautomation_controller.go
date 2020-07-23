@@ -26,6 +26,7 @@ import (
 	"time"
 
 	gogit "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-logr/logr"
@@ -137,12 +138,15 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 
 	log.V(debug).Info("made updates to working dir", "working", tmp)
 
-	if err = commitAllAndPush(ctx, repo, access, &auto.Spec.Commit); err != nil {
+	var rev string
+	if rev, err = commitAllAndPush(ctx, repo, access, &auto.Spec.Commit); err != nil {
 		if err == errNoChanges {
 			log.Info("no changes made in working directory; no commit")
+			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
 	}
+	log.V(debug).Info("pushed commit to origin", "revision", rev)
 
 	return ctrl.Result{}, nil
 }
@@ -203,17 +207,17 @@ func cloneInto(ctx context.Context, access repoAccess, path string) (*gogit.Repo
 
 var errNoChanges = errors.New("no changes in working directory")
 
-func commitAllAndPush(ctx context.Context, repo *gogit.Repository, access repoAccess, commit *imagev1alpha1.CommitSpec) error {
+func commitAllAndPush(ctx context.Context, repo *gogit.Repository, access repoAccess, commit *imagev1alpha1.CommitSpec) (string, error) {
 	working, err := repo.Worktree()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	status, err := working.Status()
 	if err != nil {
-		return err
+		return "", err
 	} else if status.IsClean() {
-		return errNoChanges
+		return "", errNoChanges
 	}
 
 	msgTmpl := commit.MessageTemplate
@@ -222,14 +226,15 @@ func commitAllAndPush(ctx context.Context, repo *gogit.Repository, access repoAc
 	}
 	tmpl, err := template.New("commit message").Parse(msgTmpl)
 	if err != nil {
-		return err
+		return "", err
 	}
 	buf := &strings.Builder{}
 	if err := tmpl.Execute(buf, "no data! yet"); err != nil {
-		return err
+		return "", err
 	}
 
-	if _, err = working.Commit(buf.String(), &gogit.CommitOptions{
+	var rev plumbing.Hash
+	if rev, err = working.Commit(buf.String(), &gogit.CommitOptions{
 		All: true,
 		Author: &object.Signature{
 			Name:  commit.AuthorName,
@@ -237,10 +242,10 @@ func commitAllAndPush(ctx context.Context, repo *gogit.Repository, access repoAc
 			When:  time.Now(),
 		},
 	}); err != nil {
-		return err
+		return "", err
 	}
 
-	return repo.PushContext(ctx, &gogit.PushOptions{
+	return rev.String(), repo.PushContext(ctx, &gogit.PushOptions{
 		Auth: access.auth,
 	})
 }
