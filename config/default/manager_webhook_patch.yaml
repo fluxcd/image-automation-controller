@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: image-automation-controller
-  namespace: image-automation-system
 spec:
   template:
     spec:
