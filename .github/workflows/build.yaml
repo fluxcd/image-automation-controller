@@ -25,7 +25,7 @@ jobs:
         go-version: 1.14.x
     - name: Set up kubebuilder
       # TODO replace with ../pkg/.. when that's merged
-      uses: fluxcd/kustomize-controller/.github/actions/kubebuilder@master
+      uses: fluxcd/pkg/actions/kubebuilder@master
     - name: Run tests
       run: make test
       env:
