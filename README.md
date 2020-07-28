@@ -213,6 +213,8 @@ EOF
 Note that the image policy you created earlier, and the git
 repository, are both mentioned.
 
+    kubectl apply -f update.yaml
+
 Once that's created, it should quickly commit a change to the git
 repository, to make the image in the deployment match the most recent
 given by the image policy. Here's an example, [from my own
