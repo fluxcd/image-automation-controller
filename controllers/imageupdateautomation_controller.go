@@ -35,6 +35,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	sourcev1alpha1 "github.com/fluxcd/source-controller/api/v1alpha1"
 	"github.com/fluxcd/source-controller/pkg/git"
@@ -48,6 +51,9 @@ const debug = 1
 const originRemote = "origin"
 
 const defaultMessageTemplate = `Update from image update automation`
+
+const repoRefKey = ".spec.gitRepository"
+const imagePolicyKey = ".spec.update.imagePolicy"
 
 // ImageUpdateAutomationReconciler reconciles a ImageUpdateAutomation object
 type ImageUpdateAutomationReconciler struct {
@@ -152,9 +158,78 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 }
 
 func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	ctx := context.Background()
+	// Index the git repository object that each I-U-A refers to
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &imagev1alpha1.ImageUpdateAutomation{}, repoRefKey, func(obj runtime.Object) []string {
+		updater := obj.(*imagev1alpha1.ImageUpdateAutomation)
+		ref := updater.Spec.GitRepository
+		return []string{ref.Name}
+	}); err != nil {
+		return err
+	}
+
+	// Index the image policy (if any) that each I-U-A refers to
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &imagev1alpha1.ImageUpdateAutomation{}, imagePolicyKey, func(obj runtime.Object) []string {
+		updater := obj.(*imagev1alpha1.ImageUpdateAutomation)
+		if ref := updater.Spec.Update.ImagePolicy; ref != nil {
+			return []string{ref.Name}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&imagev1alpha1.ImageUpdateAutomation{}).
+		Watches(&source.Kind{Type: &sourcev1alpha1.GitRepository{}},
+			&handler.EnqueueRequestsFromMapFunc{
+				ToRequests: handler.ToRequestsFunc(r.automationsForGitRepo),
+			}).
+		Watches(&source.Kind{Type: &imagev1alpha1_reflect.ImagePolicy{}},
+			&handler.EnqueueRequestsFromMapFunc{
+				ToRequests: handler.ToRequestsFunc(r.automationsForImagePolicy),
+			}).
 		Complete(r)
+}
+
+// automationsForGitRepo fetches all the automations that refer to a
+// particular source.GitRepository object.
+func (r *ImageUpdateAutomationReconciler) automationsForGitRepo(obj handler.MapObject) []reconcile.Request {
+	ctx := context.Background()
+	var autoList imagev1alpha1.ImageUpdateAutomationList
+	if err := r.List(ctx, &autoList, client.InNamespace(obj.Meta.GetNamespace()), client.MatchingFields{repoRefKey: obj.Meta.GetName()}); err != nil {
+		r.Log.Error(err, "failed to list ImageUpdateAutomations for GitRepository", "name", types.NamespacedName{
+			Name:      obj.Meta.GetName(),
+			Namespace: obj.Meta.GetNamespace(),
+		})
+		return nil
+	}
+	reqs := make([]reconcile.Request, len(autoList.Items), len(autoList.Items))
+	for i := range autoList.Items {
+		reqs[i].NamespacedName.Name = autoList.Items[i].GetName()
+		reqs[i].NamespacedName.Namespace = autoList.Items[i].GetNamespace()
+	}
+	return reqs
+}
+
+// automationsForImagePolicy fetches all the automations that refer to
+// a particular source.ImagePolicy object.
+func (r *ImageUpdateAutomationReconciler) automationsForImagePolicy(obj handler.MapObject) []reconcile.Request {
+	ctx := context.Background()
+	var autoList imagev1alpha1.ImageUpdateAutomationList
+	if err := r.List(ctx, &autoList, client.InNamespace(obj.Meta.GetNamespace()), client.MatchingFields{imagePolicyKey: obj.Meta.GetName()}); err != nil {
+		r.Log.Error(err, "failed to list ImageUpdateAutomations for ImagePolicy", "name", types.NamespacedName{
+			Name:      obj.Meta.GetName(),
+			Namespace: obj.Meta.GetNamespace(),
+		})
+		return nil
+	}
+	reqs := make([]reconcile.Request, len(autoList.Items), len(autoList.Items))
+	for i := range autoList.Items {
+		reqs[i].NamespacedName.Name = autoList.Items[i].GetName()
+		reqs[i].NamespacedName.Namespace = autoList.Items[i].GetNamespace()
+	}
+	return reqs
 }
 
 // --- git ops
