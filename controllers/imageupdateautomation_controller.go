@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
 	"text/template"
 	"time"
@@ -31,6 +32,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -98,7 +100,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 		// TODO status
 		return ctrl.Result{}, err
 	}
-	//defer os.RemoveAll(tmp)
+	defer os.RemoveAll(tmp)
 
 	// FIXME use context with deadline for at least the following ops
 
@@ -148,13 +150,16 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 	if rev, err = commitAllAndPush(ctx, repo, access, &auto.Spec.Commit); err != nil {
 		if err == errNoChanges {
 			log.Info("no changes made in working directory; no commit")
-			return ctrl.Result{}, nil
+		} else {
+			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, err
 	}
 	log.V(debug).Info("pushed commit to origin", "revision", rev)
 
-	return ctrl.Result{}, nil
+	now := time.Now()
+	auto.Status.LastAutomationRunTime = &metav1.Time{Time: now}
+	err = r.Status().Update(ctx, &auto)
+	return ctrl.Result{}, err
 }
 
 func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) error {

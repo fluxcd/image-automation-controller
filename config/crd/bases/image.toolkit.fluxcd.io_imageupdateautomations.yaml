@@ -8,6 +8,10 @@ metadata:
   creationTimestamp: null
   name: imageupdateautomations.image.toolkit.fluxcd.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.lastAutomationRunTime
+    name: Last run
+    type: string
   group: image.toolkit.fluxcd.io
   names:
     kind: ImageUpdateAutomation
@@ -15,6 +19,8 @@ spec:
     plural: imageupdateautomations
     singular: imageupdateautomation
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: ImageUpdateAutomation is the Schema for the imageupdateautomations
@@ -64,6 +70,10 @@ spec:
                     TODO: Add other useful fields. apiVersion, kind, uid?'
                   type: string
               type: object
+            minimumRunInterval:
+              description: RunInterval gives a lower bound for how often the automation
+                run should be attempted. Otherwise it will default.
+              type: string
             update:
               description: Update gives the specification for how to update the files
                 in the repository
@@ -85,6 +95,13 @@ spec:
           type: object
         status:
           description: ImageUpdateAutomationStatus defines the observed state of ImageUpdateAutomation
+          properties:
+            lastAutomationRunTime:
+              description: LastAutomationRunTime records the last time the controller
+                ran this automation through to completion (even if no updates were
+                made).
+              format: date-time
+              type: string
           type: object
       type: object
   version: v1alpha1
