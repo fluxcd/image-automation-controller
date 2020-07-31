@@ -4,14 +4,14 @@ go 1.13
 
 require (
 	// If you bump this, change TOOLKIT_VERSION in the Makefile to match
-	github.com/fluxcd/source-controller v0.0.6
+	github.com/fluxcd/source-controller v0.0.7
 	github.com/go-git/go-billy/v5 v5.0.0
 	github.com/go-git/go-git/v5 v5.1.0
 	github.com/go-logr/logr v0.1.0
 	github.com/google/go-containerregistry v0.1.1
 	github.com/onsi/ginkgo v1.12.1
 	github.com/onsi/gomega v1.10.1
-	github.com/squaremo/image-reflector-controller v0.0.0-20200719062427-4f918bf22db6
+	github.com/squaremo/image-reflector-controller v0.0.0-20200731142900-639007c6595b
 	k8s.io/api v0.18.4
 	k8s.io/apimachinery v0.18.4
 	k8s.io/client-go v0.18.4

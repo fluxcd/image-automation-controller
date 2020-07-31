@@ -32,7 +32,7 @@ the GitRepository kind, and doesn't need the source-controller itself.
 If you're not already using the [GitOps toolkit][gotk], you can just
 install the custom resource definition for GitRepository:
 
-    kubectl apply -f https://raw.githubusercontent.com/fluxcd/source-controller/master/config/crd/bases/source.fluxcd.io_gitrepositories.yaml
+    kubectl apply -f https://raw.githubusercontent.com/fluxcd/source-controller/master/config/crd/bases/source.toolkit.fluxcd.io_gitrepositories.yaml
 
 **To install the image reflector controller**
 
@@ -74,7 +74,7 @@ The `ImageRepository`:
 
 ```bash
 $ cat > image.yaml <<EOF
-apiVersion: image.fluxcd.io/v1alpha1
+apiVersion: image.toolkit.fluxcd.io/v1alpha1
 kind: ImageRepository
 metadata:
   name: app-image
@@ -87,7 +87,7 @@ EOF
 
 ```bash
 $ cat > policy.yaml <<EOF
-apiVersion: image.fluxcd.io/v1alpha1
+apiVersion: image.toolkit.fluxcd.io/v1alpha1
 kind: ImagePolicy
 metadata:
   name: app-policy
@@ -163,7 +163,7 @@ then edit `repo.yaml` afterwards.
 
 ```bash
 $ cat > repo.yaml <<EOF
-apiVersion: source.fluxcd.io/v1alpha1
+apiVersion: source.toolkit.fluxcd.io/v1alpha1
 kind: GitRepository
 metadata:
   name: cuttlefacts-repo
@@ -182,7 +182,7 @@ doesn't need to be, for the purpose of this run-through).
 
 ```bash
 $ kubectl apply -f repo.yaml
-gitrepository.source.fluxcd.io/cuttlefacts-repo created
+gitrepository.source.toolkit.fluxcd.io/cuttlefacts-repo created
 $ kubectl get gitrepository
 NAME               URL                                             READY   STATUS   AGE
 cuttlefacts-repo   ssh://git@github.com/squaremo/cuttlefacts-app                    9s
@@ -194,7 +194,7 @@ together with an `ImageUpdateAutomation` resource:
 
 ```
 $ cat > update.yaml <<EOF
-apiVersion: image.fluxcd.io/v1alpha1
+apiVersion: image.toolkit.fluxcd.io/v1alpha1
 kind: ImageUpdateAutomation
 metadata:
   name: update-app
