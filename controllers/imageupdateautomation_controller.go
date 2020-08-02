@@ -48,6 +48,8 @@ import (
 	imagev1alpha1_reflect "github.com/squaremo/image-reflector-controller/api/v1alpha1"
 )
 
+const defaultInterval = 2 * time.Minute
+
 // log level for debug info
 const debug = 1
 const originRemote = "origin"
@@ -66,7 +68,6 @@ type ImageUpdateAutomationReconciler struct {
 
 // +kubebuilder:rbac:groups=image.toolkit.fluxcd.io,resources=imageupdateautomations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=image.toolkit.fluxcd.io,resources=imageupdateautomations/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=gitrepositories,verbs=get;list;watch
 // +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=gitrepositories,verbs=get;list;watch
 
 func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
@@ -128,6 +129,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 		if err := r.Get(ctx, policyName, &policy); err != nil {
 			if client.IgnoreNotFound(err) == nil {
 				log.Info("referenced ImagePolicy not found")
+				// assume we'll be told if the image policy turns up, or if this resource changes
 				return ctrl.Result{}, nil
 			}
 			return ctrl.Result{}, err
@@ -135,31 +137,42 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 		if err := updateAccordingToImagePolicy(ctx, tmp, &policy); err != nil {
 			if err == errImagePolicyNotReady {
 				log.Info("image policy does not have latest image ref", "imagepolicy", policyName)
+				// assume we'll be told if the image policy or this resource changes
 				return ctrl.Result{}, nil
 			}
 			return ctrl.Result{}, err
 		}
 	default:
 		log.Info("no update strategy given in the spec")
+		// no sense rescheduling until this resource changes
 		return ctrl.Result{}, nil
 	}
 
-	log.V(debug).Info("made updates to working dir", "working", tmp)
+	log.V(debug).Info("ran updates to working dir", "working", tmp)
 
-	var rev string
-	if rev, err = commitAllAndPush(ctx, repo, access, &auto.Spec.Commit); err != nil {
+	if rev, err := commitAllAndPush(ctx, repo, access, &auto.Spec.Commit); err != nil {
 		if err == errNoChanges {
 			log.Info("no changes made in working directory; no commit")
 		} else {
 			return ctrl.Result{}, err
 		}
+	} else {
+		log.V(debug).Info("pushed commit to origin", "revision", rev)
 	}
-	log.V(debug).Info("pushed commit to origin", "revision", rev)
 
 	now := time.Now()
+	// the next run is always .spec.runInterval (or its default) away;
+	// that's because there's no logic above for exiting early when
+	// nothing's changed. Otherwise, this would be run near the top,
+	// and determine both whether to go ahead with the run, and _if
+	// not_, when to reschedule for.
+	when := durationUntilNextRun(&auto)
+
 	auto.Status.LastAutomationRunTime = &metav1.Time{Time: now}
-	err = r.Status().Update(ctx, &auto)
-	return ctrl.Result{}, err
+	if err = r.Status().Update(ctx, &auto); err != nil {
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{RequeueAfter: when}, nil
 }
 
 func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -195,6 +208,17 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) err
 				ToRequests: handler.ToRequestsFunc(r.automationsForImagePolicy),
 			}).
 		Complete(r)
+}
+
+// durationUntilNextRun gives the length of time to wait before
+// running the automation again after a successful run, unless
+// something (a dependency) changes to trigger a run.
+func durationUntilNextRun(auto *imagev1alpha1.ImageUpdateAutomation) time.Duration {
+	interval := defaultInterval
+	if auto.Spec.RunInterval != nil {
+		interval = auto.Spec.RunInterval.Duration
+	}
+	return interval
 }
 
 // automationsForGitRepo fetches all the automations that refer to a
@@ -285,7 +309,7 @@ func cloneInto(ctx context.Context, access repoAccess, path string) (*gogit.Repo
 	return gogit.PlainOpen(path)
 }
 
-var errNoChanges = errors.New("no changes in working directory")
+var errNoChanges error = errors.New("no changes made to working directory")
 
 func commitAllAndPush(ctx context.Context, repo *gogit.Repository, access repoAccess, commit *imagev1alpha1.CommitSpec) (string, error) {
 	working, err := repo.Worktree()
