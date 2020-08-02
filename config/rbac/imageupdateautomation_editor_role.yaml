@@ -5,7 +5,7 @@ metadata:
   name: imageupdateautomation-editor-role
 rules:
 - apiGroups:
-  - image.fluxcd.io
+  - image.toolkit.fluxcd.io
   resources:
   - imageupdateautomations
   verbs:
@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - image.fluxcd.io
+  - image.toolkit.fluxcd.io
   resources:
   - imageupdateautomations/status
   verbs:

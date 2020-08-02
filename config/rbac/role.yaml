@@ -7,7 +7,7 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - image.fluxcd.io
+  - image.toolkit.fluxcd.io
   resources:
   - imageupdateautomations
   verbs:
@@ -19,7 +19,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - image.fluxcd.io
+  - image.toolkit.fluxcd.io
   resources:
   - imageupdateautomations/status
   verbs:
@@ -27,7 +27,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - source.fluxcd.io
+  - source.toolkit.fluxcd.io
   resources:
   - gitrepositories
   verbs:
