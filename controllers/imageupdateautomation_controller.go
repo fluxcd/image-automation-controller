@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 	"strings"
 	"text/template"
@@ -150,6 +151,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 
 	log.V(debug).Info("ran updates to working dir", "working", tmp)
 
+	var commitMade bool
 	if rev, err := commitAllAndPush(ctx, repo, access, &auto.Spec.Commit); err != nil {
 		if err == errNoChanges {
 			log.Info("no changes made in working directory; no commit")
@@ -157,21 +159,32 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, err
 		}
 	} else {
+		commitMade = true
 		log.V(debug).Info("pushed commit to origin", "revision", rev)
 	}
 
-	now := time.Now()
-	// the next run is always .spec.runInterval (or its default) away;
-	// that's because there's no logic above for exiting early when
-	// nothing's changed. Otherwise, this would be run near the top,
-	// and determine both whether to go ahead with the run, and _if
-	// not_, when to reschedule for.
-	when := durationUntilNextRun(&auto)
+	// The status is not updated unless a commit was made, OR it's
+	// been at least interval since the last run (in which case,
+	// assume this is a periodic run). This is so there's a fixed
+	// point -- otherwise, the fact of the status change would mean it
+	// gets queued again.
 
-	auto.Status.LastAutomationRunTime = &metav1.Time{Time: now}
-	if err = r.Status().Update(ctx, &auto); err != nil {
-		return ctrl.Result{}, err
+	now := time.Now()
+	interval := intervalOrDefault(&auto)
+	sinceLast := durationSinceLastRun(&auto, now)
+
+	when := interval
+
+	if commitMade || sinceLast >= interval {
+		auto.Status.LastAutomationRunTime = &metav1.Time{Time: now}
+		if err = r.Status().Update(ctx, &auto); err != nil {
+			return ctrl.Result{}, err
+		}
+	} else {
+		// requeue for the remainder of the interval
+		when = interval - sinceLast
 	}
+
 	return ctrl.Result{RequeueAfter: when}, nil
 }
 
@@ -210,15 +223,23 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) err
 		Complete(r)
 }
 
+// intervalOrDefault gives the interval specified, or if missing, the default
+func intervalOrDefault(auto *imagev1alpha1.ImageUpdateAutomation) time.Duration {
+	if auto.Spec.RunInterval != nil {
+		return auto.Spec.RunInterval.Duration
+	}
+	return defaultInterval
+}
+
 // durationUntilNextRun gives the length of time to wait before
 // running the automation again after a successful run, unless
 // something (a dependency) changes to trigger a run.
-func durationUntilNextRun(auto *imagev1alpha1.ImageUpdateAutomation) time.Duration {
-	interval := defaultInterval
-	if auto.Spec.RunInterval != nil {
-		interval = auto.Spec.RunInterval.Duration
+func durationSinceLastRun(auto *imagev1alpha1.ImageUpdateAutomation, now time.Time) time.Duration {
+	last := auto.Status.LastAutomationRunTime
+	if last == nil {
+		return time.Duration(math.MaxInt64) // a fairly long time
 	}
-	return interval
+	return now.Sub(last.Time)
 }
 
 // automationsForGitRepo fetches all the automations that refer to a
