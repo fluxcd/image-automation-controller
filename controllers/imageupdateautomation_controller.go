@@ -111,12 +111,12 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 	}
 
 	var repo *gogit.Repository
-	if repo, err = cloneInto(ctx, access, tmp); err != nil {
+	if repo, err = cloneInto(ctx, access, auto.Spec.Branch, tmp); err != nil {
 		// TODO status
 		return ctrl.Result{}, err
 	}
 
-	log.V(debug).Info("cloned git repository", "gitrepository", originName, "working", tmp)
+	log.V(debug).Info("cloned git repository", "gitrepository", originName, "branch", auto.Spec.Branch, "working", tmp)
 
 	updateStrat := auto.Spec.Update
 	switch {
@@ -295,12 +295,10 @@ func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, rep
 	return access, nil
 }
 
-func cloneInto(ctx context.Context, access repoAccess, path string) (*gogit.Repository, error) {
-	// For now, check out the default branch. Using `nil` will do this
-	// for now; but, it's likely that eventually a *GitRepositoryRef
-	// will come from the image-update-automation object or the
-	// git-repository object.
-	checkoutStrat := git.CheckoutStrategyForRef(nil)
+func cloneInto(ctx context.Context, access repoAccess, branch, path string) (*gogit.Repository, error) {
+	checkoutStrat := git.CheckoutStrategyForRef(&sourcev1alpha1.GitRepositoryRef{
+		Branch: branch,
+	})
 	_, _, err := checkoutStrat.Checkout(ctx, path, access.url, access.auth)
 	if err != nil {
 		return nil, err

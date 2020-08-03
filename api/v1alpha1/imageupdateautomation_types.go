@@ -30,6 +30,11 @@ type ImageUpdateAutomationSpec struct {
 	// git repository to update files in.
 	// +required
 	GitRepository corev1.LocalObjectReference `json:"gitRepository"`
+	// Branch gives the branch to clone from the git repository. If
+	// missing, it will be left to default; be aware this may give
+	// indeterminate results.
+	// +optional
+	Branch string `json:"branch,omitempty"`
 	// RunInterval gives a lower bound for how often the automation
 	// run should be attempted. Otherwise it will default.
 	// +optional

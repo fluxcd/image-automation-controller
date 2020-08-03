@@ -28,7 +28,7 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
-	//"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/memory"
 	. "github.com/onsi/ginkgo"
@@ -44,6 +44,8 @@ import (
 )
 
 const timeout = 10 * time.Second
+
+const defaultBranch = "test-main"
 
 // Copied from
 // https://github.com/fluxcd/source-controller/blob/master/controllers/suite_test.go
@@ -127,8 +129,9 @@ var _ = Describe("ImageUpdateAutomation", func() {
 
 			var err error
 			localRepo, err = git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
-				URL:        repoURL,
-				RemoteName: "origin",
+				URL:           repoURL,
+				RemoteName:    "origin",
+				ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
 			})
 			Expect(err).ToNot(HaveOccurred())
 
@@ -165,6 +168,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 					GitRepository: corev1.LocalObjectReference{
 						Name: gitRepoKey.Name,
 					},
+					Branch: defaultBranch,
 					Update: imagev1alpha1.UpdateStrategy{
 						ImagePolicy: &corev1.LocalObjectReference{
 							Name: policyKey.Name,
@@ -181,7 +185,9 @@ var _ = Describe("ImageUpdateAutomation", func() {
 			working, err := localRepo.Worktree()
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
-				if working.Pull(&git.PullOptions{}); err != nil {
+				if working.Pull(&git.PullOptions{
+					ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+				}); err != nil {
 					return false
 				}
 				h, _ := localRepo.Head()
@@ -206,7 +212,8 @@ var _ = Describe("ImageUpdateAutomation", func() {
 			defer os.RemoveAll(tmp)
 
 			_, err = git.PlainClone(tmp, false, &git.CloneOptions{
-				URL: repoURL,
+				URL:           repoURL,
+				ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
 			})
 			Expect(err).ToNot(HaveOccurred())
 			test.ExpectMatchingDirectories(tmp, "testdata/appconfig-expected")
@@ -229,7 +236,9 @@ var _ = Describe("ImageUpdateAutomation", func() {
 			working, err := localRepo.Worktree()
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
-				if working.Pull(&git.PullOptions{}); err != nil {
+				if working.Pull(&git.PullOptions{
+					ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+				}); err != nil {
 					return false
 				}
 				h, _ := localRepo.Head()
@@ -241,7 +250,8 @@ var _ = Describe("ImageUpdateAutomation", func() {
 			defer os.RemoveAll(tmp)
 
 			_, err = git.PlainClone(tmp, false, &git.CloneOptions{
-				URL: repoURL,
+				URL:           repoURL,
+				ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
 			})
 			Expect(err).ToNot(HaveOccurred())
 			test.ExpectMatchingDirectories(tmp, "testdata/appconfig-expected2")
@@ -298,6 +308,13 @@ func initGitRepo(gitServer *testserver.GitServer, fixture, repositoryPath string
 			Email: "test@example.com",
 			When:  time.Now(),
 		},
+	}); err != nil {
+		return err
+	}
+
+	if err = working.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(defaultBranch),
+		Create: true,
 	}); err != nil {
 		return err
 	}
