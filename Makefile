@@ -22,6 +22,9 @@ all: manager
 # Running the tests requires the source.toolkit.fluxcd.io CRDs
 test_deps: ${TEST_CRDS}/imagepolicies.yaml ${TEST_CRDS}/gitrepositories.yaml
 
+clean_test_deps:
+	rm -r ${TEST_CRDS}
+
 ${TEST_CRDS}/gitrepositories.yaml:
 	mkdir -p ${TEST_CRDS}
 	curl -s https://raw.githubusercontent.com/fluxcd/source-controller/${TOOLKIT_VERSION}/config/crd/bases/source.toolkit.fluxcd.io_gitrepositories.yaml \
