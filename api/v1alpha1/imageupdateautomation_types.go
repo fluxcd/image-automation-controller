@@ -30,6 +30,15 @@ type ImageUpdateAutomationSpec struct {
 	// git repository to update files in.
 	// +required
 	GitRepository corev1.LocalObjectReference `json:"gitRepository"`
+	// Branch gives the branch to clone from the git repository. If
+	// missing, it will be left to default; be aware this may give
+	// indeterminate results.
+	// +optional
+	Branch string `json:"branch,omitempty"`
+	// RunInterval gives a lower bound for how often the automation
+	// run should be attempted. Otherwise it will default.
+	// +optional
+	RunInterval *metav1.Duration `json:"minimumRunInterval,omitempty"`
 	// Update gives the specification for how to update the files in
 	// the repository
 	// +required
@@ -64,11 +73,16 @@ type CommitSpec struct {
 
 // ImageUpdateAutomationStatus defines the observed state of ImageUpdateAutomation
 type ImageUpdateAutomationStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// LastAutomationRunTime records the last time the controller ran
+	// this automation through to completion (even if no updates were
+	// made).
+	// +optional
+	LastAutomationRunTime *metav1.Time `json:"lastAutomationRunTime,omitempty"`
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Last run",type=string,JSONPath=`.status.lastAutomationRunTime`
 
 // ImageUpdateAutomation is the Schema for the imageupdateautomations API
 type ImageUpdateAutomation struct {
@@ -80,7 +94,6 @@ type ImageUpdateAutomation struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
 
 // ImageUpdateAutomationList contains a list of ImageUpdateAutomation
 type ImageUpdateAutomationList struct {

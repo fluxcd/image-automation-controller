@@ -28,7 +28,7 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
-	//"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/memory"
 	. "github.com/onsi/ginkgo"
@@ -44,6 +44,8 @@ import (
 )
 
 const timeout = 10 * time.Second
+
+const defaultBranch = "test-main"
 
 // Copied from
 // https://github.com/fluxcd/source-controller/blob/master/controllers/suite_test.go
@@ -120,14 +122,16 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		)
 
 		const latestImage = "helloworld:1.0.1"
+		const evenLatestImage = "helloworld:1.2.0"
 
 		BeforeEach(func() {
 			Expect(initGitRepo(gitServer, "testdata/appconfig", repositoryPath)).To(Succeed())
 
 			var err error
 			localRepo, err = git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
-				URL:        repoURL,
-				RemoteName: "origin",
+				URL:           repoURL,
+				RemoteName:    "origin",
+				ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
 			})
 			Expect(err).ToNot(HaveOccurred())
 
@@ -164,6 +168,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 					GitRepository: corev1.LocalObjectReference{
 						Name: gitRepoKey.Name,
 					},
+					Branch: defaultBranch,
 					Update: imagev1alpha1.UpdateStrategy{
 						ImagePolicy: &corev1.LocalObjectReference{
 							Name: policyKey.Name,
@@ -175,6 +180,19 @@ var _ = Describe("ImageUpdateAutomation", func() {
 				},
 			}
 			Expect(k8sClient.Create(context.Background(), updateByImagePolicy)).To(Succeed())
+			head, _ := localRepo.Head()
+			headHash := head.Hash().String()
+			working, err := localRepo.Worktree()
+			Expect(err).ToNot(HaveOccurred())
+			Eventually(func() bool {
+				if working.Pull(&git.PullOptions{
+					ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+				}); err != nil {
+					return false
+				}
+				h, _ := localRepo.Head()
+				return headHash != h.Hash().String()
+			}, timeout, time.Second).Should(BeTrue())
 		})
 
 		AfterEach(func() {
@@ -183,18 +201,8 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		})
 
 		It("updates to the most recent image", func() {
+			// having passed the BeforeEach, we should see a commit
 			head, _ := localRepo.Head()
-			headHash := head.Hash().String()
-			working, err := localRepo.Worktree()
-			Expect(err).ToNot(HaveOccurred())
-			Eventually(func() bool {
-				if working.Pull(&git.PullOptions{}); err != nil {
-					return false
-				}
-				h, _ := localRepo.Head()
-				return headHash != h.Hash().String()
-			}, timeout, time.Second).Should(BeTrue())
-			head, _ = localRepo.Head()
 			commit, err := localRepo.CommitObject(head.Hash())
 			Expect(err).ToNot(HaveOccurred())
 			Expect(commit.Message).To(Equal(commitMessage))
@@ -204,10 +212,49 @@ var _ = Describe("ImageUpdateAutomation", func() {
 			defer os.RemoveAll(tmp)
 
 			_, err = git.PlainClone(tmp, false, &git.CloneOptions{
-				URL: repoURL,
+				URL:           repoURL,
+				ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
 			})
 			Expect(err).ToNot(HaveOccurred())
 			test.ExpectMatchingDirectories(tmp, "testdata/appconfig-expected")
+		})
+
+		It("makes a commit when the policy changes", func() {
+			// make sure the first commit happened
+			head, _ := localRepo.Head()
+			commit, err := localRepo.CommitObject(head.Hash())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(commit.Message).To(Equal(commitMessage))
+
+			headHash := head.Hash().String()
+
+			// change the status and
+			// make sure there's a commit for that.
+			policy.Status.LatestImage = evenLatestImage
+			Expect(k8sClient.Status().Update(context.Background(), policy)).To(Succeed())
+
+			working, err := localRepo.Worktree()
+			Expect(err).ToNot(HaveOccurred())
+			Eventually(func() bool {
+				if working.Pull(&git.PullOptions{
+					ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+				}); err != nil {
+					return false
+				}
+				h, _ := localRepo.Head()
+				return headHash != h.Hash().String()
+			}, timeout, time.Second).Should(BeTrue())
+
+			tmp, err := ioutil.TempDir("", "gotest-imageauto")
+			Expect(err).ToNot(HaveOccurred())
+			defer os.RemoveAll(tmp)
+
+			_, err = git.PlainClone(tmp, false, &git.CloneOptions{
+				URL:           repoURL,
+				ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+			})
+			Expect(err).ToNot(HaveOccurred())
+			test.ExpectMatchingDirectories(tmp, "testdata/appconfig-expected2")
 		})
 	})
 })
@@ -261,6 +308,13 @@ func initGitRepo(gitServer *testserver.GitServer, fixture, repositoryPath string
 			Email: "test@example.com",
 			When:  time.Now(),
 		},
+	}); err != nil {
+		return err
+	}
+
+	if err = working.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(defaultBranch),
+		Create: true,
 	}); err != nil {
 		return err
 	}
