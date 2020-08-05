@@ -90,7 +90,7 @@ spec:
               description: Update gives the specification for how to update the files
                 in the repository
               properties:
-                imagePolicy:
+                imagePolicyRef:
                   description: ImagePolicy if present means update all workloads using
                     the given policy's image, to the policy's latest image reference.
                   properties:

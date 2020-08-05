@@ -121,11 +121,11 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 
 	updateStrat := auto.Spec.Update
 	switch {
-	case updateStrat.ImagePolicy != nil:
+	case updateStrat.ImagePolicyRef != nil:
 		var policy imagev1alpha1_reflect.ImagePolicy
 		policyName := types.NamespacedName{
 			Namespace: auto.GetNamespace(),
-			Name:      updateStrat.ImagePolicy.Name,
+			Name:      updateStrat.ImagePolicyRef.Name,
 		}
 		if err := r.Get(ctx, policyName, &policy); err != nil {
 			if client.IgnoreNotFound(err) == nil {
@@ -202,7 +202,7 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) err
 	// Index the image policy (if any) that each I-U-A refers to
 	if err := mgr.GetFieldIndexer().IndexField(ctx, &imagev1alpha1.ImageUpdateAutomation{}, imagePolicyKey, func(obj runtime.Object) []string {
 		updater := obj.(*imagev1alpha1.ImageUpdateAutomation)
-		if ref := updater.Spec.Update.ImagePolicy; ref != nil {
+		if ref := updater.Spec.Update.ImagePolicyRef; ref != nil {
 			return []string{ref.Name}
 		}
 		return nil

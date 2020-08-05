@@ -61,7 +61,7 @@ type UpdateStrategy struct {
 	// ImagePolicy if present means update all workloads using the
 	// given policy's image, to the policy's latest image reference.
 	// +optional
-	ImagePolicy *corev1.LocalObjectReference `json:"imagePolicy,omitempty"`
+	ImagePolicyRef *corev1.LocalObjectReference `json:"imagePolicyRef,omitempty"`
 }
 
 // CommitSpec specifies how to commit changes to the git repository

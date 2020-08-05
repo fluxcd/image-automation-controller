@@ -172,7 +172,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 						Branch: defaultBranch,
 					},
 					Update: imagev1alpha1.UpdateStrategy{
-						ImagePolicy: &corev1.LocalObjectReference{
+						ImagePolicyRef: &corev1.LocalObjectReference{
 							Name: policyKey.Name,
 						},
 					},
