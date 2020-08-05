@@ -83,7 +83,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 	// get the git repository object so it can be checked out
 	var origin sourcev1alpha1.GitRepository
 	originName := types.NamespacedName{
-		Name:      auto.Spec.GitRepository.Name,
+		Name:      auto.Spec.Checkout.GitRepositoryRef.Name,
 		Namespace: auto.GetNamespace(),
 	}
 	if err := r.Get(ctx, originName, &origin); err != nil {
@@ -112,12 +112,12 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 	}
 
 	var repo *gogit.Repository
-	if repo, err = cloneInto(ctx, access, auto.Spec.Branch, tmp); err != nil {
+	if repo, err = cloneInto(ctx, access, auto.Spec.Checkout.Branch, tmp); err != nil {
 		// TODO status
 		return ctrl.Result{}, err
 	}
 
-	log.V(debug).Info("cloned git repository", "gitrepository", originName, "branch", auto.Spec.Branch, "working", tmp)
+	log.V(debug).Info("cloned git repository", "gitrepository", originName, "branch", auto.Spec.Checkout.Branch, "working", tmp)
 
 	updateStrat := auto.Spec.Update
 	switch {
@@ -193,7 +193,7 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) err
 	// Index the git repository object that each I-U-A refers to
 	if err := mgr.GetFieldIndexer().IndexField(ctx, &imagev1alpha1.ImageUpdateAutomation{}, repoRefKey, func(obj runtime.Object) []string {
 		updater := obj.(*imagev1alpha1.ImageUpdateAutomation)
-		ref := updater.Spec.GitRepository
+		ref := updater.Spec.Checkout.GitRepositoryRef
 		return []string{ref.Name}
 	}); err != nil {
 		return err

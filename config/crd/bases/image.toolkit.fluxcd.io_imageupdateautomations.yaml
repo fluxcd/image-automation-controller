@@ -41,11 +41,27 @@ spec:
         spec:
           description: ImageUpdateAutomationSpec defines the desired state of ImageUpdateAutomation
           properties:
-            branch:
-              description: Branch gives the branch to clone from the git repository.
-                If missing, it will be left to default; be aware this may give indeterminate
-                results.
-              type: string
+            checkout:
+              description: Checkout gives the parameters for cloning the git repository,
+                ready to make changes.
+              properties:
+                branch:
+                  description: Branch gives the branch to clone from the git repository.
+                    If missing, it will be left to default; be aware this may give
+                    indeterminate results.
+                  type: string
+                gitRepositoryRef:
+                  description: GitRepository refers to the resource giving access
+                    details to a git repository to update files in.
+                  properties:
+                    name:
+                      description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                        TODO: Add other useful fields. apiVersion, kind, uid?'
+                      type: string
+                  type: object
+              required:
+              - gitRepositoryRef
+              type: object
             commit:
               description: Commit specifies how to commit to the git repo
               properties:
@@ -66,15 +82,6 @@ spec:
               - authorEmail
               - authorName
               type: object
-            gitRepository:
-              description: GitRepository refers to the resource carry access details
-                to a git repository to update files in.
-              properties:
-                name:
-                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                    TODO: Add other useful fields. apiVersion, kind, uid?'
-                  type: string
-              type: object
             minimumRunInterval:
               description: RunInterval gives a lower bound for how often the automation
                 run should be attempted. Otherwise it will default.
@@ -94,8 +101,8 @@ spec:
                   type: object
               type: object
           required:
+          - checkout
           - commit
-          - gitRepository
           - update
           type: object
         status:

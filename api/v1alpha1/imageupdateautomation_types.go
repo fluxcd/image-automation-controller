@@ -26,15 +26,10 @@ import (
 
 // ImageUpdateAutomationSpec defines the desired state of ImageUpdateAutomation
 type ImageUpdateAutomationSpec struct {
-	// GitRepository refers to the resource carry access details to a
-	// git repository to update files in.
+	// Checkout gives the parameters for cloning the git repository,
+	// ready to make changes.
 	// +required
-	GitRepository corev1.LocalObjectReference `json:"gitRepository"`
-	// Branch gives the branch to clone from the git repository. If
-	// missing, it will be left to default; be aware this may give
-	// indeterminate results.
-	// +optional
-	Branch string `json:"branch,omitempty"`
+	Checkout GitCheckoutSpec `json:"checkout"`
 	// RunInterval gives a lower bound for how often the automation
 	// run should be attempted. Otherwise it will default.
 	// +optional
@@ -46,6 +41,18 @@ type ImageUpdateAutomationSpec struct {
 	// Commit specifies how to commit to the git repo
 	// +required
 	Commit CommitSpec `json:"commit"`
+}
+
+type GitCheckoutSpec struct {
+	// GitRepository refers to the resource giving access details to a
+	// git repository to update files in.
+	// +required
+	GitRepositoryRef corev1.LocalObjectReference `json:"gitRepositoryRef"`
+	// Branch gives the branch to clone from the git repository. If
+	// missing, it will be left to default; be aware this may give
+	// indeterminate results.
+	// +optional
+	Branch string `json:"branch,omitempty"`
 }
 
 // UpdateStrategy is a union of the various strategies for updating
