@@ -44,8 +44,8 @@ type ImageUpdateAutomationSpec struct {
 }
 
 type GitCheckoutSpec struct {
-	// GitRepository refers to the resource giving access details to a
-	// git repository to update files in.
+	// GitRepositoryRef refers to the resource giving access details
+	// to a git repository to update files in.
 	// +required
 	GitRepositoryRef corev1.LocalObjectReference `json:"gitRepositoryRef"`
 	// Branch gives the branch to clone from the git repository. If
@@ -58,7 +58,7 @@ type GitCheckoutSpec struct {
 // UpdateStrategy is a union of the various strategies for updating
 // the git repository.
 type UpdateStrategy struct {
-	// ImagePolicy if present means update all workloads using the
+	// ImagePolicyRef if present means update all workloads using the
 	// given policy's image, to the policy's latest image reference.
 	// +optional
 	ImagePolicyRef *corev1.LocalObjectReference `json:"imagePolicyRef,omitempty"`
