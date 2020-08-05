@@ -26,15 +26,10 @@ import (
 
 // ImageUpdateAutomationSpec defines the desired state of ImageUpdateAutomation
 type ImageUpdateAutomationSpec struct {
-	// GitRepository refers to the resource carry access details to a
-	// git repository to update files in.
+	// Checkout gives the parameters for cloning the git repository,
+	// ready to make changes.
 	// +required
-	GitRepository corev1.LocalObjectReference `json:"gitRepository"`
-	// Branch gives the branch to clone from the git repository. If
-	// missing, it will be left to default; be aware this may give
-	// indeterminate results.
-	// +optional
-	Branch string `json:"branch,omitempty"`
+	Checkout GitCheckoutSpec `json:"checkout"`
 	// RunInterval gives a lower bound for how often the automation
 	// run should be attempted. Otherwise it will default.
 	// +optional
@@ -48,13 +43,25 @@ type ImageUpdateAutomationSpec struct {
 	Commit CommitSpec `json:"commit"`
 }
 
+type GitCheckoutSpec struct {
+	// GitRepositoryRef refers to the resource giving access details
+	// to a git repository to update files in.
+	// +required
+	GitRepositoryRef corev1.LocalObjectReference `json:"gitRepositoryRef"`
+	// Branch gives the branch to clone from the git repository. If
+	// missing, it will be left to default; be aware this may give
+	// indeterminate results.
+	// +optional
+	Branch string `json:"branch,omitempty"`
+}
+
 // UpdateStrategy is a union of the various strategies for updating
 // the git repository.
 type UpdateStrategy struct {
-	// ImagePolicy if present means update all workloads using the
+	// ImagePolicyRef if present means update all workloads using the
 	// given policy's image, to the policy's latest image reference.
 	// +optional
-	ImagePolicy *corev1.LocalObjectReference `json:"imagePolicy,omitempty"`
+	ImagePolicyRef *corev1.LocalObjectReference `json:"imagePolicyRef,omitempty"`
 }
 
 // CommitSpec specifies how to commit changes to the git repository

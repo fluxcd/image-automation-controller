@@ -165,12 +165,14 @@ var _ = Describe("ImageUpdateAutomation", func() {
 					Namespace: updateKey.Namespace,
 				},
 				Spec: imagev1alpha1.ImageUpdateAutomationSpec{
-					GitRepository: corev1.LocalObjectReference{
-						Name: gitRepoKey.Name,
+					Checkout: imagev1alpha1.GitCheckoutSpec{
+						GitRepositoryRef: corev1.LocalObjectReference{
+							Name: gitRepoKey.Name,
+						},
+						Branch: defaultBranch,
 					},
-					Branch: defaultBranch,
 					Update: imagev1alpha1.UpdateStrategy{
-						ImagePolicy: &corev1.LocalObjectReference{
+						ImagePolicyRef: &corev1.LocalObjectReference{
 							Name: policyKey.Name,
 						},
 					},
