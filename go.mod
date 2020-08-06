@@ -1,6 +1,6 @@
 module github.com/squaremo/image-automation-controller
 
-go 1.13
+go 1.14
 
 require (
 	// If you bump this, change TOOLKIT_VERSION in the Makefile to match
