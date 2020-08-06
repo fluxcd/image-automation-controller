@@ -146,7 +146,16 @@ var _ = Describe("ImageUpdateAutomation", func() {
 					Name:      policyKey.Name,
 					Namespace: policyKey.Namespace,
 				},
-				Spec: imagev1alpha1_reflect.ImagePolicySpec{},
+				Spec: imagev1alpha1_reflect.ImagePolicySpec{
+					ImageRepositoryRef: corev1.LocalObjectReference{
+						Name: "not-expected-to-exist",
+					},
+					Policy: imagev1alpha1_reflect.ImagePolicyChoice{
+						SemVer: &imagev1alpha1_reflect.SemVerPolicy{
+							Range: "1.x",
+						},
+					},
+				},
 				Status: imagev1alpha1_reflect.ImagePolicyStatus{
 					LatestImage: latestImage,
 				},
