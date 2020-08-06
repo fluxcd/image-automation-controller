@@ -11,7 +11,7 @@ require (
 	github.com/google/go-containerregistry v0.1.1
 	github.com/onsi/ginkgo v1.12.1
 	github.com/onsi/gomega v1.10.1
-	github.com/squaremo/image-reflector-controller v0.0.0-20200731142900-639007c6595b
+	github.com/squaremo/image-reflector-controller v0.0.0-20200806084621-949f5815f1b0
 	k8s.io/api v0.18.6
 	k8s.io/apimachinery v0.18.6
 	k8s.io/client-go v0.18.6
