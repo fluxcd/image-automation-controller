@@ -3,10 +3,10 @@
 This is part of the image update automation, as outlined in
 
  - [this post](https://squaremo.dev/posts/gitops-controllers/); and refined in
- - [this design](https://github.com/squaremo/image-reflector-controller/pull/5)
+ - [this design](https://github.com/fluxcd/image-reflector-controller/pull/5)
 
 Its sibling repository
-[image-reflector-controller](https://github.com/squaremo/image-reflector-controller)
+[image-reflector-controller](https://github.com/fluxcd/image-reflector-controller)
 implements the image metadata reflection controller (scans container
 image repositories and reflects the metadata in Kubernetes resources);
 this repository implements the image update automation controller.
@@ -40,13 +40,13 @@ This controller relies on the image reflector controller. A working
 configuration for the latter can be applied straight from the GitHub
 repository (NB `-k`):
 
-    kubectl apply -k github.com/squaremo/image-reflector-controller/config/default
+    kubectl apply -k github.com/fluxcd/image-reflector-controller/config/default
 
 ### Installing the automation controller
 
 You can apply a working configuration directly from GitHub:
 
-    kubectl apply -k github.com/squaremo/image-automation-controller/config/default
+    kubectl apply -k github.com/fluxcd/image-automation-controller/config/default
 
 or, in a clone of this repository,
 
@@ -221,7 +221,7 @@ given by the image policy. Here's an example, [from my own
 repository][squaremo-auto-commit].
 
 [source-controller]: https://github.com/fluxcd/source-controller
-[image-reflector]: https://github.com/squaremo/image-reflector-controller
+[image-reflector]: https://github.com/fluxcd/image-reflector-controller
 [gotk]: https://toolkit.fluxcd.io
 [cuttlefacts-app-repo]: https://github.com/cuttlefacts/cuttlefacts-app
 [github-fingerprints]: https://docs.github.com/en/github/authenticating-to-github/githubs-ssh-key-fingerprints

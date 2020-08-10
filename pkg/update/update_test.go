@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/squaremo/image-automation-controller/pkg/test"
+	"github.com/fluxcd/image-automation-controller/pkg/test"
 )
 
 func TestUpdate(t *testing.T) {

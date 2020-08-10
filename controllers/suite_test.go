@@ -31,9 +31,9 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	imagev1alpha1 "github.com/fluxcd/image-automation-controller/api/v1alpha1"
+	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
 	sourcev1alpha1 "github.com/fluxcd/source-controller/api/v1alpha1"
-	imagev1alpha1 "github.com/squaremo/image-automation-controller/api/v1alpha1"
-	imagev1alpha1_reflect "github.com/squaremo/image-reflector-controller/api/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
