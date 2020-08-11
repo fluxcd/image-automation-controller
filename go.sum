@@ -293,6 +293,8 @@ github.com/fatih/camelcase v1.0.0/go.mod h1:yN2Sb0lFhZJUdVvtELVWefmrXpuZESvPmqwo
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/fatih/color v1.9.0 h1:8xPHl4/q1VyqGIPif1F+1V3Y3lSmrq01EabUW3CoW5s=
 github.com/fatih/color v1.9.0/go.mod h1:eQcE1qtQxscV5RaZvpXrrb8Drkc3/DdQ+uUYCNjL+zU=
+github.com/fluxcd/image-reflector-controller v0.0.0-20200810165546-c2265d9b49b9 h1:puMXg9dmh/i3rpAuzVq5R5L84pZMA/KUNZbPxi0JdWw=
+github.com/fluxcd/image-reflector-controller v0.0.0-20200810165546-c2265d9b49b9/go.mod h1:v2cJ+q7zRlj1VhYjtE1i3cGAFkSTz21/tKidWIIGUtU=
 github.com/fluxcd/pkg v0.0.3 h1:yhjtpGtD9LxFo8JtwTuUxJyFcX2wSSb0TPptIEpGSmA=
 github.com/fluxcd/pkg v0.0.3/go.mod h1:rtlppQU+9DNikyDZptLdOeTf+wBvQQiQQ/J113FPoeU=
 github.com/fluxcd/source-controller v0.0.7 h1:D17Le7bc+53deRA3EMJc9eB/uU2HqvkMCwILE5HRhPk=
@@ -913,8 +915,6 @@ github.com/spf13/viper v1.3.2/go.mod h1:ZiWeW+zYFKm7srdB9IoDzzZXaJaI5eL9QjNiN/DM
 github.com/spf13/viper v1.4.0/go.mod h1:PTJ7Z/lr49W6bUbkmS1V3by4uWynFiR9p7+dSq/yZzE=
 github.com/spf13/viper v1.6.1/go.mod h1:t3iDnF5Jlj76alVNuyFBk5oUMCvsrkbvZK0WQdfDi5k=
 github.com/spf13/viper v1.7.0/go.mod h1:8WkrPz2fc9jxqZNCJI/76HCieCp4Q8HaLFoCha5qpdg=
-github.com/squaremo/image-reflector-controller v0.0.0-20200806084621-949f5815f1b0 h1:kTCPWxu6N63aG44NFTj0hdLAdUUAZ3NqUbvwqs6/Bms=
-github.com/squaremo/image-reflector-controller v0.0.0-20200806084621-949f5815f1b0/go.mod h1:mSk+RSF2BxrxHCq58gVnPbPYo+paz6O8GaeclrUoTzs=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/objx v0.1.1/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/objx v0.2.0/go.mod h1:qt09Ya8vawLte6SNmTgCsAVtYtaKzEcn8ATUoHMkEqE=

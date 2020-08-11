@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= squaremo/image-automation-controller
+IMG ?= fluxcd/image-automation-controller
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
@@ -32,7 +32,7 @@ ${TEST_CRDS}/gitrepositories.yaml:
 
 ${TEST_CRDS}/imagepolicies.yaml:
 	mkdir -p ${TEST_CRDS}
-	curl -s https://raw.githubusercontent.com/squaremo/image-reflector-controller/main/config/crd/bases/image.toolkit.fluxcd.io_imagepolicies.yaml \
+	curl -s https://raw.githubusercontent.com/fluxcd/image-reflector-controller/main/config/crd/bases/image.toolkit.fluxcd.io_imagepolicies.yaml \
 		-o ${TEST_CRDS}/imagepolicies.yaml
 
 # Run tests

@@ -1,5 +1,5 @@
 domain: toolkit.fluxcd.io
-repo: github.com/squaremo/image-automation-controller
+repo: github.com/fluxcd/image-automation-controller
 resources:
 - group: image
   kind: ImageUpdateAutomation
