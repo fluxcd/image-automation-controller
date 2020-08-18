@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/fluxcd/source-controller/pkg/testserver"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -37,10 +36,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
+	"github.com/fluxcd/pkg/gittestserver"
+	sourcev1alpha1 "github.com/fluxcd/source-controller/api/v1alpha1"
+
 	imagev1alpha1 "github.com/fluxcd/image-automation-controller/api/v1alpha1"
 	"github.com/fluxcd/image-automation-controller/pkg/test"
-	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
-	sourcev1alpha1 "github.com/fluxcd/source-controller/api/v1alpha1"
 )
 
 const timeout = 10 * time.Second
@@ -64,7 +65,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		repositoryPath string
 		repoURL        string
 		namespace      *corev1.Namespace
-		gitServer      *testserver.GitServer
+		gitServer      *gittestserver.GitServer
 		gitRepoKey     types.NamespacedName
 	)
 
@@ -77,7 +78,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		Expect(k8sClient.Create(context.Background(), namespace)).To(Succeed())
 
 		var err error
-		gitServer, err = testserver.NewTempGitServer()
+		gitServer, err = gittestserver.NewTempGitServer()
 		Expect(err).NotTo(HaveOccurred())
 		gitServer.AutoCreate()
 		Expect(gitServer.StartHTTP()).To(Succeed())
@@ -271,7 +272,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 })
 
 // Initialise a git server with a repo including the files in dir.
-func initGitRepo(gitServer *testserver.GitServer, fixture, repositoryPath string) error {
+func initGitRepo(gitServer *gittestserver.GitServer, fixture, repositoryPath string) error {
 	fs := memfs.New()
 	repo, err := git.Init(memory.NewStorage(), fs)
 	if err != nil {

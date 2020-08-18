@@ -4,9 +4,9 @@ IMG ?= fluxcd/image-automation-controller
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
-# Version of the Toolkit from which to get CRDs. Change this if you
+# Versions of the Toolkit components from which to get CRDs. Change this if you
 # bump the go module version.
-TOOLKIT_VERSION:=v0.0.7
+SOURCE_VERSION:=v0.0.10
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -27,7 +27,7 @@ clean_test_deps:
 
 ${TEST_CRDS}/gitrepositories.yaml:
 	mkdir -p ${TEST_CRDS}
-	curl -s https://raw.githubusercontent.com/fluxcd/source-controller/${TOOLKIT_VERSION}/config/crd/bases/source.toolkit.fluxcd.io_gitrepositories.yaml \
+	curl -s https://raw.githubusercontent.com/fluxcd/source-controller/${SOURCE_VERSION}/config/crd/bases/source.toolkit.fluxcd.io_gitrepositories.yaml \
 		-o ${TEST_CRDS}/gitrepositories.yaml
 
 ${TEST_CRDS}/imagepolicies.yaml:
