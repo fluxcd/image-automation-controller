@@ -2,7 +2,10 @@ module github.com/fluxcd/image-automation-controller
 
 go 1.15
 
+replace github.com/fluxcd/image-automation-controller/api => ./api
+
 require (
+	github.com/fluxcd/image-automation-controller/api v0.0.0-00010101000000-000000000000
 	github.com/fluxcd/image-reflector-controller v0.0.0-20200810165546-c2265d9b49b9
 	// If you bump this, change TOOLKIT_VERSION in the Makefile to match
 	github.com/fluxcd/source-controller v0.0.7

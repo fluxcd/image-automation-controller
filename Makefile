@@ -1,4 +1,3 @@
-
 # Image URL to use all building/pushing image targets
 IMG ?= fluxcd/image-automation-controller
 # Produce CRDs that work back to Kubernetes 1.16
@@ -37,7 +36,7 @@ ${TEST_CRDS}/imagepolicies.yaml:
 
 # Run tests
 test: test_deps generate fmt vet manifests
-	go test ./... -coverprofile cover.out
+	find . -maxdepth 2 -type f -name 'go.mod' -execdir go test ./... -coverprofile cover.out \;
 
 # Build manager binary
 manager: generate fmt vet
@@ -62,19 +61,19 @@ deploy: manifests
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	cd api; $(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role paths="./..." output:crd:artifacts:config="../config/crd/bases"
 
 # Run go fmt against code
 fmt:
-	go fmt ./...
+	find . -maxdepth 2 -type f -name 'go.mod' -execdir go fmt ./... \;
 
 # Run go vet against code
 vet:
-	go vet ./...
+	find . -maxdepth 2 -type f -name 'go.mod' -execdir go vet ./... \;
 
 # Generate code
 generate: controller-gen
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	cd api; $(CONTROLLER_GEN) object:headerFile="../hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker image
 docker-build: test
