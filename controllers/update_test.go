@@ -26,7 +26,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/fluxcd/source-controller/pkg/testserver"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -40,11 +39,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	imagev1alpha1 "github.com/fluxcd/image-automation-controller/api/v1alpha1"
+	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
+	"github.com/fluxcd/pkg/gittestserver"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
+
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha1"
 	"github.com/fluxcd/image-automation-controller/pkg/test"
 	"github.com/fluxcd/image-automation-controller/pkg/update"
-	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
-	sourcev1alpha1 "github.com/fluxcd/source-controller/api/v1alpha1"
 )
 
 const timeout = 10 * time.Second
@@ -68,7 +69,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		repositoryPath string
 		repoURL        string
 		namespace      *corev1.Namespace
-		gitServer      *testserver.GitServer
+		gitServer      *gittestserver.GitServer
 		gitRepoKey     types.NamespacedName
 		commitMessage  string
 	)
@@ -82,7 +83,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		Expect(k8sClient.Create(context.Background(), namespace)).To(Succeed())
 
 		var err error
-		gitServer, err = testserver.NewTempGitServer()
+		gitServer, err = gittestserver.NewTempGitServer()
 		Expect(err).NotTo(HaveOccurred())
 		gitServer.AutoCreate()
 		Expect(gitServer.StartHTTP()).To(Succeed())
@@ -94,12 +95,12 @@ var _ = Describe("ImageUpdateAutomation", func() {
 			Namespace: namespace.Name,
 		}
 
-		gitRepo := &sourcev1alpha1.GitRepository{
+		gitRepo := &sourcev1.GitRepository{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      gitRepoKey.Name,
 				Namespace: namespace.Name,
 			},
-			Spec: sourcev1alpha1.GitRepositorySpec{
+			Spec: sourcev1.GitRepositorySpec{
 				URL:      repoURL,
 				Interval: metav1.Duration{Duration: time.Minute},
 			},
@@ -120,7 +121,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 	Context("with ImagePolicy", func() {
 		var (
 			localRepo *git.Repository
-			policy    *imagev1alpha1_reflect.ImagePolicy
+			policy    *imagev1_reflect.ImagePolicy
 			policyKey types.NamespacedName
 		)
 
@@ -146,22 +147,22 @@ var _ = Describe("ImageUpdateAutomation", func() {
 			}
 			// NB not testing the image reflector controller; this
 			// will make a "fully formed" ImagePolicy object.
-			policy = &imagev1alpha1_reflect.ImagePolicy{
+			policy = &imagev1_reflect.ImagePolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      policyKey.Name,
 					Namespace: policyKey.Namespace,
 				},
-				Spec: imagev1alpha1_reflect.ImagePolicySpec{
+				Spec: imagev1_reflect.ImagePolicySpec{
 					ImageRepositoryRef: corev1.LocalObjectReference{
 						Name: "not-expected-to-exist",
 					},
-					Policy: imagev1alpha1_reflect.ImagePolicyChoice{
-						SemVer: &imagev1alpha1_reflect.SemVerPolicy{
+					Policy: imagev1_reflect.ImagePolicyChoice{
+						SemVer: &imagev1_reflect.SemVerPolicy{
 							Range: "1.x",
 						},
 					},
 				},
-				Status: imagev1alpha1_reflect.ImagePolicyStatus{
+				Status: imagev1_reflect.ImagePolicyStatus{
 					LatestImage: latestImage,
 				},
 			}
@@ -178,7 +179,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 
 			var (
 				updateKey       types.NamespacedName
-				updateBySetters *imagev1alpha1.ImageUpdateAutomation
+				updateBySetters *imagev1.ImageUpdateAutomation
 			)
 
 			BeforeEach(func() {
@@ -219,22 +220,22 @@ var _ = Describe("ImageUpdateAutomation", func() {
 					Namespace: gitRepoKey.Namespace,
 					Name:      "update-" + randStringRunes(5),
 				}
-				updateBySetters = &imagev1alpha1.ImageUpdateAutomation{
+				updateBySetters = &imagev1.ImageUpdateAutomation{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      updateKey.Name,
 						Namespace: updateKey.Namespace,
 					},
-					Spec: imagev1alpha1.ImageUpdateAutomationSpec{
-						Checkout: imagev1alpha1.GitCheckoutSpec{
+					Spec: imagev1.ImageUpdateAutomationSpec{
+						Checkout: imagev1.GitCheckoutSpec{
 							GitRepositoryRef: corev1.LocalObjectReference{
 								Name: gitRepoKey.Name,
 							},
 							Branch: defaultBranch,
 						},
-						Update: imagev1alpha1.UpdateStrategy{
-							Setters: &imagev1alpha1.SettersStrategy{},
+						Update: imagev1.UpdateStrategy{
+							Setters: &imagev1.SettersStrategy{},
 						},
-						Commit: imagev1alpha1.CommitSpec{
+						Commit: imagev1.CommitSpec{
 							MessageTemplate: commitMessage,
 						},
 					},
@@ -307,7 +308,7 @@ func waitForNewHead(repo *git.Repository) {
 }
 
 // Initialise a git server with a repo including the files in dir.
-func initGitRepo(gitServer *testserver.GitServer, fixture, repositoryPath string) error {
+func initGitRepo(gitServer *gittestserver.GitServer, fixture, repositoryPath string) error {
 	fs := memfs.New()
 	repo, err := git.Init(memory.NewStorage(), fs)
 	if err != nil {

@@ -32,7 +32,7 @@ the GitRepository kind, and doesn't need the source-controller itself.
 If you're not already using the [GitOps toolkit][gotk], you can just
 install the custom resource definition for GitRepository:
 
-    kubectl apply -f https://raw.githubusercontent.com/fluxcd/source-controller/v0.0.18/config/crd/bases/source.toolkit.fluxcd.io_gitrepositories.yaml
+    kubectl apply -f https://raw.githubusercontent.com/fluxcd/source-controller/v0.2.2/config/crd/bases/source.toolkit.fluxcd.io_gitrepositories.yaml
 
 **To install the image reflector controller**
 
@@ -166,7 +166,7 @@ then edit `repo.yaml` afterwards.
 
 ```bash
 $ cat > repo.yaml <<EOF
-apiVersion: source.toolkit.fluxcd.io/v1alpha1
+apiVersion: source.toolkit.fluxcd.io/v1beta1
 kind: GitRepository
 metadata:
   name: cuttlefacts-repo

@@ -1,4 +1,3 @@
-
 # Image URL to use all building/pushing image targets
 IMG ?= fluxcd/image-automation-controller
 # Produce CRDs that work back to Kubernetes 1.16
@@ -6,7 +5,7 @@ CRD_OPTIONS ?= crd:crdVersions=v1
 
 # Version of the Toolkit from which to get CRDs. Change this if you
 # bump the go module version.
-TOOLKIT_VERSION:=v0.0.7
+TOOLKIT_VERSION:=v0.2.2
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -38,6 +37,7 @@ ${TEST_CRDS}/imagepolicies.yaml:
 # Run tests
 test: test_deps generate fmt vet manifests
 	go test ./... -coverprofile cover.out
+	cd api; go test ./... -coverprofile cover.out
 
 # Build manager binary
 manager: generate fmt vet
@@ -62,19 +62,21 @@ deploy: manifests
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	cd api; $(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role paths="./..." output:crd:artifacts:config="../config/crd/bases"
 
 # Run go fmt against code
 fmt:
 	go fmt ./...
+	cd api; go fmt ./...
 
 # Run go vet against code
 vet:
 	go vet ./...
+	cd api; go vet ./...
 
 # Generate code
 generate: controller-gen
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	cd api; $(CONTROLLER_GEN) object:headerFile="../hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker image
 docker-build: test
