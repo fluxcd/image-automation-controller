@@ -56,21 +56,35 @@ func makeUpdateImagesFilter(originalRepo, replacement string) kio.Filter {
 	})
 
 	return kio.FilterFunc(func(objs []*yaml.RNode) ([]*yaml.RNode, error) {
+		tees := []yaml.Filter{
+			yaml.Tee(
+				yaml.Lookup("initContainers"),
+				replaceImageInEachContainer,
+			),
+			yaml.Tee(
+				yaml.Lookup("containers"),
+				replaceImageInEachContainer,
+			),
+		}
+
 		for _, obj := range objs {
-			if err := obj.PipeE(
-				yaml.Lookup("spec", "template", "spec"),
-				yaml.Tee(
-					yaml.Lookup("initContainers"),
-					replaceImageInEachContainer,
-				),
-				yaml.Tee(
-					yaml.Lookup("containers"),
-					replaceImageInEachContainer,
-				),
-			); err != nil {
+			lookup := yaml.Lookup("spec", "template", "spec")
+			switch kind(obj) {
+			case "CronJob":
+				lookup = yaml.Lookup("spec", "jobTemplate", "spec", "template", "spec")
+			}
+			if err := obj.PipeE(append([]yaml.Filter{lookup}, tees...)...); err != nil {
 				return nil, err
 			}
 		}
 		return objs, nil
 	})
+}
+
+func kind(a *yaml.RNode) string {
+	f := a.Field(yaml.KindField)
+	if f != nil {
+		return yaml.GetValue(f.Value)
+	}
+	return ""
 }
