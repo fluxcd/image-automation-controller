@@ -7,4 +7,4 @@ spec:
     spec:
       containers:
       - name: hello
-        image: helloworld:1.0.0
+        image: helloworld:1.0.0 # SETTER_SITE

@@ -32,4 +32,12 @@ var _ = Describe("Update image everywhere", func() {
 		Expect(UpdateImageEverywhere("testdata/replace/original", tmp, "used", "used:v1.1.0")).To(Succeed())
 		test.ExpectMatchingDirectories("testdata/replace/expected", tmp)
 	})
+
+	It("keeps comments intact", func() {
+		tmp, err := ioutil.TempDir("", "gotest")
+		Expect(err).ToNot(HaveOccurred())
+		defer os.RemoveAll(tmp)
+		Expect(UpdateImageEverywhere("testdata/replace/commented", tmp, "used", "used:v1.1.0")).To(Succeed())
+		test.ExpectMatchingDirectories("testdata/replace/commented-expected", tmp)
+	})
 })
