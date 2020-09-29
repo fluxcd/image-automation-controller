@@ -17,7 +17,9 @@ limitations under the License.
 package controllers
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -205,19 +207,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 					},
 				}
 				Expect(k8sClient.Create(context.Background(), updateByImagePolicy)).To(Succeed())
-				head, _ := localRepo.Head()
-				headHash := head.Hash().String()
-				working, err := localRepo.Worktree()
-				Expect(err).ToNot(HaveOccurred())
-				Eventually(func() bool {
-					if working.Pull(&git.PullOptions{
-						ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
-					}); err != nil {
-						return false
-					}
-					h, _ := localRepo.Head()
-					return headHash != h.Hash().String()
-				}, timeout, time.Second).Should(BeTrue())
+				waitForNewHead(localRepo)
 			})
 
 			AfterEach(func() {
@@ -250,24 +240,13 @@ var _ = Describe("ImageUpdateAutomation", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(commit.Message).To(Equal(commitMessage))
 
-				headHash := head.Hash().String()
-
 				// change the status and
 				// make sure there's a commit for that.
 				policy.Status.LatestImage = evenLatestImage
 				Expect(k8sClient.Status().Update(context.Background(), policy)).To(Succeed())
 
-				working, err := localRepo.Worktree()
 				Expect(err).ToNot(HaveOccurred())
-				Eventually(func() bool {
-					if working.Pull(&git.PullOptions{
-						ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
-					}); err != nil {
-						return false
-					}
-					h, _ := localRepo.Head()
-					return headHash != h.Hash().String()
-				}, timeout, time.Second).Should(BeTrue())
+				waitForNewHead(localRepo)
 
 				tmp, err := ioutil.TempDir("", "gotest-imageauto")
 				Expect(err).ToNot(HaveOccurred())
@@ -285,16 +264,54 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		Context("with Setters", func() {
 
 			var (
-				updateKey           types.NamespacedName
-				updateByImagePolicy *imagev1alpha1.ImageUpdateAutomation
+				updateKey       types.NamespacedName
+				updateBySetters *imagev1alpha1.ImageUpdateAutomation
 			)
 
 			BeforeEach(func() {
+				// Insert a setter reference into the deployment file,
+				// before creating the automation object itself.
+				tmp, err := ioutil.TempDir("", "gotest-imageauto-setters")
+				Expect(err).ToNot(HaveOccurred())
+				defer os.RemoveAll(tmp)
+				repo, err := git.PlainClone(tmp, false, &git.CloneOptions{
+					URL:           repoURL,
+					ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+				})
+				Expect(err).ToNot(HaveOccurred())
+				// NB this requires knowledge of what's in the git
+				// repo, so a little brittle
+				deployment := filepath.Join(tmp, "deploy.yaml")
+				filebytes, err := ioutil.ReadFile(deployment)
+				Expect(err).NotTo(HaveOccurred())
+				newfilebytes := bytes.ReplaceAll(filebytes, []byte("SETTER_SITE"), []byte(setterName(policyKey)))
+				Expect(ioutil.WriteFile(deployment, newfilebytes, os.FileMode(0666))).To(Succeed())
+				worktree, err := repo.Worktree()
+				Expect(err).ToNot(HaveOccurred())
+				_, err = worktree.Add("deploy.yaml")
+				Expect(err).ToNot(HaveOccurred())
+				_, err = worktree.Commit("Install setter marker", &git.CommitOptions{
+					Author: &object.Signature{
+						Name:  "Testbot",
+						Email: "test@example.com",
+						When:  time.Now(),
+					},
+				})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(repo.Push(&git.PushOptions{RemoteName: "origin"})).To(Succeed())
+
+				// pull the head commit we just pushed, so it's not
+				// considered a new commit when checking for a commit
+				// made by automation.
+				waitForNewHead(localRepo)
+
+				// now create the automation object, and let it (one
+				// hopes!) make a commit itself.
 				updateKey = types.NamespacedName{
 					Namespace: gitRepoKey.Namespace,
 					Name:      "update-" + randStringRunes(5),
 				}
-				updateByImagePolicy = &imagev1alpha1.ImageUpdateAutomation{
+				updateBySetters = &imagev1alpha1.ImageUpdateAutomation{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      updateKey.Name,
 						Namespace: updateKey.Namespace,
@@ -314,24 +331,13 @@ var _ = Describe("ImageUpdateAutomation", func() {
 						},
 					},
 				}
-				Expect(k8sClient.Create(context.Background(), updateByImagePolicy)).To(Succeed())
-				head, _ := localRepo.Head()
-				headHash := head.Hash().String()
-				working, err := localRepo.Worktree()
-				Expect(err).ToNot(HaveOccurred())
-				Eventually(func() bool {
-					if working.Pull(&git.PullOptions{
-						ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
-					}); err != nil {
-						return false
-					}
-					h, _ := localRepo.Head()
-					return headHash != h.Hash().String()
-				}, timeout, time.Second).Should(BeTrue())
+				Expect(k8sClient.Create(context.Background(), updateBySetters)).To(Succeed())
+				// wait for a new commit to be made by the controller
+				waitForNewHead(localRepo)
 			})
 
 			AfterEach(func() {
-				Expect(k8sClient.Delete(context.Background(), updateByImagePolicy)).To(Succeed())
+				Expect(k8sClient.Delete(context.Background(), updateBySetters)).To(Succeed())
 			})
 
 			It("updates to the most recent image", func() {
@@ -353,10 +359,28 @@ var _ = Describe("ImageUpdateAutomation", func() {
 				test.ExpectMatchingDirectories(tmp, "testdata/appconfig-setters-expected")
 			})
 		})
-
 	})
-
 })
+
+func setterName(name types.NamespacedName) string {
+	return fmt.Sprintf("#/image/%s/%s", name.Namespace, name.Name)
+}
+
+func waitForNewHead(repo *git.Repository) {
+	head, _ := repo.Head()
+	headHash := head.Hash().String()
+	working, err := repo.Worktree()
+	Expect(err).ToNot(HaveOccurred())
+	Eventually(func() bool {
+		if working.Pull(&git.PullOptions{
+			ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+		}); err != nil {
+			return false
+		}
+		h, _ := repo.Head()
+		return headHash != h.Hash().String()
+	}, timeout, time.Second).Should(BeTrue())
+}
 
 // Initialise a git server with a repo including the files in dir.
 func initGitRepo(gitServer *testserver.GitServer, fixture, repositoryPath string) error {
