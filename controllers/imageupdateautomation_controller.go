@@ -145,8 +145,8 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 		}
 	case updateStrat.Setters != nil:
 		// For setters we first want to compile a list of _all_ the
-		// policies (maybe in the future this could be filtered by the
-		// automation object).
+		// policies in the same namespace (maybe in the future this
+		// could be filtered by the automation object).
 		var policies imagev1alpha1_reflect.ImagePolicyList
 		if err := r.List(ctx, &policies, &client.ListOptions{Namespace: req.NamespacedName.Namespace}); err != nil {
 			return ctrl.Result{}, err
@@ -407,6 +407,6 @@ func updateAccordingToImagePolicy(ctx context.Context, path string, policy *imag
 
 // updateAccordingToSetters updates files under the root by treating
 // the given image policies as kyaml setters.
-func updateAccordingToSetters(ctx context.Context, root string, policies []imagev1alpha1_reflect.ImagePolicy) error {
-	return nil
+func updateAccordingToSetters(ctx context.Context, path string, policies []imagev1alpha1_reflect.ImagePolicy) error {
+	return update.UpdateWithSetters(path, path, policies)
 }

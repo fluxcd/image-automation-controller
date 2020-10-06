@@ -35,12 +35,14 @@ import (
 	"github.com/go-git/go-git/v5/storage/memory"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/otiai10/copy"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	imagev1alpha1 "github.com/fluxcd/image-automation-controller/api/v1alpha1"
 	"github.com/fluxcd/image-automation-controller/pkg/test"
+	"github.com/fluxcd/image-automation-controller/pkg/update"
 	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
 	sourcev1alpha1 "github.com/fluxcd/source-controller/api/v1alpha1"
 )
@@ -279,13 +281,8 @@ var _ = Describe("ImageUpdateAutomation", func() {
 					ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
 				})
 				Expect(err).ToNot(HaveOccurred())
-				// NB this requires knowledge of what's in the git
-				// repo, so a little brittle
-				deployment := filepath.Join(tmp, "deploy.yaml")
-				filebytes, err := ioutil.ReadFile(deployment)
-				Expect(err).NotTo(HaveOccurred())
-				newfilebytes := bytes.ReplaceAll(filebytes, []byte("SETTER_SITE"), []byte(setterName(policyKey)))
-				Expect(ioutil.WriteFile(deployment, newfilebytes, os.FileMode(0666))).To(Succeed())
+
+				replaceMarker(tmp, policyKey)
 				worktree, err := repo.Worktree()
 				Expect(err).ToNot(HaveOccurred())
 				_, err = worktree.Add("deploy.yaml")
@@ -351,19 +348,35 @@ var _ = Describe("ImageUpdateAutomation", func() {
 				Expect(err).ToNot(HaveOccurred())
 				defer os.RemoveAll(tmp)
 
+				expected, err := ioutil.TempDir("", "gotest-imageauto-expected")
+				Expect(err).ToNot(HaveOccurred())
+				defer os.RemoveAll(expected)
+				copy.Copy("testdata/appconfig-setters-expected", expected)
+				replaceMarker(expected, policyKey)
+
 				_, err = git.PlainClone(tmp, false, &git.CloneOptions{
 					URL:           repoURL,
 					ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
 				})
 				Expect(err).ToNot(HaveOccurred())
-				test.ExpectMatchingDirectories(tmp, "testdata/appconfig-setters-expected")
+				test.ExpectMatchingDirectories(tmp, expected)
 			})
 		})
 	})
 })
 
-func setterName(name types.NamespacedName) string {
-	return fmt.Sprintf("#/image/%s/%s", name.Namespace, name.Name)
+func replaceMarker(path string, policyKey types.NamespacedName) {
+	// NB this requires knowledge of what's in the git
+	// repo, so a little brittle
+	deployment := filepath.Join(path, "deploy.yaml")
+	filebytes, err := ioutil.ReadFile(deployment)
+	Expect(err).NotTo(HaveOccurred())
+	newfilebytes := bytes.ReplaceAll(filebytes, []byte("SETTER_SITE"), []byte(setterRef(policyKey)))
+	Expect(ioutil.WriteFile(deployment, newfilebytes, os.FileMode(0666))).To(Succeed())
+}
+
+func setterRef(name types.NamespacedName) string {
+	return fmt.Sprintf(`{"%s": "%s:%s"}`, update.SetterShortHand, name.Namespace, name.Name)
 }
 
 func waitForNewHead(repo *git.Repository) {

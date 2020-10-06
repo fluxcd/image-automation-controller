@@ -13,6 +13,7 @@ require (
 	github.com/google/go-containerregistry v0.1.1
 	github.com/onsi/ginkgo v1.12.1
 	github.com/onsi/gomega v1.10.1
+	github.com/otiai10/copy v1.2.0
 	k8s.io/api v0.18.6
 	k8s.io/apimachinery v0.18.6
 	k8s.io/client-go v0.18.6
