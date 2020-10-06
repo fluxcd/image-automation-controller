@@ -29,6 +29,8 @@ import (
 // fails at the right times too.
 func ExpectMatchingDirectories(actualRoot, expectedRoot string) {
 	Expect(actualRoot).To(BeADirectory())
+	// every file and directory in the expected result should have a
+	// corresponding file or directory in the actual result
 	filepath.Walk(expectedRoot, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
@@ -48,10 +50,13 @@ func ExpectMatchingDirectories(actualRoot, expectedRoot string) {
 		}
 		Expect(actualPath).To(BeARegularFile())
 		actualBytes, err := ioutil.ReadFile(actualPath)
+		Expect(err).ToNot(HaveOccurred())
 		expectedBytes, err := ioutil.ReadFile(path)
-		Expect(string(actualBytes)).To(Equal(string(expectedBytes)))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(string(actualBytes)).To(Equal(string(expectedBytes)), "file %q same as %q", actualPath, path)
 		return nil
 	})
+	// every file and directory in the actual result should be expected
 	filepath.Walk(actualRoot, func(path string, info os.FileInfo, err error) error {
 		p := path[len(actualRoot):]
 		// ignore emacs backups
