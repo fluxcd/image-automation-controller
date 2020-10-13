@@ -28,11 +28,32 @@ func TestFiles(t *testing.T) {
 	RunSpecs(t, "Files comparison helper")
 }
 
-var _ = Describe("Test helper", func() {
+var _ = Describe("when no differences", func() {
 	It("matches when given the same directory", func() {
 		ExpectMatchingDirectories("testdata/base", "testdata/base")
 	})
 	It("matches when given equivalent directories", func() {
 		ExpectMatchingDirectories("testdata/base", "testdata/equiv")
+	})
+})
+
+var _ = Describe("with differences", func() {
+	It("finds files in expected from a/ but not in actual b/", func() {
+		aonly, _, _ := DiffDirectories("testdata/diff/a", "testdata/diff/b")
+		Expect(aonly).To(Equal([]string{"/only", "/only/here.yaml", "/onlyhere.yaml"}))
+	})
+
+	It("finds files in actual a/ that weren't expected from b/", func() {
+		bonly, _, _ := DiffDirectories("testdata/diff/a", "testdata/diff/b") // change in order
+		Expect(bonly).To(Equal([]string{"/only", "/only/here.yaml", "/onlyhere.yaml"}))
+	})
+
+	It("finds files that are different in a and b", func() {
+		_, _, diffs := DiffDirectories("testdata/diff/a", "testdata/diff/b")
+		var diffpaths []string
+		for _, d := range diffs {
+			diffpaths = append(diffpaths, d.Path())
+		}
+		Expect(diffpaths).To(Equal([]string{"/different/content.yaml", "/dirfile"}))
 	})
 })
