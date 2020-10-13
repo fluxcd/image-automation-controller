@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/go-openapi/spec"
+	"github.com/google/go-containerregistry/pkg/name"
 	"sigs.k8s.io/kustomize/kyaml/fieldmeta"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/openapi"
@@ -76,16 +77,30 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 		if policy.Status.LatestImage == "" {
 			continue
 		}
-		setterKey := fmt.Sprintf("%s:%s", policy.GetNamespace(), policy.GetName())
-		schema := spec.StringProperty()
-		schema.Extensions = map[string]interface{}{}
-		schema.Extensions.Add(setters2.K8sCliExtensionKey, map[string]interface{}{
-			"setter": map[string]string{
-				"name":  setterKey,
-				"value": policy.Status.LatestImage,
-			},
-		})
-		defs[fieldmeta.SetterDefinitionPrefix+setterKey] = *schema
+		// Using strict validation would mean any image that omits the
+		// registry would be rejected, so that can't be used
+		// here. Using _weak_ validation means that defaults will be
+		// filled in. Usually this would mean the tag would end up
+		// being `latest` if empty in the input; but I'm assuming here
+		// that the policy won't have a tagless ref.
+		image := policy.Status.LatestImage
+		ref, err := name.ParseReference(image, name.WeakValidation)
+		if err != nil {
+			return fmt.Errorf("encountered invalid image ref %q: %w", policy.Status.LatestImage, err)
+		}
+		tag := ref.Identifier()
+		// annoyingly, neither the library imported above, nor an
+		// alternative, I found will yield the original image name;
+		// this is an easy way to get it
+		name := image[:len(tag)+1]
+
+		imageSetter := fmt.Sprintf("%s:%s", policy.GetNamespace(), policy.GetName())
+		defs[fieldmeta.SetterDefinitionPrefix+imageSetter] = setterSchema(imageSetter, policy.Status.LatestImage)
+		tagSetter := imageSetter + ":tag"
+		defs[fieldmeta.SetterDefinitionPrefix+tagSetter] = setterSchema(tagSetter, tag)
+		// Context().Name() gives the image repository _as supplied_
+		nameSetter := imageSetter + ":name"
+		defs[fieldmeta.SetterDefinitionPrefix+nameSetter] = setterSchema(nameSetter, name)
 	}
 
 	// get ready with the reader and writer
@@ -110,4 +125,16 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 	err := pipeline.Execute()
 	schemaMu.Unlock()
 	return err
+}
+
+func setterSchema(name, value string) spec.Schema {
+	schema := spec.StringProperty()
+	schema.Extensions = map[string]interface{}{}
+	schema.Extensions.Add(setters2.K8sCliExtensionKey, map[string]interface{}{
+		"setter": map[string]string{
+			"name":  name,
+			"value": value,
+		},
+	})
+	return *schema
 }
