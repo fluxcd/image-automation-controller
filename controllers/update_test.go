@@ -17,7 +17,9 @@ limitations under the License.
 package controllers
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -33,12 +35,14 @@ import (
 	"github.com/go-git/go-git/v5/storage/memory"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/otiai10/copy"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	imagev1alpha1 "github.com/fluxcd/image-automation-controller/api/v1alpha1"
 	"github.com/fluxcd/image-automation-controller/pkg/test"
+	"github.com/fluxcd/image-automation-controller/pkg/update"
 	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
 	sourcev1alpha1 "github.com/fluxcd/source-controller/api/v1alpha1"
 )
@@ -66,6 +70,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		namespace      *corev1.Namespace
 		gitServer      *testserver.GitServer
 		gitRepoKey     types.NamespacedName
+		commitMessage  string
 	)
 
 	// Start the git server
@@ -114,17 +119,17 @@ var _ = Describe("ImageUpdateAutomation", func() {
 
 	Context("with ImagePolicy", func() {
 		var (
-			localRepo           *git.Repository
-			updateKey           types.NamespacedName
-			policy              *imagev1alpha1_reflect.ImagePolicy
-			updateByImagePolicy *imagev1alpha1.ImageUpdateAutomation
-			commitMessage       string
+			localRepo *git.Repository
+			policy    *imagev1alpha1_reflect.ImagePolicy
+			policyKey types.NamespacedName
 		)
 
 		const latestImage = "helloworld:1.0.1"
 		const evenLatestImage = "helloworld:1.2.0"
 
 		BeforeEach(func() {
+			commitMessage = "Commit a difference " + randStringRunes(5)
+
 			Expect(initGitRepo(gitServer, "testdata/appconfig", repositoryPath)).To(Succeed())
 
 			var err error
@@ -135,7 +140,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			policyKey := types.NamespacedName{
+			policyKey = types.NamespacedName{
 				Name:      "policy-" + randStringRunes(5),
 				Namespace: namespace.Name,
 			}
@@ -163,112 +168,232 @@ var _ = Describe("ImageUpdateAutomation", func() {
 			Expect(k8sClient.Create(context.Background(), policy)).To(Succeed())
 			Expect(k8sClient.Status().Update(context.Background(), policy)).To(Succeed())
 
-			commitMessage = "Commit a difference " + randStringRunes(5)
-			updateKey = types.NamespacedName{
-				Namespace: gitRepoKey.Namespace,
-				Name:      "update-" + randStringRunes(5),
-			}
-			updateByImagePolicy = &imagev1alpha1.ImageUpdateAutomation{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      updateKey.Name,
-					Namespace: updateKey.Namespace,
-				},
-				Spec: imagev1alpha1.ImageUpdateAutomationSpec{
-					Checkout: imagev1alpha1.GitCheckoutSpec{
-						GitRepositoryRef: corev1.LocalObjectReference{
-							Name: gitRepoKey.Name,
-						},
-						Branch: defaultBranch,
-					},
-					Update: imagev1alpha1.UpdateStrategy{
-						ImagePolicyRef: &corev1.LocalObjectReference{
-							Name: policyKey.Name,
-						},
-					},
-					Commit: imagev1alpha1.CommitSpec{
-						MessageTemplate: commitMessage,
-					},
-				},
-			}
-			Expect(k8sClient.Create(context.Background(), updateByImagePolicy)).To(Succeed())
-			head, _ := localRepo.Head()
-			headHash := head.Hash().String()
-			working, err := localRepo.Worktree()
-			Expect(err).ToNot(HaveOccurred())
-			Eventually(func() bool {
-				if working.Pull(&git.PullOptions{
-					ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
-				}); err != nil {
-					return false
-				}
-				h, _ := localRepo.Head()
-				return headHash != h.Hash().String()
-			}, timeout, time.Second).Should(BeTrue())
 		})
 
 		AfterEach(func() {
-			Expect(k8sClient.Delete(context.Background(), updateByImagePolicy)).To(Succeed())
 			Expect(k8sClient.Delete(context.Background(), policy)).To(Succeed())
 		})
 
-		It("updates to the most recent image", func() {
-			// having passed the BeforeEach, we should see a commit
-			head, _ := localRepo.Head()
-			commit, err := localRepo.CommitObject(head.Hash())
-			Expect(err).ToNot(HaveOccurred())
-			Expect(commit.Message).To(Equal(commitMessage))
+		Context("with ImagePolicyRef strategy", func() {
 
-			tmp, err := ioutil.TempDir("", "gotest-imageauto")
-			Expect(err).ToNot(HaveOccurred())
-			defer os.RemoveAll(tmp)
+			var (
+				updateKey           types.NamespacedName
+				updateByImagePolicy *imagev1alpha1.ImageUpdateAutomation
+			)
 
-			_, err = git.PlainClone(tmp, false, &git.CloneOptions{
-				URL:           repoURL,
-				ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+			BeforeEach(func() {
+				updateKey = types.NamespacedName{
+					Namespace: gitRepoKey.Namespace,
+					Name:      "update-" + randStringRunes(5),
+				}
+				updateByImagePolicy = &imagev1alpha1.ImageUpdateAutomation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      updateKey.Name,
+						Namespace: updateKey.Namespace,
+					},
+					Spec: imagev1alpha1.ImageUpdateAutomationSpec{
+						Checkout: imagev1alpha1.GitCheckoutSpec{
+							GitRepositoryRef: corev1.LocalObjectReference{
+								Name: gitRepoKey.Name,
+							},
+							Branch: defaultBranch,
+						},
+						Update: imagev1alpha1.UpdateStrategy{
+							ImagePolicyRef: &corev1.LocalObjectReference{
+								Name: policyKey.Name,
+							},
+						},
+						Commit: imagev1alpha1.CommitSpec{
+							MessageTemplate: commitMessage,
+						},
+					},
+				}
+				Expect(k8sClient.Create(context.Background(), updateByImagePolicy)).To(Succeed())
+				waitForNewHead(localRepo)
 			})
-			Expect(err).ToNot(HaveOccurred())
-			test.ExpectMatchingDirectories(tmp, "testdata/appconfig-expected")
+
+			AfterEach(func() {
+				Expect(k8sClient.Delete(context.Background(), updateByImagePolicy)).To(Succeed())
+			})
+
+			It("updates to the most recent image", func() {
+				// having passed the BeforeEach, we should see a commit
+				head, _ := localRepo.Head()
+				commit, err := localRepo.CommitObject(head.Hash())
+				Expect(err).ToNot(HaveOccurred())
+				Expect(commit.Message).To(Equal(commitMessage))
+
+				tmp, err := ioutil.TempDir("", "gotest-imageauto")
+				Expect(err).ToNot(HaveOccurred())
+				defer os.RemoveAll(tmp)
+
+				_, err = git.PlainClone(tmp, false, &git.CloneOptions{
+					URL:           repoURL,
+					ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+				})
+				Expect(err).ToNot(HaveOccurred())
+				test.ExpectMatchingDirectories(tmp, "testdata/appconfig-expected")
+			})
+
+			It("makes a commit when the policy changes", func() {
+				// make sure the first commit happened
+				head, _ := localRepo.Head()
+				commit, err := localRepo.CommitObject(head.Hash())
+				Expect(err).ToNot(HaveOccurred())
+				Expect(commit.Message).To(Equal(commitMessage))
+
+				// change the status and
+				// make sure there's a commit for that.
+				policy.Status.LatestImage = evenLatestImage
+				Expect(k8sClient.Status().Update(context.Background(), policy)).To(Succeed())
+
+				Expect(err).ToNot(HaveOccurred())
+				waitForNewHead(localRepo)
+
+				tmp, err := ioutil.TempDir("", "gotest-imageauto")
+				Expect(err).ToNot(HaveOccurred())
+				defer os.RemoveAll(tmp)
+
+				_, err = git.PlainClone(tmp, false, &git.CloneOptions{
+					URL:           repoURL,
+					ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+				})
+				Expect(err).ToNot(HaveOccurred())
+				test.ExpectMatchingDirectories(tmp, "testdata/appconfig-expected2")
+			})
 		})
 
-		It("makes a commit when the policy changes", func() {
-			// make sure the first commit happened
-			head, _ := localRepo.Head()
-			commit, err := localRepo.CommitObject(head.Hash())
-			Expect(err).ToNot(HaveOccurred())
-			Expect(commit.Message).To(Equal(commitMessage))
+		Context("with Setters", func() {
 
-			headHash := head.Hash().String()
+			var (
+				updateKey       types.NamespacedName
+				updateBySetters *imagev1alpha1.ImageUpdateAutomation
+			)
 
-			// change the status and
-			// make sure there's a commit for that.
-			policy.Status.LatestImage = evenLatestImage
-			Expect(k8sClient.Status().Update(context.Background(), policy)).To(Succeed())
-
-			working, err := localRepo.Worktree()
-			Expect(err).ToNot(HaveOccurred())
-			Eventually(func() bool {
-				if working.Pull(&git.PullOptions{
+			BeforeEach(func() {
+				// Insert a setter reference into the deployment file,
+				// before creating the automation object itself.
+				tmp, err := ioutil.TempDir("", "gotest-imageauto-setters")
+				Expect(err).ToNot(HaveOccurred())
+				defer os.RemoveAll(tmp)
+				repo, err := git.PlainClone(tmp, false, &git.CloneOptions{
+					URL:           repoURL,
 					ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
-				}); err != nil {
-					return false
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				replaceMarker(tmp, policyKey)
+				worktree, err := repo.Worktree()
+				Expect(err).ToNot(HaveOccurred())
+				_, err = worktree.Add("deploy.yaml")
+				Expect(err).ToNot(HaveOccurred())
+				_, err = worktree.Commit("Install setter marker", &git.CommitOptions{
+					Author: &object.Signature{
+						Name:  "Testbot",
+						Email: "test@example.com",
+						When:  time.Now(),
+					},
+				})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(repo.Push(&git.PushOptions{RemoteName: "origin"})).To(Succeed())
+
+				// pull the head commit we just pushed, so it's not
+				// considered a new commit when checking for a commit
+				// made by automation.
+				waitForNewHead(localRepo)
+
+				// now create the automation object, and let it (one
+				// hopes!) make a commit itself.
+				updateKey = types.NamespacedName{
+					Namespace: gitRepoKey.Namespace,
+					Name:      "update-" + randStringRunes(5),
 				}
-				h, _ := localRepo.Head()
-				return headHash != h.Hash().String()
-			}, timeout, time.Second).Should(BeTrue())
-
-			tmp, err := ioutil.TempDir("", "gotest-imageauto")
-			Expect(err).ToNot(HaveOccurred())
-			defer os.RemoveAll(tmp)
-
-			_, err = git.PlainClone(tmp, false, &git.CloneOptions{
-				URL:           repoURL,
-				ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+				updateBySetters = &imagev1alpha1.ImageUpdateAutomation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      updateKey.Name,
+						Namespace: updateKey.Namespace,
+					},
+					Spec: imagev1alpha1.ImageUpdateAutomationSpec{
+						Checkout: imagev1alpha1.GitCheckoutSpec{
+							GitRepositoryRef: corev1.LocalObjectReference{
+								Name: gitRepoKey.Name,
+							},
+							Branch: defaultBranch,
+						},
+						Update: imagev1alpha1.UpdateStrategy{
+							Setters: &imagev1alpha1.SettersStrategy{},
+						},
+						Commit: imagev1alpha1.CommitSpec{
+							MessageTemplate: commitMessage,
+						},
+					},
+				}
+				Expect(k8sClient.Create(context.Background(), updateBySetters)).To(Succeed())
+				// wait for a new commit to be made by the controller
+				waitForNewHead(localRepo)
 			})
-			Expect(err).ToNot(HaveOccurred())
-			test.ExpectMatchingDirectories(tmp, "testdata/appconfig-expected2")
+
+			AfterEach(func() {
+				Expect(k8sClient.Delete(context.Background(), updateBySetters)).To(Succeed())
+			})
+
+			It("updates to the most recent image", func() {
+				// having passed the BeforeEach, we should see a commit
+				head, _ := localRepo.Head()
+				commit, err := localRepo.CommitObject(head.Hash())
+				Expect(err).ToNot(HaveOccurred())
+				Expect(commit.Message).To(Equal(commitMessage))
+
+				tmp, err := ioutil.TempDir("", "gotest-imageauto")
+				Expect(err).ToNot(HaveOccurred())
+				defer os.RemoveAll(tmp)
+
+				expected, err := ioutil.TempDir("", "gotest-imageauto-expected")
+				Expect(err).ToNot(HaveOccurred())
+				defer os.RemoveAll(expected)
+				copy.Copy("testdata/appconfig-setters-expected", expected)
+				replaceMarker(expected, policyKey)
+
+				_, err = git.PlainClone(tmp, false, &git.CloneOptions{
+					URL:           repoURL,
+					ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+				})
+				Expect(err).ToNot(HaveOccurred())
+				test.ExpectMatchingDirectories(tmp, expected)
+			})
 		})
 	})
 })
+
+func replaceMarker(path string, policyKey types.NamespacedName) {
+	// NB this requires knowledge of what's in the git
+	// repo, so a little brittle
+	deployment := filepath.Join(path, "deploy.yaml")
+	filebytes, err := ioutil.ReadFile(deployment)
+	Expect(err).NotTo(HaveOccurred())
+	newfilebytes := bytes.ReplaceAll(filebytes, []byte("SETTER_SITE"), []byte(setterRef(policyKey)))
+	Expect(ioutil.WriteFile(deployment, newfilebytes, os.FileMode(0666))).To(Succeed())
+}
+
+func setterRef(name types.NamespacedName) string {
+	return fmt.Sprintf(`{"%s": "%s:%s"}`, update.SetterShortHand, name.Namespace, name.Name)
+}
+
+func waitForNewHead(repo *git.Repository) {
+	head, _ := repo.Head()
+	headHash := head.Hash().String()
+	working, err := repo.Worktree()
+	Expect(err).ToNot(HaveOccurred())
+	Eventually(func() bool {
+		if working.Pull(&git.PullOptions{
+			ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+		}); err != nil {
+			return false
+		}
+		h, _ := repo.Head()
+		return headHash != h.Hash().String()
+	}, timeout, time.Second).Should(BeTrue())
+}
 
 // Initialise a git server with a repo including the files in dir.
 func initGitRepo(gitServer *testserver.GitServer, fixture, repositoryPath string) error {

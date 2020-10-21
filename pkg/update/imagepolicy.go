@@ -36,7 +36,6 @@ func makeUpdateImagesFilter(originalRepo, replacement string) kio.Filter {
 	}
 
 	canonName := originalRef.Context().String()
-	replacementNode := yaml.NewScalarRNode(replacement)
 
 	replaceContainerImage := func(container *yaml.RNode) error {
 		if imageField := container.Field("image"); imageField != nil {
@@ -45,7 +44,9 @@ func makeUpdateImagesFilter(originalRepo, replacement string) kio.Filter {
 				return err
 			}
 			if ref.Context().String() == canonName {
-				imageField.Value.SetYNode(replacementNode.YNode())
+				ynode := imageField.Value.YNode()
+				ynode.Value = replacement
+				imageField.Value.SetYNode(ynode)
 			}
 		}
 		return nil

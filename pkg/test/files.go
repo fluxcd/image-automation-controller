@@ -29,39 +29,143 @@ import (
 // fails at the right times too.
 func ExpectMatchingDirectories(actualRoot, expectedRoot string) {
 	Expect(actualRoot).To(BeADirectory())
-	filepath.Walk(expectedRoot, func(path string, info os.FileInfo, err error) error {
+	Expect(expectedRoot).To(BeADirectory())
+	actualonly, expectedonly, different := DiffDirectories(actualRoot, expectedRoot)
+	Expect(actualonly).To(BeEmpty(), "Expect no files in %s but not in %s", actualRoot, expectedRoot)
+	Expect(expectedonly).To(BeEmpty(), "Expect no files in %s but not in %s", expectedRoot, actualRoot)
+	// these are enumerated, so that the output is the actual difference
+	for _, diff := range different {
+		diff.FailedExpectation()
+	}
+}
+
+type Diff interface {
+	Path() string
+	FailedExpectation()
+}
+
+type contentdiff struct {
+	path, actual, expected string
+}
+
+func (d contentdiff) Path() string {
+	return d.path
+}
+
+// Run an expectation that will fail, giving an appropriate error
+func (d contentdiff) FailedExpectation() {
+	Expect(d.actual).To(Equal(d.expected))
+}
+
+type dirfile struct {
+	abspath, path       string
+	expectedRegularFile bool
+}
+
+func (d dirfile) Path() string {
+	return d.path
+}
+
+func (d dirfile) FailedExpectation() {
+	if d.expectedRegularFile {
+		Expect(d.path).To(BeARegularFile())
+	} else {
+		Expect(d.path).To(BeADirectory())
+	}
+}
+
+// DiffDirectories walks the two given directories, recursively, and
+// reports relative paths for any files that are:
+//
+//     (in actual but not expected, in expected but not actual, in both but different)
+//
+// It ignores dot directories (e.g., `.git/`) and Emacs backups (e.g.,
+// `foo.yaml~`). It panics if it encounters any error apart from a
+// file not found.
+func DiffDirectories(actual, expected string) (actualonly []string, expectedonly []string, different []Diff) {
+	filepath.Walk(expected, func(expectedPath string, expectedInfo os.FileInfo, err error) error {
 		if err != nil {
-			return nil
+			panic(err)
 		}
 		// ignore emacs backups
-		if strings.HasSuffix(path, "~") {
+		if strings.HasSuffix(expectedPath, "~") {
 			return nil
 		}
-		relPath := path[len(expectedRoot):]
-		actualPath := filepath.Join(actualRoot, relPath)
-		if info.IsDir() {
-			if strings.HasPrefix(filepath.Base(path), ".") {
+		relPath := expectedPath[len(expected):]
+		actualPath := filepath.Join(actual, relPath)
+		// ignore dotfiles
+		if strings.HasPrefix(filepath.Base(expectedPath), ".") {
+			if expectedInfo.IsDir() {
 				return filepath.SkipDir
 			}
-			Expect(actualPath).To(BeADirectory())
 			return nil
 		}
-		Expect(actualPath).To(BeARegularFile())
+
+		actualInfo, err := os.Stat(actualPath)
+		switch {
+		case err == nil:
+			break
+		case os.IsNotExist(err):
+			expectedonly = append(expectedonly, relPath)
+			return nil
+		default:
+			panic(err)
+		}
+
+		// file exists in both places
+
+		switch {
+		case actualInfo.IsDir() && expectedInfo.IsDir():
+			return nil // i.e., keep recursing
+		case actualInfo.IsDir() || expectedInfo.IsDir():
+			different = append(different, dirfile{path: relPath, abspath: actualPath, expectedRegularFile: actualInfo.IsDir()})
+			return nil
+		}
+
+		// both regular files
+
 		actualBytes, err := ioutil.ReadFile(actualPath)
-		expectedBytes, err := ioutil.ReadFile(path)
-		Expect(string(actualBytes)).To(Equal(string(expectedBytes)))
+		if err != nil {
+			panic(err)
+		}
+		expectedBytes, err := ioutil.ReadFile(expectedPath)
+		if err != nil {
+			panic(err)
+		}
+		if string(actualBytes) != string(expectedBytes) {
+			different = append(different, contentdiff{path: relPath, actual: string(actualBytes), expected: string(expectedBytes)})
+		}
 		return nil
 	})
-	filepath.Walk(actualRoot, func(path string, info os.FileInfo, err error) error {
-		p := path[len(actualRoot):]
+
+	// every file and directory in the actual result should be expected
+	filepath.Walk(actual, func(actualPath string, actualInfo os.FileInfo, err error) error {
+		if err != nil {
+			panic(err)
+		}
+		relPath := actualPath[len(actual):]
 		// ignore emacs backups
-		if strings.HasSuffix(p, "~") {
+		if strings.HasSuffix(actualPath, "~") {
 			return nil
 		}
-		if info.IsDir() && strings.HasPrefix(filepath.Base(p), ".") {
+		// skip dotdirs
+		if actualInfo.IsDir() && strings.HasPrefix(filepath.Base(actualPath), ".") {
 			return filepath.SkipDir
 		}
-		Expect(filepath.Join(expectedRoot, p)).To(BeAnExistingFile())
+		// since I've already compared any file that exists in
+		// expected or both, I'm only concerned with files that appear
+		// in actual but not in expected.
+		expectedPath := filepath.Join(expected, relPath)
+		_, err = os.Stat(expectedPath)
+		switch {
+		case err == nil:
+			break
+		case os.IsNotExist(err):
+			actualonly = append(actualonly, relPath)
+		default:
+			panic(err)
+		}
 		return nil
 	})
+	return
 }

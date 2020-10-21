@@ -143,6 +143,18 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 			}
 			return ctrl.Result{}, err
 		}
+	case updateStrat.Setters != nil:
+		// For setters we first want to compile a list of _all_ the
+		// policies in the same namespace (maybe in the future this
+		// could be filtered by the automation object).
+		var policies imagev1alpha1_reflect.ImagePolicyList
+		if err := r.List(ctx, &policies, &client.ListOptions{Namespace: req.NamespacedName.Namespace}); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		if err := updateAccordingToSetters(ctx, tmp, policies.Items); err != nil {
+			return ctrl.Result{}, err
+		}
 	default:
 		log.Info("no update strategy given in the spec")
 		// no sense rescheduling until this resource changes
@@ -391,4 +403,10 @@ func updateAccordingToImagePolicy(ctx context.Context, path string, policy *imag
 		return errImagePolicyNotReady
 	}
 	return update.UpdateImageEverywhere(path, path, latestRef, latestRef)
+}
+
+// updateAccordingToSetters updates files under the root by treating
+// the given image policies as kyaml setters.
+func updateAccordingToSetters(ctx context.Context, path string, policies []imagev1alpha1_reflect.ImagePolicy) error {
+	return update.UpdateWithSetters(path, path, policies)
 }

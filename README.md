@@ -32,31 +32,34 @@ the GitRepository kind, and doesn't need the source-controller itself.
 If you're not already using the [GitOps toolkit][gotk], you can just
 install the custom resource definition for GitRepository:
 
-    kubectl apply -f https://raw.githubusercontent.com/fluxcd/source-controller/master/config/crd/bases/source.toolkit.fluxcd.io_gitrepositories.yaml
+    kubectl apply -f https://raw.githubusercontent.com/fluxcd/source-controller/v0.0.18/config/crd/bases/source.toolkit.fluxcd.io_gitrepositories.yaml
 
 **To install the image reflector controller**
 
 This controller relies on the image reflector controller. A working
 configuration for the latter can be applied straight from the GitHub
-repository (NB `-k`):
+repository:
 
-    kubectl apply -k github.com/fluxcd/image-reflector-controller/config/default
+    kustomize build github.com/fluxcd/image-reflector-controller//config/default/?ref=main | kubectl apply -f-
 
 ### Installing the automation controller
 
 You can apply a working configuration directly from GitHub:
 
-    kubectl apply -k github.com/fluxcd/image-automation-controller/config/default
+    kustomize build github.com/fluxcd/image-automation-controller//config/default?ref=main | kubectl apply -f-
 
 or, in a clone of this repository,
 
     make docker-build deploy
 
+You will need to do the latter if you're trying the controller on a
+branch other than `main`.
+
 ## How to use it
 
 Here is a quick example of configuring an automation. I'm going to use
-[cuttlefacts-app][cuttlefacts-app-repo] because it's minimal and
-thereby, easy to follow.
+[cuttlefacts-app][cuttlefacts-app-repo] because it's minimal and easy
+to follow.
 
 ### Image policy
 
@@ -92,7 +95,7 @@ kind: ImagePolicy
 metadata:
   name: app-policy
 spec:
-  imageRepository:
+  imageRepositoryRef:
     name: app-image
   policy:
     semver:
@@ -111,7 +114,7 @@ NAME         LATESTIMAGE
 app-policy   cuttlefacts/cuttlefacts-app:1.0.0
 ```
 
-### Git repository and automation
+### Creating the git repository object
 
 You need a writable git repository, so fork
 [`cuttlefacts-app`][cuttlefacts-app-repo] to your own account, and
@@ -176,9 +179,9 @@ EOF
 $ $EDITOR repo.yaml
 ```
 
-Create the repository; be aware that unless you're running the full
-GitOps toolkit suite, there will be no controller acting on it (and
-doesn't need to be, for the purpose of this run-through).
+Create the repository object; be aware that unless you're running the
+full GitOps toolkit suite, there will be no controller acting on it
+(and doesn't need to be, for the purpose of this run-through).
 
 ```bash
 $ kubectl apply -f repo.yaml
@@ -188,9 +191,50 @@ NAME               URL                                             READY   STATU
 cuttlefacts-repo   ssh://git@github.com/squaremo/cuttlefacts-app                    9s
 ```
 
+### Adding a marker to the YAML to update
+
+To tell the controller what to update, you add some markers to the
+files to be updated. Each marker says which field to update, and which
+image policy to use for the new value.
+
+In this case, it's the image in the deployment that needs to be
+updated, with the latest image from the image policy made
+earlier. Edit the file either locally or through GitHub, and add a
+marker to the file `deploy/deployment.yaml` at the line with the image
+field, `image: cuttlefacts/cuttlefacts-app`. The surrounding lines
+look like this:
+
+```
+      containers:
+      - name: server
+        image: cuttlefacts/cuttlefacts-app
+        imagePullPolicy: IfNotPresent
+```
+
+With the marker, they look like this:
+
+```
+      containers:
+      - name: server
+        image: cuttlefacts/cuttlefacts-app # {"$imagepolicy": "default:app-policy"}
+        imagePullPolicy: IfNotPresent
+```
+
+The marker is a comment at the end of the `image:` line, with a JSON
+value (so remember the double quotes), naming the image policy object
+to use for the value. A `:` character separates the namespace from the
+name of the `ImagePolicy` object. (The namespace is default because it
+wasn't specified in the manifest (`policy.yaml`) or when it was
+applied.)
+
+Commit that change, and push it if you made the commit locally.
+
+### Creating the automation object
+
 Now we have an image policy, which calculates the most recent image,
-and a git repository to update -- the last ingredient is to tie them
-together with an `ImageUpdateAutomation` resource:
+and a git repository to update, and we've marked the field to update,
+in a file. The last ingredient is to tie these together with an
+`ImageUpdateAutomation` resource:
 
 ```
 $ cat > update.yaml <<EOF
@@ -199,19 +243,23 @@ kind: ImageUpdateAutomation
 metadata:
   name: update-app
 spec:
-  gitRepository:
-    name: cuttlefacts-repo
+  checkout:
+    gitRepositoryRef:
+      name: cuttlefacts-repo
   update:
-    imagePolicy:
-      name: app-policy
+    setters:
+      paths:
+      - .
   commit:
     authorName: UpdateBot
     authorEmail: bot@example.com
 EOF
 ```
 
-Note that the image policy you created earlier, and the git
-repository, are both mentioned.
+The git repository object is mentioned, and the `setters` value gives
+the paths to apply updates under.
+
+Apply the file to create the automation object:
 
     kubectl apply -f update.yaml
 
@@ -226,4 +274,4 @@ repository][squaremo-auto-commit].
 [cuttlefacts-app-repo]: https://github.com/cuttlefacts/cuttlefacts-app
 [github-fingerprints]: https://docs.github.com/en/github/authenticating-to-github/githubs-ssh-key-fingerprints
 [cuttlefacts-app-deployment]: https://github.com/cuttlefacts/cuttlefacts-app/blob/master/deploy/deployment.yaml
-[squaremo-auto-commit]: https://github.com/squaremo/cuttlefacts-app-automated/commit/ad445a6cbd938be4b93116990954104f5730177e
+[squaremo-auto-commit]: https://github.com/squaremo/cuttlefacts-app-auto-setters/commit/edb6e7c0724bcc2226dc3077558f747e7adfb8e8

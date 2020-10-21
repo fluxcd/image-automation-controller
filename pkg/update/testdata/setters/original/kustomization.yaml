@@ -1,0 +1,9 @@
+# This is not intended to be a working kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- unimportant.yaml
+images:
+- name: container
+  newName: replaced # {"$imagepolicy": "automation-ns:policy:name"}
+  newTag: v1 # {"$imagepolicy": "automation-ns:policy:tag"}

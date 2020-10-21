@@ -62,6 +62,20 @@ type UpdateStrategy struct {
 	// given policy's image, to the policy's latest image reference.
 	// +optional
 	ImagePolicyRef *corev1.LocalObjectReference `json:"imagePolicyRef,omitempty"`
+	// Setters if present means update workloads using setters, via
+	// fields marked in the files themselves.
+	// +optional
+	Setters *SettersStrategy `json:"setters,omitempty"`
+}
+
+// SettersStrategy specifies how to use kyaml setters to update the
+// git repository.
+type SettersStrategy struct {
+	// Paths gives all paths that should be subject to updates using
+	// setters. If missing, the path `.` (the root of the git
+	// repository) is assumed.
+	// +optional
+	Paths []string `json:"paths,omitempty"`
 }
 
 // CommitSpec specifies how to commit changes to the git repository
