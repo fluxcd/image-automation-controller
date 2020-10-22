@@ -21,9 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // ImageUpdateAutomationSpec defines the desired state of ImageUpdateAutomation
 type ImageUpdateAutomationSpec struct {
 	// Checkout gives the parameters for cloning the git repository,
@@ -58,10 +55,6 @@ type GitCheckoutSpec struct {
 // UpdateStrategy is a union of the various strategies for updating
 // the git repository.
 type UpdateStrategy struct {
-	// ImagePolicyRef if present means update all workloads using the
-	// given policy's image, to the policy's latest image reference.
-	// +optional
-	ImagePolicyRef *corev1.LocalObjectReference `json:"imagePolicyRef,omitempty"`
 	// Setters if present means update workloads using setters, via
 	// fields marked in the files themselves.
 	// +optional
