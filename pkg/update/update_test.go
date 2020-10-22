@@ -18,32 +18,6 @@ func TestUpdate(t *testing.T) {
 	RunSpecs(t, "Update suite")
 }
 
-var _ = Describe("Update image everywhere from policy", func() {
-	It("leaves a different image alone", func() {
-		tmp, err := ioutil.TempDir("", "gotest")
-		Expect(err).ToNot(HaveOccurred())
-		defer os.RemoveAll(tmp)
-		Expect(UpdateImageEverywhere("testdata/leave/original", tmp, "notused", "notused:v1.0.1")).To(Succeed())
-		test.ExpectMatchingDirectories(tmp, "testdata/leave/expected")
-	})
-
-	It("replaces the given image", func() {
-		tmp, err := ioutil.TempDir("", "gotest")
-		Expect(err).ToNot(HaveOccurred())
-		defer os.RemoveAll(tmp)
-		Expect(UpdateImageEverywhere("testdata/replace/original", tmp, "used", "used:v1.1.0")).To(Succeed())
-		test.ExpectMatchingDirectories(tmp, "testdata/replace/expected")
-	})
-
-	It("keeps comments intact", func() {
-		tmp, err := ioutil.TempDir("", "gotest")
-		Expect(err).ToNot(HaveOccurred())
-		defer os.RemoveAll(tmp)
-		Expect(UpdateImageEverywhere("testdata/replace/commented", tmp, "used", "used:v1.1.0")).To(Succeed())
-		test.ExpectMatchingDirectories(tmp, "testdata/replace/commented-expected")
-	})
-})
-
 var _ = Describe("Update image via kyaml setters2", func() {
 	It("updates the image marked with the image policy (setter) ref", func() {
 		tmp, err := ioutil.TempDir("", "gotest")

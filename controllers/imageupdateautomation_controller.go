@@ -121,28 +121,6 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 
 	updateStrat := auto.Spec.Update
 	switch {
-	case updateStrat.ImagePolicyRef != nil:
-		var policy imagev1alpha1_reflect.ImagePolicy
-		policyName := types.NamespacedName{
-			Namespace: auto.GetNamespace(),
-			Name:      updateStrat.ImagePolicyRef.Name,
-		}
-		if err := r.Get(ctx, policyName, &policy); err != nil {
-			if client.IgnoreNotFound(err) == nil {
-				log.Info("referenced ImagePolicy not found")
-				// assume we'll be told if the image policy turns up, or if this resource changes
-				return ctrl.Result{}, nil
-			}
-			return ctrl.Result{}, err
-		}
-		if err := updateAccordingToImagePolicy(ctx, tmp, &policy); err != nil {
-			if err == errImagePolicyNotReady {
-				log.Info("image policy does not have latest image ref", "imagepolicy", policyName)
-				// assume we'll be told if the image policy or this resource changes
-				return ctrl.Result{}, nil
-			}
-			return ctrl.Result{}, err
-		}
 	case updateStrat.Setters != nil:
 		// For setters we first want to compile a list of _all_ the
 		// policies in the same namespace (maybe in the future this
@@ -211,26 +189,11 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) err
 		return err
 	}
 
-	// Index the image policy (if any) that each I-U-A refers to
-	if err := mgr.GetFieldIndexer().IndexField(ctx, &imagev1alpha1.ImageUpdateAutomation{}, imagePolicyKey, func(obj runtime.Object) []string {
-		updater := obj.(*imagev1alpha1.ImageUpdateAutomation)
-		if ref := updater.Spec.Update.ImagePolicyRef; ref != nil {
-			return []string{ref.Name}
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&imagev1alpha1.ImageUpdateAutomation{}).
 		Watches(&source.Kind{Type: &sourcev1alpha1.GitRepository{}},
 			&handler.EnqueueRequestsFromMapFunc{
 				ToRequests: handler.ToRequestsFunc(r.automationsForGitRepo),
-			}).
-		Watches(&source.Kind{Type: &imagev1alpha1_reflect.ImagePolicy{}},
-			&handler.EnqueueRequestsFromMapFunc{
-				ToRequests: handler.ToRequestsFunc(r.automationsForImagePolicy),
 			}).
 		Complete(r)
 }
@@ -261,26 +224,6 @@ func (r *ImageUpdateAutomationReconciler) automationsForGitRepo(obj handler.MapO
 	var autoList imagev1alpha1.ImageUpdateAutomationList
 	if err := r.List(ctx, &autoList, client.InNamespace(obj.Meta.GetNamespace()), client.MatchingFields{repoRefKey: obj.Meta.GetName()}); err != nil {
 		r.Log.Error(err, "failed to list ImageUpdateAutomations for GitRepository", "name", types.NamespacedName{
-			Name:      obj.Meta.GetName(),
-			Namespace: obj.Meta.GetNamespace(),
-		})
-		return nil
-	}
-	reqs := make([]reconcile.Request, len(autoList.Items), len(autoList.Items))
-	for i := range autoList.Items {
-		reqs[i].NamespacedName.Name = autoList.Items[i].GetName()
-		reqs[i].NamespacedName.Namespace = autoList.Items[i].GetNamespace()
-	}
-	return reqs
-}
-
-// automationsForImagePolicy fetches all the automations that refer to
-// a particular source.ImagePolicy object.
-func (r *ImageUpdateAutomationReconciler) automationsForImagePolicy(obj handler.MapObject) []reconcile.Request {
-	ctx := context.Background()
-	var autoList imagev1alpha1.ImageUpdateAutomationList
-	if err := r.List(ctx, &autoList, client.InNamespace(obj.Meta.GetNamespace()), client.MatchingFields{imagePolicyKey: obj.Meta.GetName()}); err != nil {
-		r.Log.Error(err, "failed to list ImageUpdateAutomations for ImagePolicy", "name", types.NamespacedName{
 			Name:      obj.Meta.GetName(),
 			Namespace: obj.Meta.GetNamespace(),
 		})
@@ -386,24 +329,6 @@ func commitAllAndPush(ctx context.Context, repo *gogit.Repository, access repoAc
 }
 
 // --- updates
-
-var errImagePolicyNotReady = errors.New("ImagePolicy resource is not ready")
-
-// update the manifest files under path according to policy, by
-// replacing any mention of the policy's image repository with the
-// latest ref.
-func updateAccordingToImagePolicy(ctx context.Context, path string, policy *imagev1alpha1_reflect.ImagePolicy) error {
-	// the function that does the update expects an original and a
-	// replacement; but it only uses the repository part of the
-	// original, and it compares canonical forms (with the defaults
-	// filled in). Since the latest image will have the same
-	// repository, I can just pass that as the original.
-	latestRef := policy.Status.LatestImage
-	if latestRef == "" {
-		return errImagePolicyNotReady
-	}
-	return update.UpdateImageEverywhere(path, path, latestRef, latestRef)
-}
 
 // updateAccordingToSetters updates files under the root by treating
 // the given image policies as kyaml setters.

@@ -90,15 +90,6 @@ spec:
               description: Update gives the specification for how to update the files
                 in the repository
               properties:
-                imagePolicyRef:
-                  description: ImagePolicyRef if present means update all workloads
-                    using the given policy's image, to the policy's latest image reference.
-                  properties:
-                    name:
-                      description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                        TODO: Add other useful fields. apiVersion, kind, uid?'
-                      type: string
-                  type: object
                 setters:
                   description: Setters if present means update workloads using setters,
                     via fields marked in the files themselves.
