@@ -1,5 +1,4 @@
-# Build the manager binary
-FROM golang:1.14 as builder
+FROM golang:1.15-alpine as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -16,13 +15,22 @@ COPY pkg/ pkg/
 COPY controllers/ controllers/
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o manager main.go
+RUN CGO_ENABLED=0 go build -a -o image-automation-controller main.go
 
-# Use distroless as minimal base image to package the manager binary
-# Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static:nonroot
-WORKDIR /
-COPY --from=builder /workspace/manager .
-USER nonroot:nonroot
+FROM alpine:3.12
 
-ENTRYPOINT ["/manager"]
+LABEL org.opencontainers.image.source="https://github.com/fluxcd/image-automation-controller"
+
+RUN apk add --no-cache ca-certificates tini
+
+COPY --from=builder /workspace/image-automation-controller /usr/local/bin/
+
+# Create minimal nsswitch.conf file to prioritize the usage of /etc/hosts over DNS queries.
+# https://github.com/gliderlabs/docker-alpine/issues/367#issuecomment-354316460
+RUN [ ! -e /etc/nsswitch.conf ] && echo 'hosts: files dns' > /etc/nsswitch.conf
+
+RUN addgroup -S controller && adduser -S -g controller controller
+
+USER controller
+
+ENTRYPOINT [ "/sbin/tini", "--", "image-automation-controller" ]

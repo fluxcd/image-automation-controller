@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: image-automation-controller
   labels:
-    control-plane: controller-manager
+    control-plane: controller
 spec:
   selector:
     matchLabels:
@@ -13,19 +13,38 @@ spec:
     metadata:
       labels:
         app: image-automation-controller
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
     spec:
+      terminationGracePeriodSeconds: 10
       containers:
-      - command:
-        - /manager
+      - name: manager
+        image: fluxcd/image-automation-controller
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        ports:
+          - containerPort: 8080
+            name: http-prom
+        env:
+          - name: RUNTIME_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
         args:
         - --enable-leader-election
-        image: fluxcd/image-automation-controller
-        name: manager
         resources:
           limits:
-            cpu: 100m
-            memory: 30Mi
+            cpu: 1000m
+            memory: 1Gi
           requests:
             cpu: 100m
-            memory: 20Mi
-      terminationGracePeriodSeconds: 10
+            memory: 64Mi
+        volumeMounts:
+          - name: temp
+            mountPath: /tmp
+      volumes:
+        - name: temp
+          emptyDir: {}
