@@ -1,8 +1,8 @@
 
 # Image URL to use all building/pushing image targets
 IMG ?= fluxcd/image-automation-controller
-# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true"
+# Produce CRDs that work back to Kubernetes 1.16
+CRD_OPTIONS ?= crd:crdVersions=v1
 
 # Version of the Toolkit from which to get CRDs. Change this if you
 # bump the go module version.
