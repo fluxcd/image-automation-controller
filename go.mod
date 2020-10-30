@@ -1,6 +1,6 @@
 module github.com/fluxcd/image-automation-controller
 
-go 1.14
+go 1.15
 
 require (
 	github.com/fluxcd/image-reflector-controller v0.0.0-20200810165546-c2265d9b49b9
