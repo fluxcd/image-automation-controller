@@ -45,7 +45,7 @@ import (
 	imagev1alpha1 "github.com/fluxcd/image-automation-controller/api/v1alpha1"
 	"github.com/fluxcd/image-automation-controller/pkg/update"
 	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
-	sourcev1alpha1 "github.com/fluxcd/source-controller/api/v1alpha1"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 	"github.com/fluxcd/source-controller/pkg/git"
 )
 
@@ -81,7 +81,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 	}
 
 	// get the git repository object so it can be checked out
-	var origin sourcev1alpha1.GitRepository
+	var origin sourcev1.GitRepository
 	originName := types.NamespacedName{
 		Name:      auto.Spec.Checkout.GitRepositoryRef.Name,
 		Namespace: auto.GetNamespace(),
@@ -191,7 +191,7 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) err
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&imagev1alpha1.ImageUpdateAutomation{}).
-		Watches(&source.Kind{Type: &sourcev1alpha1.GitRepository{}},
+		Watches(&source.Kind{Type: &sourcev1.GitRepository{}},
 			&handler.EnqueueRequestsFromMapFunc{
 				ToRequests: handler.ToRequestsFunc(r.automationsForGitRepo),
 			}).
@@ -244,7 +244,7 @@ type repoAccess struct {
 	url  string
 }
 
-func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, repository *sourcev1alpha1.GitRepository) (repoAccess, error) {
+func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, repository *sourcev1.GitRepository) (repoAccess, error) {
 	var access repoAccess
 	access.url = repository.Spec.URL
 	authStrat := git.AuthSecretStrategyForURL(access.url)
@@ -272,7 +272,7 @@ func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, rep
 }
 
 func cloneInto(ctx context.Context, access repoAccess, branch, path string) (*gogit.Repository, error) {
-	checkoutStrat := git.CheckoutStrategyForRef(&sourcev1alpha1.GitRepositoryRef{
+	checkoutStrat := git.CheckoutStrategyForRef(&sourcev1.GitRepositoryRef{
 		Branch: branch,
 	})
 	_, _, err := checkoutStrat.Checkout(ctx, path, access.url, access.auth)
