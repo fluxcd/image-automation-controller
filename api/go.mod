@@ -1,9 +1,10 @@
-module github.com/fluxcd/image-automation-controller/api
+module github.com/fluxcd/kustomize-controller/api
 
-go 1.14
+go 1.15
 
 require (
-	k8s.io/api v0.18.6
-	k8s.io/apimachinery v0.18.6
-	sigs.k8s.io/controller-runtime v0.6.2
+	github.com/go-logr/logr v0.2.1 // indirect
+	k8s.io/api v0.19.3
+	k8s.io/apimachinery v0.19.3
+	sigs.k8s.io/controller-runtime v0.6.3
 )

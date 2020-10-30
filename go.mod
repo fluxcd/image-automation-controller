@@ -9,6 +9,7 @@ require (
 	github.com/fluxcd/image-reflector-controller v0.0.0-20200810165546-c2265d9b49b9
 	// If you bump this, change TOOLKIT_VERSION in the Makefile to match
 	github.com/fluxcd/source-controller v0.0.7
+	github.com/fluxcd/image-reflector-controller/api v0.0.0-20201028160737-240e94730afa
 	github.com/go-git/go-billy/v5 v5.0.0
 	github.com/go-git/go-git/v5 v5.1.0
 	github.com/go-logr/logr v0.1.0
