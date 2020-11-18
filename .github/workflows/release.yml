@@ -1,0 +1,119 @@
+name: release
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CONTROLLER: image-automation-controller
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Kustomize
+        uses: fluxcd/pkg/actions/kustomize@main
+      - name: Prepare
+        id: prep
+        run: |
+          VERSION=sha-${GITHUB_SHA::8}
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF/refs\/tags\//}
+          fi
+          echo ::set-output name=BUILD_DATE::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          echo ::set-output name=VERSION::${VERSION}
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v1
+        with:
+          platforms: all
+      - name: Setup Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
+        with:
+          buildkitd-flags: "--debug"
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: fluxcdbot
+          password: ${{ secrets.GHCR_TOKEN }}
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: fluxcdbot
+          password: ${{ secrets.DOCKER_FLUXCD_PASSWORD }}
+      - name: Publish AMD64 image
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
+            docker.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
+          labels: |
+            org.opencontainers.image.title=${{ github.event.repository.name }}
+            org.opencontainers.image.description=${{ github.event.repository.description }}
+            org.opencontainers.image.url=${{ github.event.repository.html_url }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.prep.outputs.VERSION }}
+            org.opencontainers.image.created=${{ steps.prep.outputs.BUILD_DATE }}
+      - name: Publish ARM image
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          file: ./Dockerfile
+          platforms: linux/arm/v7,linux/arm64
+          tags: |
+            ghcr.io/fluxcd/${{ env.CONTROLLER }}-arm64:${{ steps.prep.outputs.VERSION }}
+          labels: |
+            org.opencontainers.image.title=${{ github.event.repository.name }}
+            org.opencontainers.image.description=${{ github.event.repository.description }}
+            org.opencontainers.image.url=${{ github.event.repository.html_url }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.prep.outputs.VERSION }}
+            org.opencontainers.image.created=${{ steps.prep.outputs.BUILD_DATE }}
+      - name: Check images
+        run: |
+          docker buildx imagetools inspect docker.io/fluxcd/${CONTROLLER}:${{ steps.prep.outputs.VERSION }}
+          docker buildx imagetools inspect ghcr.io/fluxcd/${CONTROLLER}:${{ steps.prep.outputs.VERSION }}
+          docker buildx imagetools inspect ghcr.io/fluxcd/${CONTROLLER}-arm64:${{ steps.prep.outputs.VERSION }}
+          docker pull docker.io/fluxcd/${CONTROLLER}:${{ steps.prep.outputs.VERSION }}
+          docker pull ghcr.io/fluxcd/${CONTROLLER}:${{ steps.prep.outputs.VERSION }}
+      - name: Generate release asset
+        if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+        run: |
+          mkdir -p config/release
+          cp config/default/* config/release
+          cd config/release
+          kustomize edit set image fluxcd/${CONTROLLER}=fluxcd/${CONTROLLER}:${{ steps.get_version.outputs.VERSION }}
+          kustomize build . > ${CONTROLLER}.yaml
+      - name: Create release
+        if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+        id: create_release
+        uses: actions/create-release@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          draft: false
+          prerelease: true
+          body: |
+            [CHANGELOG](https://github.com/fluxcd/${{ env.CONTROLLER }}/blob/main/CHANGELOG.md)
+      - name: Upload artifacts
+        if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./config/release/${{ env.CONTROLLER }}.yaml
+          asset_name: ${{ env.CONTROLLER }}.yaml
+          asset_content_type: text/plain
