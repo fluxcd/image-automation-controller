@@ -42,11 +42,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	imagev1alpha1 "github.com/fluxcd/image-automation-controller/api/v1alpha1"
-	"github.com/fluxcd/image-automation-controller/pkg/update"
-	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
-	sourcev1alpha1 "github.com/fluxcd/source-controller/api/v1alpha1"
+	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 	"github.com/fluxcd/source-controller/pkg/git"
+
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha1"
+	"github.com/fluxcd/image-automation-controller/pkg/update"
 )
 
 const defaultInterval = 2 * time.Minute
@@ -75,13 +76,13 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 	ctx := context.Background()
 	log := r.Log.WithValues("imageupdateautomation", req.NamespacedName)
 
-	var auto imagev1alpha1.ImageUpdateAutomation
+	var auto imagev1.ImageUpdateAutomation
 	if err := r.Get(ctx, req.NamespacedName, &auto); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	// get the git repository object so it can be checked out
-	var origin sourcev1alpha1.GitRepository
+	var origin sourcev1.GitRepository
 	originName := types.NamespacedName{
 		Name:      auto.Spec.Checkout.GitRepositoryRef.Name,
 		Namespace: auto.GetNamespace(),
@@ -125,7 +126,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 		// For setters we first want to compile a list of _all_ the
 		// policies in the same namespace (maybe in the future this
 		// could be filtered by the automation object).
-		var policies imagev1alpha1_reflect.ImagePolicyList
+		var policies imagev1_reflect.ImagePolicyList
 		if err := r.List(ctx, &policies, &client.ListOptions{Namespace: req.NamespacedName.Namespace}); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -181,8 +182,8 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	ctx := context.Background()
 	// Index the git repository object that each I-U-A refers to
-	if err := mgr.GetFieldIndexer().IndexField(ctx, &imagev1alpha1.ImageUpdateAutomation{}, repoRefKey, func(obj runtime.Object) []string {
-		updater := obj.(*imagev1alpha1.ImageUpdateAutomation)
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &imagev1.ImageUpdateAutomation{}, repoRefKey, func(obj runtime.Object) []string {
+		updater := obj.(*imagev1.ImageUpdateAutomation)
 		ref := updater.Spec.Checkout.GitRepositoryRef
 		return []string{ref.Name}
 	}); err != nil {
@@ -190,8 +191,8 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) err
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&imagev1alpha1.ImageUpdateAutomation{}).
-		Watches(&source.Kind{Type: &sourcev1alpha1.GitRepository{}},
+		For(&imagev1.ImageUpdateAutomation{}).
+		Watches(&source.Kind{Type: &sourcev1.GitRepository{}},
 			&handler.EnqueueRequestsFromMapFunc{
 				ToRequests: handler.ToRequestsFunc(r.automationsForGitRepo),
 			}).
@@ -199,7 +200,7 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) err
 }
 
 // intervalOrDefault gives the interval specified, or if missing, the default
-func intervalOrDefault(auto *imagev1alpha1.ImageUpdateAutomation) time.Duration {
+func intervalOrDefault(auto *imagev1.ImageUpdateAutomation) time.Duration {
 	if auto.Spec.RunInterval != nil {
 		return auto.Spec.RunInterval.Duration
 	}
@@ -209,7 +210,7 @@ func intervalOrDefault(auto *imagev1alpha1.ImageUpdateAutomation) time.Duration 
 // durationUntilNextRun gives the length of time to wait before
 // running the automation again after a successful run, unless
 // something (a dependency) changes to trigger a run.
-func durationSinceLastRun(auto *imagev1alpha1.ImageUpdateAutomation, now time.Time) time.Duration {
+func durationSinceLastRun(auto *imagev1.ImageUpdateAutomation, now time.Time) time.Duration {
 	last := auto.Status.LastAutomationRunTime
 	if last == nil {
 		return time.Duration(math.MaxInt64) // a fairly long time
@@ -221,7 +222,7 @@ func durationSinceLastRun(auto *imagev1alpha1.ImageUpdateAutomation, now time.Ti
 // particular source.GitRepository object.
 func (r *ImageUpdateAutomationReconciler) automationsForGitRepo(obj handler.MapObject) []reconcile.Request {
 	ctx := context.Background()
-	var autoList imagev1alpha1.ImageUpdateAutomationList
+	var autoList imagev1.ImageUpdateAutomationList
 	if err := r.List(ctx, &autoList, client.InNamespace(obj.Meta.GetNamespace()), client.MatchingFields{repoRefKey: obj.Meta.GetName()}); err != nil {
 		r.Log.Error(err, "failed to list ImageUpdateAutomations for GitRepository", "name", types.NamespacedName{
 			Name:      obj.Meta.GetName(),
@@ -244,7 +245,7 @@ type repoAccess struct {
 	url  string
 }
 
-func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, repository *sourcev1alpha1.GitRepository) (repoAccess, error) {
+func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, repository *sourcev1.GitRepository) (repoAccess, error) {
 	var access repoAccess
 	access.url = repository.Spec.URL
 	authStrat := git.AuthSecretStrategyForURL(access.url)
@@ -272,7 +273,7 @@ func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, rep
 }
 
 func cloneInto(ctx context.Context, access repoAccess, branch, path string) (*gogit.Repository, error) {
-	checkoutStrat := git.CheckoutStrategyForRef(&sourcev1alpha1.GitRepositoryRef{
+	checkoutStrat := git.CheckoutStrategyForRef(&sourcev1.GitRepositoryRef{
 		Branch: branch,
 	})
 	_, _, err := checkoutStrat.Checkout(ctx, path, access.url, access.auth)
@@ -285,7 +286,7 @@ func cloneInto(ctx context.Context, access repoAccess, branch, path string) (*go
 
 var errNoChanges error = errors.New("no changes made to working directory")
 
-func commitAllAndPush(ctx context.Context, repo *gogit.Repository, access repoAccess, commit *imagev1alpha1.CommitSpec) (string, error) {
+func commitAllAndPush(ctx context.Context, repo *gogit.Repository, access repoAccess, commit *imagev1.CommitSpec) (string, error) {
 	working, err := repo.Worktree()
 	if err != nil {
 		return "", err
@@ -332,6 +333,6 @@ func commitAllAndPush(ctx context.Context, repo *gogit.Repository, access repoAc
 
 // updateAccordingToSetters updates files under the root by treating
 // the given image policies as kyaml setters.
-func updateAccordingToSetters(ctx context.Context, path string, policies []imagev1alpha1_reflect.ImagePolicy) error {
+func updateAccordingToSetters(ctx context.Context, path string, policies []imagev1_reflect.ImagePolicy) error {
 	return update.UpdateWithSetters(path, path, policies)
 }

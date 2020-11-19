@@ -26,10 +26,11 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
+
 	imagev1alpha1_auto "github.com/fluxcd/image-automation-controller/api/v1alpha1"
 	"github.com/fluxcd/image-automation-controller/controllers"
-	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
-	sourcev1alpha1 "github.com/fluxcd/source-controller/api/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -43,7 +44,7 @@ func init() {
 
 	_ = imagev1alpha1_auto.AddToScheme(scheme)
 	_ = imagev1alpha1_reflect.AddToScheme(scheme)
-	_ = sourcev1alpha1.AddToScheme(scheme)
+	_ = sourcev1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 

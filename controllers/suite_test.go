@@ -31,9 +31,10 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	imagev1alpha1 "github.com/fluxcd/image-automation-controller/api/v1alpha1"
-	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
-	sourcev1alpha1 "github.com/fluxcd/source-controller/api/v1alpha1"
+	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
+
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -69,9 +70,9 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(err).ToNot(HaveOccurred())
 	Expect(cfg).ToNot(BeNil())
 
-	Expect(imagev1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
-	Expect(sourcev1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
-	Expect(imagev1alpha1_reflect.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(imagev1.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(sourcev1.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(imagev1_reflect.AddToScheme(scheme.Scheme)).To(Succeed())
 
 	// +kubebuilder:scaffold:scheme
 
