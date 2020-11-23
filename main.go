@@ -24,9 +24,10 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
+	"github.com/fluxcd/pkg/runtime/logger"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
 	imagev1alpha1_auto "github.com/fluxcd/image-automation-controller/api/v1alpha1"
@@ -49,32 +50,54 @@ func init() {
 }
 
 func main() {
-	var metricsAddr string
-	var enableLeaderElection bool
+	var (
+		metricsAddr          string
+		healthAddr           string
+		enableLeaderElection bool
+		logLevel             string
+		logJSON              bool
+		watchAllNamespaces   bool
+	)
+
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(&healthAddr, "health-addr", ":9440", "The address the health endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.StringVar(&logLevel, "log-level", "info", "Set logging level. Can be debug, info or error.")
+	flag.BoolVar(&logJSON, "log-json", false, "Set logging to JSON format.")
+	flag.BoolVar(&watchAllNamespaces, "watch-all-namespaces", true,
+		"Watch for custom resources in all namespaces, if set to false it will only watch the runtime namespace.")
 	flag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	ctrl.SetLogger(logger.NewLogger(logLevel, logJSON))
+
+	watchNamespace := ""
+	if !watchAllNamespaces {
+		watchNamespace = os.Getenv("RUNTIME_NAMESPACE")
+	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
-		Port:               9443,
-		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "79628f79.fluxcd.io",
+		Scheme:                 scheme,
+		MetricsBindAddress:     metricsAddr,
+		HealthProbeBindAddress: healthAddr,
+		Port:                   9443,
+		LeaderElection:         enableLeaderElection,
+		LeaderElectionID:       "79628f79.fluxcd.io",
+		Namespace:              watchNamespace,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
+	setupChecks(mgr)
+
 	if err = (&controllers.ImageUpdateAutomationReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("ImageUpdateAutomation"),
-		Scheme: mgr.GetScheme(),
+		Client:        mgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("ImageUpdateAutomation"),
+		Scheme:        mgr.GetScheme(),
+		EventRecorder: mgr.GetEventRecorderFor("image-automation-controller"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ImageUpdateAutomation")
 		os.Exit(1)
@@ -84,6 +107,18 @@ func main() {
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
+		os.Exit(1)
+	}
+}
+
+func setupChecks(mgr ctrl.Manager) {
+	if err := mgr.AddReadyzCheck("ping", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to create ready check")
+		os.Exit(1)
+	}
+
+	if err := mgr.AddHealthzCheck("ping", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to create health check")
 		os.Exit(1)
 	}
 }

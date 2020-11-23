@@ -8,6 +8,7 @@ require (
 	github.com/fluxcd/image-automation-controller/api v0.0.0-00010101000000-000000000000
 	github.com/fluxcd/image-reflector-controller v0.0.0-20200810165546-c2265d9b49b9
 	github.com/fluxcd/pkg/gittestserver v0.0.2
+	github.com/fluxcd/pkg/runtime v0.2.0
 	github.com/fluxcd/source-controller v0.2.2
 	// If you bump this, change TOOLKIT_VERSION in the Makefile to match
 	github.com/fluxcd/source-controller/api v0.2.2
