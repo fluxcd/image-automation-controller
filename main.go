@@ -49,15 +49,26 @@ func init() {
 }
 
 func main() {
-	var metricsAddr string
-	var enableLeaderElection bool
+	var (
+		metricsAddr          string
+		enableLeaderElection bool
+		watchAllNamespaces   bool
+	)
+
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.BoolVar(&watchAllNamespaces, "watch-all-namespaces", true,
+		"Watch for custom resources in all namespaces, if set to false it will only watch the runtime namespace.")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	watchNamespace := ""
+	if !watchAllNamespaces {
+		watchNamespace = os.Getenv("RUNTIME_NAMESPACE")
+	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
@@ -65,6 +76,7 @@ func main() {
 		Port:               9443,
 		LeaderElection:     enableLeaderElection,
 		LeaderElectionID:   "79628f79.fluxcd.io",
+		Namespace:          watchNamespace,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
