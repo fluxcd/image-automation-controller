@@ -34,6 +34,9 @@ spec:
               fieldRef:
                 fieldPath: metadata.namespace
         args:
+        - --watch-all-namespaces
+        - --log-level=info
+        - --log-json
         - --enable-leader-election
         resources:
           limits:
