@@ -28,6 +28,9 @@ spec:
         ports:
           - containerPort: 8080
             name: http-prom
+          - containerPort: 9440
+            name: healthz
+            protocol: TCP
         env:
           - name: RUNTIME_NAMESPACE
             valueFrom:
@@ -38,6 +41,14 @@ spec:
         - --log-level=info
         - --log-json
         - --enable-leader-election
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: healthz
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: healthz
         resources:
           limits:
             cpu: 1000m
