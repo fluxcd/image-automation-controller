@@ -44,6 +44,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
+	"github.com/fluxcd/pkg/runtime/events"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 	"github.com/fluxcd/source-controller/pkg/git"
 
@@ -134,6 +135,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 		}
 
 		if err := updateAccordingToSetters(ctx, tmp, policies.Items); err != nil {
+			r.event(auto, events.EventSeverityError, err.Error())
 			return ctrl.Result{}, err
 		}
 	default:
@@ -145,14 +147,17 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 	log.V(debug).Info("ran updates to working dir", "working", tmp)
 
 	var commitMade bool
+
 	if rev, err := commitAllAndPush(ctx, repo, access, &auto.Spec.Commit); err != nil {
 		if err == errNoChanges {
 			log.Info("no changes made in working directory; no commit")
 		} else {
+			r.event(auto, events.EventSeverityError, err.Error())
 			return ctrl.Result{}, err
 		}
 	} else {
 		commitMade = true
+		r.event(auto, events.EventSeverityInfo, "committed and pushed change "+rev)
 		log.V(debug).Info("pushed commit to origin", "revision", rev)
 	}
 
@@ -329,6 +334,14 @@ func commitAllAndPush(ctx context.Context, repo *gogit.Repository, access repoAc
 	return rev.String(), repo.PushContext(ctx, &gogit.PushOptions{
 		Auth: access.auth,
 	})
+}
+
+// --- events
+
+func (r *ImageUpdateAutomationReconciler) event(auto imagev1.ImageUpdateAutomation, severity, msg string) {
+	if r.EventRecorder != nil {
+		r.EventRecorder.Event(&auto, "Normal", severity, msg)
+	}
 }
 
 // --- updates
