@@ -19,6 +19,8 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/fluxcd/pkg/apis/meta"
 )
 
 // ImageUpdateAutomationSpec defines the desired state of ImageUpdateAutomation
@@ -92,6 +94,21 @@ type ImageUpdateAutomationStatus struct {
 	// made).
 	// +optional
 	LastAutomationRunTime *metav1.Time `json:"lastAutomationRunTime,omitempty"`
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+}
+
+const (
+	GitNotAvailableReason = "GitRepositoryNotAvailable"
+	NoStrategyReason      = "MissingUpdateStrategy"
+)
+
+// SetImageUpdateAutomationReadiness sets the ready condition with the given status, reason and message.
+func SetImageUpdateAutomationReadiness(auto *ImageUpdateAutomation, status metav1.ConditionStatus, reason, message string) {
+	auto.Status.ObservedGeneration = auto.ObjectMeta.Generation
+	meta.SetResourceCondition(auto, meta.ReadyCondition, status, reason, message)
 }
 
 // +kubebuilder:object:root=true
@@ -105,6 +122,10 @@ type ImageUpdateAutomation struct {
 
 	Spec   ImageUpdateAutomationSpec   `json:"spec,omitempty"`
 	Status ImageUpdateAutomationStatus `json:"status,omitempty"`
+}
+
+func (auto *ImageUpdateAutomation) GetStatusConditions() *[]metav1.Condition {
+	return &auto.Status.Conditions
 }
 
 // +kubebuilder:object:root=true
