@@ -40,6 +40,11 @@ type ImageUpdateAutomationSpec struct {
 	// Commit specifies how to commit to the git repo
 	// +required
 	Commit CommitSpec `json:"commit"`
+
+	// Suspend tells the controller to not run this automation, until
+	// it is unset (or set to false). Defaults to false.
+	// +optional
+	Suspend bool `json:"suspend,omitempty"`
 }
 
 type GitCheckoutSpec struct {
