@@ -36,10 +36,13 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/otiai10/copy"
 	corev1 "k8s.io/api/core/v1"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
+	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/gittestserver"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
@@ -272,6 +275,22 @@ var _ = Describe("ImageUpdateAutomation", func() {
 				})
 				Expect(err).ToNot(HaveOccurred())
 				test.ExpectMatchingDirectories(tmp, expected)
+			})
+
+			It("stops updating when suspended", func() {
+				// suspend it, and check that it is marked as unready.
+				var updatePatch imagev1.ImageUpdateAutomation
+				updatePatch.Name = updateKey.Name
+				updatePatch.Namespace = updateKey.Namespace
+				updatePatch.Spec.Suspend = true
+				Expect(k8sClient.Patch(context.Background(), &updatePatch, client.Merge)).To(Succeed())
+				Eventually(func() bool {
+					if err := k8sClient.Get(context.Background(), updateKey, updateBySetters); err != nil {
+						return false
+					}
+					ready := apimeta.FindStatusCondition(updateBySetters.Status.Conditions, meta.ReadyCondition)
+					return ready != nil && ready.Status == metav1.ConditionFalse && ready.Reason == meta.SuspendedReason
+				}, timeout, time.Second).Should(BeTrue())
 			})
 		})
 	})
