@@ -87,6 +87,15 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	// whatever else happens, we've now "seen" the reconcile
+	// annotation if it's there
+	if token, ok := meta.ReconcileAnnotationValue(auto.GetAnnotations()); ok {
+		auto.Status.SetLastHandledReconcileRequest(token)
+		if err := r.Status().Update(ctx, &auto); err != nil {
+			return ctrl.Result{Requeue: true}, err
+		}
+	}
+
 	if auto.Spec.Suspend {
 		msg := "ImageUpdateAutomation is suspended, skipping automation run"
 		imagev1.SetImageUpdateAutomationReadiness(

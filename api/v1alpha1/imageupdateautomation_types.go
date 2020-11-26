@@ -102,7 +102,8 @@ type ImageUpdateAutomationStatus struct {
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 	// +optional
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	Conditions                  []metav1.Condition `json:"conditions,omitempty"`
+	meta.ReconcileRequestStatus `json:",inline"`
 }
 
 const (

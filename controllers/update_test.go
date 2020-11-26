@@ -188,29 +188,9 @@ var _ = Describe("ImageUpdateAutomation", func() {
 			BeforeEach(func() {
 				// Insert a setter reference into the deployment file,
 				// before creating the automation object itself.
-				tmp, err := ioutil.TempDir("", "gotest-imageauto-setters")
-				Expect(err).ToNot(HaveOccurred())
-				defer os.RemoveAll(tmp)
-				repo, err := git.PlainClone(tmp, false, &git.CloneOptions{
-					URL:           repoURL,
-					ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+				commitInRepo(repoURL, "Install setter marker", func(tmp string) {
+					replaceMarker(tmp, policyKey)
 				})
-				Expect(err).ToNot(HaveOccurred())
-
-				replaceMarker(tmp, policyKey)
-				worktree, err := repo.Worktree()
-				Expect(err).ToNot(HaveOccurred())
-				_, err = worktree.Add("deploy.yaml")
-				Expect(err).ToNot(HaveOccurred())
-				_, err = worktree.Commit("Install setter marker", &git.CommitOptions{
-					Author: &object.Signature{
-						Name:  "Testbot",
-						Email: "test@example.com",
-						When:  time.Now(),
-					},
-				})
-				Expect(err).ToNot(HaveOccurred())
-				Expect(repo.Push(&git.PushOptions{RemoteName: "origin"})).To(Succeed())
 
 				// pull the head commit we just pushed, so it's not
 				// considered a new commit when checking for a commit
@@ -229,6 +209,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 						Namespace: updateKey.Namespace,
 					},
 					Spec: imagev1.ImageUpdateAutomationSpec{
+						RunInterval: &metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
 						Checkout: imagev1.GitCheckoutSpec{
 							GitRepositoryRef: corev1.LocalObjectReference{
 								Name: gitRepoKey.Name,
@@ -259,22 +240,9 @@ var _ = Describe("ImageUpdateAutomation", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(commit.Message).To(Equal(commitMessage))
 
-				tmp, err := ioutil.TempDir("", "gotest-imageauto")
-				Expect(err).ToNot(HaveOccurred())
-				defer os.RemoveAll(tmp)
-
-				expected, err := ioutil.TempDir("", "gotest-imageauto-expected")
-				Expect(err).ToNot(HaveOccurred())
-				defer os.RemoveAll(expected)
-				copy.Copy("testdata/appconfig-setters-expected", expected)
-				replaceMarker(expected, policyKey)
-
-				_, err = git.PlainClone(tmp, false, &git.CloneOptions{
-					URL:           repoURL,
-					ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+				compareRepoWithExpected(repoURL, "testdata/appconfig-setters-expected", func(tmp string) {
+					replaceMarker(tmp, policyKey)
 				})
-				Expect(err).ToNot(HaveOccurred())
-				test.ExpectMatchingDirectories(tmp, expected)
 			})
 
 			It("stops updating when suspended", func() {
@@ -291,6 +259,52 @@ var _ = Describe("ImageUpdateAutomation", func() {
 					ready := apimeta.FindStatusCondition(updateBySetters.Status.Conditions, meta.ReadyCondition)
 					return ready != nil && ready.Status == metav1.ConditionFalse && ready.Reason == meta.SuspendedReason
 				}, timeout, time.Second).Should(BeTrue())
+			})
+
+			It("runs when the reconcile request annotation is added", func() {
+				// the automation has run, and is not expected to run
+				// again for 2 hours. Make a commit to the git repo
+				// which needs to be undone by automation, then add
+				// the annotation and make sure it runs again.
+				Expect(k8sClient.Get(context.Background(), updateKey, updateBySetters)).To(Succeed())
+				lastRun := updateBySetters.Status.LastAutomationRunTime
+				Expect(lastRun).ToNot(BeNil())
+
+				commitInRepo(repoURL, "Revert image update", func(tmp string) {
+					// revert the change made by copying the old version
+					// of the file back over then restoring the setter
+					// marker
+					copy.Copy("testdata/appconfig/deploy.yaml", filepath.Join(tmp, "deploy.yaml"))
+					replaceMarker(tmp, policyKey)
+				})
+				// check that it was reverted
+				compareRepoWithExpected(repoURL, "testdata/appconfig", func(tmp string) {
+					replaceMarker(tmp, policyKey)
+				})
+
+				ts := time.Now().String()
+				var updatePatch imagev1.ImageUpdateAutomation
+				updatePatch.Name = updateKey.Name
+				updatePatch.Namespace = updateKey.Namespace
+				updatePatch.ObjectMeta.Annotations = map[string]string{
+					meta.ReconcileRequestAnnotation: ts,
+				}
+				Expect(k8sClient.Patch(context.Background(), &updatePatch, client.Merge)).To(Succeed())
+
+				Eventually(func() bool {
+					if err := k8sClient.Get(context.Background(), updateKey, updateBySetters); err != nil {
+						return false
+					}
+					newLastRun := updateBySetters.Status.LastAutomationRunTime
+					return newLastRun != nil && newLastRun.Time.After(lastRun.Time)
+				}, timeout, time.Second).Should(BeTrue())
+				// check that the annotation was recorded as seen
+				Expect(updateBySetters.Status.LastHandledReconcileAt).To(Equal(ts))
+
+				// check that a new commit was made
+				compareRepoWithExpected(repoURL, "testdata/appconfig-setters-expected", func(tmp string) {
+					replaceMarker(tmp, policyKey)
+				})
 			})
 		})
 	})
@@ -324,6 +338,51 @@ func waitForNewHead(repo *git.Repository) {
 		h, _ := repo.Head()
 		return headHash != h.Hash().String()
 	}, timeout, time.Second).Should(BeTrue())
+}
+
+func compareRepoWithExpected(repoURL, fixture string, changeFixture func(tmp string)) {
+	expected, err := ioutil.TempDir("", "gotest-imageauto-expected")
+	Expect(err).ToNot(HaveOccurred())
+	defer os.RemoveAll(expected)
+	copy.Copy(fixture, expected)
+	changeFixture(expected)
+
+	tmp, err := ioutil.TempDir("", "gotest-imageauto")
+	Expect(err).ToNot(HaveOccurred())
+	defer os.RemoveAll(tmp)
+	_, err = git.PlainClone(tmp, false, &git.CloneOptions{
+		URL:           repoURL,
+		ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+	})
+	Expect(err).ToNot(HaveOccurred())
+	test.ExpectMatchingDirectories(tmp, expected)
+}
+
+func commitInRepo(repoURL, msg string, changeFiles func(path string)) {
+	tmp, err := ioutil.TempDir("", "gotest-imageauto")
+	Expect(err).ToNot(HaveOccurred())
+	defer os.RemoveAll(tmp)
+	repo, err := git.PlainClone(tmp, false, &git.CloneOptions{
+		URL:           repoURL,
+		ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+	})
+	Expect(err).ToNot(HaveOccurred())
+
+	changeFiles(tmp)
+
+	worktree, err := repo.Worktree()
+	Expect(err).ToNot(HaveOccurred())
+	_, err = worktree.Add(".")
+	Expect(err).ToNot(HaveOccurred())
+	_, err = worktree.Commit(msg, &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "Testbot",
+			Email: "test@example.com",
+			When:  time.Now(),
+		},
+	})
+	Expect(err).ToNot(HaveOccurred())
+	Expect(repo.Push(&git.PushOptions{RemoteName: "origin"})).To(Succeed())
 }
 
 // Initialise a git server with a repo including the files in dir.
