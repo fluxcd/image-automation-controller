@@ -87,11 +87,6 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	auto.Status.LastAutomationRunTime = &metav1.Time{Time: now}
-	if err := r.Status().Update(ctx, &auto); err != nil {
-		return ctrl.Result{}, err
-	}
-
 	// failWithError is a helper for bailing on the reconciliation.
 	failWithError := func(err error) (ctrl.Result, error) {
 		r.event(auto, events.EventSeverityError, err.Error())
@@ -183,7 +178,8 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 		statusMessage = "committed and pushed " + rev
 	}
 
-	// Getting to here is success
+	// Getting to here is a successful run.
+	auto.Status.LastAutomationRunTime = &metav1.Time{Time: now}
 	imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionTrue, meta.ReconciliationSucceededReason, statusMessage)
 	if err = r.Status().Update(ctx, &auto); err != nil {
 		return ctrl.Result{Requeue: true}, err
