@@ -101,8 +101,14 @@ type ImageUpdateAutomationStatus struct {
 }
 
 const (
+	// GitNotAvailableReason is used for ConditionReady when the
+	// automation run cannot proceed because the git repository is
+	// missing or cannot be cloned.
 	GitNotAvailableReason = "GitRepositoryNotAvailable"
-	NoStrategyReason      = "MissingUpdateStrategy"
+	// NoStrategyReason is used for ConditionReady when the automation
+	// run cannot proceed because there is no update strategy given in
+	// the spec.
+	NoStrategyReason = "MissingUpdateStrategy"
 )
 
 // SetImageUpdateAutomationReadiness sets the ready condition with the given status, reason and message.
