@@ -44,6 +44,7 @@ import (
 var cfg *rest.Config
 var k8sClient client.Client
 var k8sManager ctrl.Manager
+var imageAutoReconciler *ImageUpdateAutomationReconciler
 var testEnv *envtest.Environment
 
 func TestAPIs(t *testing.T) {
@@ -81,19 +82,22 @@ var _ = BeforeSuite(func(done Done) {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&ImageUpdateAutomationReconciler{
+	imageAutoReconciler = &ImageUpdateAutomationReconciler{
 		Client: k8sManager.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("ImageUpdateAutomation"),
 		Scheme: scheme.Scheme,
-	}).SetupWithManager(k8sManager)
-	Expect(err).ToNot(HaveOccurred())
+	}
+	Expect(imageAutoReconciler.SetupWithManager(k8sManager)).To(Succeed())
 
 	go func() {
 		err = k8sManager.Start(ctrl.SetupSignalHandler())
 		Expect(err).ToNot(HaveOccurred())
 	}()
 
-	k8sClient = k8sManager.GetClient()
+	// Specifically an uncached client. Use <reconciler>.Get if you
+	// want to see what the reconcilers see.
+	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
+	Expect(err).ToNot(HaveOccurred())
 	Expect(k8sClient).ToNot(BeNil())
 
 	close(done)
