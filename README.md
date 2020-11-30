@@ -40,13 +40,13 @@ This controller relies on the image reflector controller. A working
 configuration for the latter can be applied straight from the GitHub
 repository:
 
-    kustomize build github.com/fluxcd/image-reflector-controller//config/default/?ref=main | kubectl apply -f-
+    kustomize build https://github.com/fluxcd/image-reflector-controller/config/default/?ref=main | kubectl apply -f-
 
 ### Installing the automation controller
 
 You can apply a working configuration directly from GitHub:
 
-    kustomize build github.com/fluxcd/image-automation-controller//config/default?ref=main | kubectl apply -f-
+    kustomize build https://github.com/fluxcd/image-automation-controller/config/default?ref=main | kubectl apply -f-
 
 or, in a clone of this repository,
 
