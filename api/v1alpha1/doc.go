@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha contains API types for the image v1alpha1 API
+// Package v1alpha1 contains API types for the image v1alpha1 API
 // group. The types here are concerned with automated updates to git,
 // based on metadata from OCI image registries gathered by the
 // image-reflector-controller.
