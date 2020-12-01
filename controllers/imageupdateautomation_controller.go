@@ -87,6 +87,20 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	if auto.Spec.Suspend {
+		log.Info("ImageUpdateAutomation is suspended, skipping automation run")
+		return ctrl.Result{}, nil
+	}
+
+	// whatever else happens, we've now "seen" the reconcile
+	// annotation if it's there
+	if token, ok := meta.ReconcileAnnotationValue(auto.GetAnnotations()); ok {
+		auto.Status.SetLastHandledReconcileRequest(token)
+		if err := r.Status().Update(ctx, &auto); err != nil {
+			return ctrl.Result{Requeue: true}, err
+		}
+	}
+
 	// failWithError is a helper for bailing on the reconciliation.
 	failWithError := func(err error) (ctrl.Result, error) {
 		r.event(auto, events.EventSeverityError, err.Error())
