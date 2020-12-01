@@ -25,9 +25,11 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
 	"github.com/fluxcd/pkg/runtime/logger"
+	"github.com/fluxcd/pkg/runtime/metrics"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
 	imagev1alpha1_auto "github.com/fluxcd/image-automation-controller/api/v1alpha1"
@@ -72,6 +74,9 @@ func main() {
 
 	ctrl.SetLogger(logger.NewLogger(logLevel, logJSON))
 
+	metricsRecorder := metrics.NewRecorder()
+	ctrlmetrics.Registry.MustRegister(metricsRecorder.Collectors()...)
+
 	watchNamespace := ""
 	if !watchAllNamespaces {
 		watchNamespace = os.Getenv("RUNTIME_NAMESPACE")
@@ -94,10 +99,11 @@ func main() {
 	setupChecks(mgr)
 
 	if err = (&controllers.ImageUpdateAutomationReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("ImageUpdateAutomation"),
-		Scheme:        mgr.GetScheme(),
-		EventRecorder: mgr.GetEventRecorderFor("image-automation-controller"),
+		Client:          mgr.GetClient(),
+		Log:             ctrl.Log.WithName("controllers").WithName("ImageUpdateAutomation"),
+		Scheme:          mgr.GetScheme(),
+		EventRecorder:   mgr.GetEventRecorderFor("image-automation-controller"),
+		MetricsRecorder: metricsRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ImageUpdateAutomation")
 		os.Exit(1)
