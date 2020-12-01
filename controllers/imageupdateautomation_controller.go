@@ -71,10 +71,11 @@ const imagePolicyKey = ".spec.update.imagePolicy"
 // ImageUpdateAutomationReconciler reconciles a ImageUpdateAutomation object
 type ImageUpdateAutomationReconciler struct {
 	client.Client
-	Log             logr.Logger
-	Scheme          *runtime.Scheme
-	EventRecorder   kuberecorder.EventRecorder
-	MetricsRecorder *metrics.Recorder
+	Log                   logr.Logger
+	Scheme                *runtime.Scheme
+	EventRecorder         kuberecorder.EventRecorder
+	ExternalEventRecorder *events.Recorder
+	MetricsRecorder       *metrics.Recorder
 }
 
 // +kubebuilder:rbac:groups=image.toolkit.fluxcd.io,resources=imageupdateautomations,verbs=get;list;watch;create;update;patch;delete
@@ -381,6 +382,24 @@ func commitAllAndPush(ctx context.Context, repo *gogit.Repository, access repoAc
 func (r *ImageUpdateAutomationReconciler) event(auto imagev1.ImageUpdateAutomation, severity, msg string) {
 	if r.EventRecorder != nil {
 		r.EventRecorder.Event(&auto, "Normal", severity, msg)
+	}
+	if r.ExternalEventRecorder != nil {
+		objRef, err := reference.GetReference(r.Scheme, &auto)
+		if err != nil {
+			r.Log.WithValues(
+				"request",
+				fmt.Sprintf("%s/%s", auto.GetNamespace(), auto.GetName()),
+			).Error(err, "unable to send event")
+			return
+		}
+
+		if err := r.ExternalEventRecorder.Eventf(*objRef, nil, severity, severity, msg); err != nil {
+			r.Log.WithValues(
+				"request",
+				fmt.Sprintf("%s/%s", auto.GetNamespace(), auto.GetName()),
+			).Error(err, "unable to send event")
+			return
+		}
 	}
 }
 

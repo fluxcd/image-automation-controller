@@ -27,6 +27,7 @@ import (
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/probes"
@@ -36,6 +37,8 @@ import (
 	"github.com/fluxcd/image-automation-controller/controllers"
 	// +kubebuilder:scaffold:imports
 )
+
+const controllerName = "image-automation-controller"
 
 var (
 	scheme   = runtime.NewScheme()
@@ -54,6 +57,7 @@ func init() {
 func main() {
 	var (
 		metricsAddr          string
+		eventsAddr           string
 		healthAddr           string
 		enableLeaderElection bool
 		logLevel             string
@@ -62,6 +66,7 @@ func main() {
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(&eventsAddr, "events-addr", "", "The address of the events receiver.")
 	flag.StringVar(&healthAddr, "health-addr", ":9440", "The address the health endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
@@ -73,6 +78,16 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(logger.NewLogger(logLevel, logJSON))
+
+	var eventRecorder *events.Recorder
+	if eventsAddr != "" {
+		if er, err := events.NewRecorder(eventsAddr, controllerName); err != nil {
+			setupLog.Error(err, "unable to create event recorder")
+			os.Exit(1)
+		} else {
+			eventRecorder = er
+		}
+	}
 
 	metricsRecorder := metrics.NewRecorder()
 	ctrlmetrics.Registry.MustRegister(metricsRecorder.Collectors()...)
@@ -99,11 +114,12 @@ func main() {
 	probes.SetupChecks(mgr, setupLog)
 
 	if err = (&controllers.ImageUpdateAutomationReconciler{
-		Client:          mgr.GetClient(),
-		Log:             ctrl.Log.WithName("controllers").WithName("ImageUpdateAutomation"),
-		Scheme:          mgr.GetScheme(),
-		EventRecorder:   mgr.GetEventRecorderFor("image-automation-controller"),
-		MetricsRecorder: metricsRecorder,
+		Client:                mgr.GetClient(),
+		Log:                   ctrl.Log.WithName("controllers").WithName("ImageUpdateAutomation"),
+		Scheme:                mgr.GetScheme(),
+		EventRecorder:         mgr.GetEventRecorderFor(controllerName),
+		ExternalEventRecorder: eventRecorder,
+		MetricsRecorder:       metricsRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ImageUpdateAutomation")
 		os.Exit(1)
