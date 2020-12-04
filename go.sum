@@ -290,6 +290,7 @@ github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5Kwzbycv
 github.com/fatih/color v1.9.0/go.mod h1:eQcE1qtQxscV5RaZvpXrrb8Drkc3/DdQ+uUYCNjL+zU=
 github.com/fluxcd/image-reflector-controller v0.0.0-20200810165546-c2265d9b49b9 h1:puMXg9dmh/i3rpAuzVq5R5L84pZMA/KUNZbPxi0JdWw=
 github.com/fluxcd/image-reflector-controller v0.0.0-20200810165546-c2265d9b49b9/go.mod h1:v2cJ+q7zRlj1VhYjtE1i3cGAFkSTz21/tKidWIIGUtU=
+github.com/fluxcd/pkg v0.0.4 h1:fMA6GG3FTSBFDrlB026gQJhxj4xVuvcvwP3rhX/Yqrw=
 github.com/fluxcd/pkg/apis/meta v0.2.0 h1:bxoFQtZM6OLLj0+n3h6ga7IEWUtGEDJPc65OWiXSMvY=
 github.com/fluxcd/pkg/apis/meta v0.2.0/go.mod h1:50RLLSfqM4LlQrh/+5LiJVf7Hjdthee8WDdXBvpjBdA=
 github.com/fluxcd/pkg/apis/meta v0.3.0/go.mod h1:wOzQQx8CdtUQCGaLzqGu4QgnNxYkI6/wvdvlovxWhF0=
@@ -303,6 +304,8 @@ github.com/fluxcd/pkg/runtime v0.2.0 h1:aZmSLuyA9pF/KANf4wi7pZIICE19BKTYFSPRbl6W
 github.com/fluxcd/pkg/runtime v0.2.0/go.mod h1:P1/S8TOSuJgVPU0SRahWzbNxLWYoUwvBcPCNGc+dWWg=
 github.com/fluxcd/pkg/runtime v0.3.0 h1:WpeTmDT2meIe4NsU081I8zmUGgTYs3bIMRgs9F3Lj90=
 github.com/fluxcd/pkg/runtime v0.3.0/go.mod h1:gPe6JgfPB4EDh5gaVkuI0SPuATk3PmclbFa1kPcZrKE=
+github.com/fluxcd/pkg/runtime v0.3.1 h1:UI+FQd1OgipZ6N8YxXHtKYMAu1NRFWaR/Gp1M3T6RZA=
+github.com/fluxcd/pkg/runtime v0.3.1/go.mod h1:wg33L6k5FkGEYoZta7hbUlBIscM5VZd/PfCbaEi+wK4=
 github.com/fluxcd/pkg/ssh v0.0.5 h1:rnbFZ7voy2JBlUfMbfyqArX2FYaLNpDhccGFC3qW83A=
 github.com/fluxcd/pkg/ssh v0.0.5/go.mod h1:7jXPdXZpc0ttMNz2kD9QuMi3RNn/e0DOFbj0Tij/+Hs=
 github.com/fluxcd/pkg/testserver v0.0.2/go.mod h1:pgUZTh9aQ44FSTQo+5NFlh7YMbUfdz1B80DalW7k96Y=

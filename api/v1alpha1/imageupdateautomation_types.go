@@ -40,6 +40,11 @@ type ImageUpdateAutomationSpec struct {
 	// Commit specifies how to commit to the git repo
 	// +required
 	Commit CommitSpec `json:"commit"`
+
+	// Suspend tells the controller to not run this automation, until
+	// it is unset (or set to false). Defaults to false.
+	// +optional
+	Suspend bool `json:"suspend,omitempty"`
 }
 
 type GitCheckoutSpec struct {
@@ -97,7 +102,8 @@ type ImageUpdateAutomationStatus struct {
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 	// +optional
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	Conditions                  []metav1.Condition `json:"conditions,omitempty"`
+	meta.ReconcileRequestStatus `json:",inline"`
 }
 
 const (

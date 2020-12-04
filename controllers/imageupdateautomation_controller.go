@@ -33,10 +33,12 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kuberecorder "k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/reference"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -46,6 +48,7 @@ import (
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/events"
+	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 	"github.com/fluxcd/source-controller/pkg/git"
@@ -68,9 +71,11 @@ const imagePolicyKey = ".spec.update.imagePolicy"
 // ImageUpdateAutomationReconciler reconciles a ImageUpdateAutomation object
 type ImageUpdateAutomationReconciler struct {
 	client.Client
-	Log           logr.Logger
-	Scheme        *runtime.Scheme
-	EventRecorder kuberecorder.EventRecorder
+	Log                   logr.Logger
+	Scheme                *runtime.Scheme
+	EventRecorder         kuberecorder.EventRecorder
+	ExternalEventRecorder *events.Recorder
+	MetricsRecorder       *metrics.Recorder
 }
 
 // +kubebuilder:rbac:groups=image.toolkit.fluxcd.io,resources=imageupdateautomations,verbs=get;list;watch;create;update;patch;delete
@@ -85,6 +90,33 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 	var auto imagev1.ImageUpdateAutomation
 	if err := r.Get(ctx, req.NamespacedName, &auto); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if auto.Spec.Suspend {
+		log.Info("ImageUpdateAutomation is suspended, skipping automation run")
+		return ctrl.Result{}, nil
+	}
+
+	// Record readiness metric when exiting; if there's any points at
+	// which the readiness is updated _without also exiting_, they
+	// should also record the readiness.
+	defer r.recordReadinessMetric(&auto)
+	// Record reconciliation duration when exiting
+	if r.MetricsRecorder != nil {
+		objRef, err := reference.GetReference(r.Scheme, &auto)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		defer r.MetricsRecorder.RecordDuration(*objRef, now)
+	}
+
+	// whatever else happens, we've now "seen" the reconcile
+	// annotation if it's there
+	if token, ok := meta.ReconcileAnnotationValue(auto.GetAnnotations()); ok {
+		auto.Status.SetLastHandledReconcileRequest(token)
+		if err := r.Status().Update(ctx, &auto); err != nil {
+			return ctrl.Result{Requeue: true}, err
+		}
 	}
 
 	// failWithError is a helper for bailing on the reconciliation.
@@ -345,11 +377,52 @@ func commitAllAndPush(ctx context.Context, repo *gogit.Repository, access repoAc
 	})
 }
 
-// --- events
+// --- events, metrics
 
 func (r *ImageUpdateAutomationReconciler) event(auto imagev1.ImageUpdateAutomation, severity, msg string) {
 	if r.EventRecorder != nil {
 		r.EventRecorder.Event(&auto, "Normal", severity, msg)
+	}
+	if r.ExternalEventRecorder != nil {
+		objRef, err := reference.GetReference(r.Scheme, &auto)
+		if err != nil {
+			r.Log.WithValues(
+				"request",
+				fmt.Sprintf("%s/%s", auto.GetNamespace(), auto.GetName()),
+			).Error(err, "unable to send event")
+			return
+		}
+
+		if err := r.ExternalEventRecorder.Eventf(*objRef, nil, severity, severity, msg); err != nil {
+			r.Log.WithValues(
+				"request",
+				fmt.Sprintf("%s/%s", auto.GetNamespace(), auto.GetName()),
+			).Error(err, "unable to send event")
+			return
+		}
+	}
+}
+
+func (r *ImageUpdateAutomationReconciler) recordReadinessMetric(auto *imagev1.ImageUpdateAutomation) {
+	if r.MetricsRecorder == nil {
+		return
+	}
+
+	objRef, err := reference.GetReference(r.Scheme, auto)
+	if err != nil {
+		r.Log.WithValues(
+			strings.ToLower(auto.Kind),
+			fmt.Sprintf("%s/%s", auto.GetNamespace(), auto.GetName()),
+		).Error(err, "unable to record readiness metric")
+		return
+	}
+	if rc := apimeta.FindStatusCondition(auto.Status.Conditions, meta.ReadyCondition); rc != nil {
+		r.MetricsRecorder.RecordCondition(*objRef, *rc, !auto.DeletionTimestamp.IsZero())
+	} else {
+		r.MetricsRecorder.RecordCondition(*objRef, metav1.Condition{
+			Type:   meta.ReadyCondition,
+			Status: metav1.ConditionUnknown,
+		}, !auto.DeletionTimestamp.IsZero())
 	}
 }
 

@@ -86,6 +86,10 @@ spec:
                 description: RunInterval gives a lower bound for how often the automation
                   run should be attempted. Otherwise it will default.
                 type: string
+              suspend:
+                description: Suspend tells the controller to not run this automation,
+                  until it is unset (or set to false). Defaults to false.
+                type: boolean
               update:
                 description: Update gives the specification for how to update the
                   files in the repository
@@ -186,6 +190,10 @@ spec:
                   ran this automation through to completion (even if no updates were
                   made).
                 format: date-time
+                type: string
+              lastHandledReconcileAt:
+                description: LastHandledReconcileAt holds the value of the most recent
+                  reconcile request value, so a change can be detected.
                 type: string
               observedGeneration:
                 format: int64
