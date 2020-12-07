@@ -23,6 +23,8 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 )
 
+const ImageUpdateAutomationKind = "ImageUpdateAutomation"
+
 // ImageUpdateAutomationSpec defines the desired state of ImageUpdateAutomation
 type ImageUpdateAutomationSpec struct {
 	// Checkout gives the parameters for cloning the git repository,
