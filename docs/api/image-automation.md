@@ -172,7 +172,7 @@ ready to make changes.</p>
 </tr>
 <tr>
 <td>
-<code>minimumRunInterval</code><br>
+<code>interval</code><br>
 <em>
 <a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
 Kubernetes meta/v1.Duration
@@ -180,9 +180,8 @@ Kubernetes meta/v1.Duration
 </em>
 </td>
 <td>
-<em>(Optional)</em>
-<p>RunInterval gives a lower bound for how often the automation
-run should be attempted. Otherwise it will default.</p>
+<p>Interval gives an lower bound for how often the automation
+run should be attempted.</p>
 </td>
 </tr>
 <tr>
@@ -210,6 +209,19 @@ CommitSpec
 </td>
 <td>
 <p>Commit specifies how to commit to the git repo</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>suspend</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Suspend tells the controller to not run this automation, until
+it is unset (or set to false). Defaults to false.</p>
 </td>
 </tr>
 </table>
@@ -264,7 +276,7 @@ ready to make changes.</p>
 </tr>
 <tr>
 <td>
-<code>minimumRunInterval</code><br>
+<code>interval</code><br>
 <em>
 <a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
 Kubernetes meta/v1.Duration
@@ -272,9 +284,8 @@ Kubernetes meta/v1.Duration
 </em>
 </td>
 <td>
-<em>(Optional)</em>
-<p>RunInterval gives a lower bound for how often the automation
-run should be attempted. Otherwise it will default.</p>
+<p>Interval gives an lower bound for how often the automation
+run should be attempted.</p>
 </td>
 </tr>
 <tr>
@@ -302,6 +313,19 @@ CommitSpec
 </td>
 <td>
 <p>Commit specifies how to commit to the git repo</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>suspend</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Suspend tells the controller to not run this automation, until
+it is unset (or set to false). Defaults to false.</p>
 </td>
 </tr>
 </tbody>
@@ -363,6 +387,21 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>ReconcileRequestStatus</code><br>
+<em>
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#ReconcileRequestStatus">
+github.com/fluxcd/pkg/apis/meta.ReconcileRequestStatus
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>ReconcileRequestStatus</code> are embedded into this type.)
+</p>
 </td>
 </tr>
 </tbody>

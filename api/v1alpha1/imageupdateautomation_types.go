@@ -29,10 +29,10 @@ type ImageUpdateAutomationSpec struct {
 	// ready to make changes.
 	// +required
 	Checkout GitCheckoutSpec `json:"checkout"`
-	// RunInterval gives a lower bound for how often the automation
-	// run should be attempted. Otherwise it will default.
-	// +optional
-	RunInterval *metav1.Duration `json:"minimumRunInterval,omitempty"`
+	// Interval gives an lower bound for how often the automation
+	// run should be attempted.
+	// +required
+	Interval metav1.Duration `json:"interval"`
 	// Update gives the specification for how to update the files in
 	// the repository
 	// +required

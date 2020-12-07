@@ -57,8 +57,6 @@ import (
 	"github.com/fluxcd/image-automation-controller/pkg/update"
 )
 
-const defaultInterval = 2 * time.Minute
-
 // log level for debug info
 const debug = 1
 const originRemote = "origin"
@@ -249,10 +247,10 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) err
 
 // intervalOrDefault gives the interval specified, or if missing, the default
 func intervalOrDefault(auto *imagev1.ImageUpdateAutomation) time.Duration {
-	if auto.Spec.RunInterval != nil {
-		return auto.Spec.RunInterval.Duration
+	if auto.Spec.Interval.Duration < time.Second {
+		return time.Second
 	}
-	return defaultInterval
+	return auto.Spec.Interval.Duration
 }
 
 // durationSinceLastRun calculates how long it's been since the last
