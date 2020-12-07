@@ -82,9 +82,9 @@ spec:
                 - authorEmail
                 - authorName
                 type: object
-              minimumRunInterval:
-                description: RunInterval gives a lower bound for how often the automation
-                  run should be attempted. Otherwise it will default.
+              interval:
+                description: Interval gives an lower bound for how often the automation
+                  run should be attempted.
                 type: string
               suspend:
                 description: Suspend tells the controller to not run this automation,
@@ -110,6 +110,7 @@ spec:
             required:
             - checkout
             - commit
+            - interval
             - update
             type: object
           status:

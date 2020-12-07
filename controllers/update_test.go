@@ -210,7 +210,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 						Namespace: updateKey.Namespace,
 					},
 					Spec: imagev1.ImageUpdateAutomationSpec{
-						RunInterval: &metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
+						Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
 						Checkout: imagev1.GitCheckoutSpec{
 							GitRepositoryRef: corev1.LocalObjectReference{
 								Name: gitRepoKey.Name,

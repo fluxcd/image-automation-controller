@@ -119,11 +119,7 @@ func (in *ImageUpdateAutomationList) DeepCopyObject() runtime.Object {
 func (in *ImageUpdateAutomationSpec) DeepCopyInto(out *ImageUpdateAutomationSpec) {
 	*out = *in
 	out.Checkout = in.Checkout
-	if in.RunInterval != nil {
-		in, out := &in.RunInterval, &out.RunInterval
-		*out = new(v1.Duration)
-		**out = **in
-	}
+	out.Interval = in.Interval
 	in.Update.DeepCopyInto(&out.Update)
 	out.Commit = in.Commit
 }
