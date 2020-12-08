@@ -247,7 +247,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 			})
 
 			It("stops updating when suspended", func() {
-				// suspend it, and check that it is marked as unready.
+				// suspend it, and check that reconciliation does not run
 				var updatePatch imagev1.ImageUpdateAutomation
 				updatePatch.Name = updateKey.Name
 				updatePatch.Namespace = updateKey.Namespace
@@ -267,7 +267,9 @@ var _ = Describe("ImageUpdateAutomation", func() {
 					NamespacedName: updateKey,
 				})
 				Expect(err).To(BeNil())
-				Expect(result).To(Equal(ctrl.Result{})) // this ought to fail, since it should be rescheduled; but if not, additional checks lie below
+				// this ought to fail if suspend is not working, since the item would be requeued;
+				// but if not, additional checks lie below.
+				Expect(result).To(Equal(ctrl.Result{}))
 
 				var checkUpdate imagev1.ImageUpdateAutomation
 				Expect(k8sClient.Get(context.Background(), updateKey, &checkUpdate)).To(Succeed())
@@ -275,7 +277,6 @@ var _ = Describe("ImageUpdateAutomation", func() {
 			})
 
 			It("runs when the reconcile request annotation is added", func() {
-				println("[DEBUG]", updateKey.String())
 				// the automation has run, and is not expected to run
 				// again for 2 hours. Make a commit to the git repo
 				// which needs to be undone by automation, then add
