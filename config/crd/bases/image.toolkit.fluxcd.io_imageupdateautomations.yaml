@@ -97,14 +97,6 @@ spec:
                   setters:
                     description: Setters if present means update workloads using setters,
                       via fields marked in the files themselves.
-                    properties:
-                      paths:
-                        description: Paths gives all paths that should be subject
-                          to updates using setters. If missing, the path `.` (the
-                          root of the git repository) is assumed.
-                        items:
-                          type: string
-                        type: array
                     type: object
                 type: object
             required:

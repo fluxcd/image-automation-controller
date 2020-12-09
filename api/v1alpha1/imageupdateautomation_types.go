@@ -73,11 +73,6 @@ type UpdateStrategy struct {
 // SettersStrategy specifies how to use kyaml setters to update the
 // git repository.
 type SettersStrategy struct {
-	// Paths gives all paths that should be subject to updates using
-	// setters. If missing, the path `.` (the root of the git
-	// repository) is assumed.
-	// +optional
-	Paths []string `json:"paths,omitempty"`
 }
 
 // CommitSpec specifies how to commit changes to the git repository
