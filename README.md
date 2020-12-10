@@ -243,13 +243,12 @@ kind: ImageUpdateAutomation
 metadata:
   name: update-app
 spec:
+  interval: 5m
   checkout:
     gitRepositoryRef:
       name: cuttlefacts-repo
   update:
-    setters:
-      paths:
-      - .
+    setters: {}
   commit:
     authorName: UpdateBot
     authorEmail: bot@example.com
