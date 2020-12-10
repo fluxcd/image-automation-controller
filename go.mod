@@ -5,8 +5,8 @@ go 1.15
 replace github.com/fluxcd/image-automation-controller/api => ./api
 
 require (
-	github.com/fluxcd/image-automation-controller/api v0.0.0-00010101000000-000000000000
-	github.com/fluxcd/image-reflector-controller v0.0.0-20200810165546-c2265d9b49b9
+	github.com/fluxcd/image-automation-controller/api v0.1.0
+	github.com/fluxcd/image-reflector-controller/api v0.1.0
 	github.com/fluxcd/pkg/apis/meta v0.5.0
 	github.com/fluxcd/pkg/gittestserver v0.0.2
 	github.com/fluxcd/pkg/runtime v0.4.0
