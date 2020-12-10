@@ -5,7 +5,7 @@ CRD_OPTIONS ?= crd:crdVersions=v1
 
 # Version of the Toolkit from which to get CRDs. Change this if you
 # bump the go module version.
-TOOLKIT_VERSION:=v0.3.0
+TOOLKIT_VERSION:=v0.5.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -26,12 +26,12 @@ clean_test_deps:
 
 ${TEST_CRDS}/gitrepositories.yaml:
 	mkdir -p ${TEST_CRDS}
-	curl -s https://raw.githubusercontent.com/fluxcd/source-controller/${TOOLKIT_VERSION}/config/crd/bases/source.toolkit.fluxcd.io_gitrepositories.yaml \
+	curl -s --fail https://raw.githubusercontent.com/fluxcd/source-controller/${TOOLKIT_VERSION}/config/crd/bases/source.toolkit.fluxcd.io_gitrepositories.yaml \
 		-o ${TEST_CRDS}/gitrepositories.yaml
 
 ${TEST_CRDS}/imagepolicies.yaml:
 	mkdir -p ${TEST_CRDS}
-	curl -s https://raw.githubusercontent.com/fluxcd/image-reflector-controller/main/config/crd/bases/image.toolkit.fluxcd.io_imagepolicies.yaml \
+	curl -s --fail https://raw.githubusercontent.com/fluxcd/image-reflector-controller/main/config/crd/bases/image.toolkit.fluxcd.io_imagepolicies.yaml \
 		-o ${TEST_CRDS}/imagepolicies.yaml
 
 # Run tests
