@@ -47,8 +47,6 @@ spec:
                 properties:
                   branch:
                     description: Branch gives the branch to clone from the git repository.
-                      If missing, it will be left to default; be aware this may give
-                      indeterminate results.
                     type: string
                   gitRepositoryRef:
                     description: GitRepositoryRef refers to the resource giving access
@@ -60,6 +58,7 @@ spec:
                         type: string
                     type: object
                 required:
+                - branch
                 - gitRepositoryRef
                 type: object
               commit:

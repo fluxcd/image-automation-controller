@@ -54,8 +54,6 @@ import (
 
 const timeout = 10 * time.Second
 
-const defaultBranch = "test-main"
-
 // Copied from
 // https://github.com/fluxcd/source-controller/blob/master/controllers/suite_test.go
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz1234567890")
@@ -70,6 +68,7 @@ func randStringRunes(n int) string {
 
 var _ = Describe("ImageUpdateAutomation", func() {
 	var (
+		branch         string
 		repositoryPath string
 		repoURL        string
 		namespace      *corev1.Namespace
@@ -80,6 +79,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 
 	// Start the git server
 	BeforeEach(func() {
+		branch = randStringRunes(8)
 		repositoryPath = "/config-" + randStringRunes(5) + ".git"
 
 		namespace = &corev1.Namespace{}
@@ -119,7 +119,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 	})
 
 	It("Initialises git OK", func() {
-		Expect(initGitRepo(gitServer, "testdata/appconfig", repositoryPath)).To(Succeed())
+		Expect(initGitRepo(gitServer, "testdata/appconfig", branch, repositoryPath)).To(Succeed())
 	})
 
 	Context("with ImagePolicy", func() {
@@ -135,13 +135,13 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		BeforeEach(func() {
 			commitMessage = "Commit a difference " + randStringRunes(5)
 
-			Expect(initGitRepo(gitServer, "testdata/appconfig", repositoryPath)).To(Succeed())
+			Expect(initGitRepo(gitServer, "testdata/appconfig", branch, repositoryPath)).To(Succeed())
 
 			var err error
 			localRepo, err = git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
 				URL:           repoURL,
 				RemoteName:    "origin",
-				ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+				ReferenceName: plumbing.NewBranchReferenceName(branch),
 			})
 			Expect(err).ToNot(HaveOccurred())
 
@@ -189,14 +189,14 @@ var _ = Describe("ImageUpdateAutomation", func() {
 			BeforeEach(func() {
 				// Insert a setter reference into the deployment file,
 				// before creating the automation object itself.
-				commitInRepo(repoURL, "Install setter marker", func(tmp string) {
+				commitInRepo(repoURL, branch, "Install setter marker", func(tmp string) {
 					replaceMarker(tmp, policyKey)
 				})
 
 				// pull the head commit we just pushed, so it's not
 				// considered a new commit when checking for a commit
 				// made by automation.
-				waitForNewHead(localRepo)
+				waitForNewHead(localRepo, branch)
 
 				// now create the automation object, and let it (one
 				// hopes!) make a commit itself.
@@ -215,7 +215,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 							GitRepositoryRef: corev1.LocalObjectReference{
 								Name: gitRepoKey.Name,
 							},
-							Branch: defaultBranch,
+							Branch: branch,
 						},
 						Update: imagev1.UpdateStrategy{
 							Setters: &imagev1.SettersStrategy{},
@@ -227,7 +227,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 				}
 				Expect(k8sClient.Create(context.Background(), updateBySetters)).To(Succeed())
 				// wait for a new commit to be made by the controller
-				waitForNewHead(localRepo)
+				waitForNewHead(localRepo, branch)
 			})
 
 			AfterEach(func() {
@@ -241,7 +241,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(commit.Message).To(Equal(commitMessage))
 
-				compareRepoWithExpected(repoURL, "testdata/appconfig-setters-expected", func(tmp string) {
+				compareRepoWithExpected(repoURL, branch, "testdata/appconfig-setters-expected", func(tmp string) {
 					replaceMarker(tmp, policyKey)
 				})
 			})
@@ -285,7 +285,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 				Expect(updateBySetters.Status.LastAutomationRunTime).ToNot(BeNil())
 				lastRunTime := updateBySetters.Status.LastAutomationRunTime.Time
 
-				commitInRepo(repoURL, "Revert image update", func(tmp string) {
+				commitInRepo(repoURL, branch, "Revert image update", func(tmp string) {
 					// revert the change made by copying the old version
 					// of the file back over then restoring the setter
 					// marker
@@ -293,12 +293,13 @@ var _ = Describe("ImageUpdateAutomation", func() {
 					replaceMarker(tmp, policyKey)
 				})
 				// check that it was reverted correctly
-				compareRepoWithExpected(repoURL, "testdata/appconfig", func(tmp string) {
+				compareRepoWithExpected(repoURL, branch, "testdata/appconfig", func(tmp string) {
 					replaceMarker(tmp, policyKey)
 				})
 
 				ts := time.Now().String()
 				var updatePatch imagev1.ImageUpdateAutomation
+				updatePatch.Spec = updateBySetters.Spec // otherwise the patch will blank some fields
 				updatePatch.Name = updateKey.Name
 				updatePatch.Namespace = updateKey.Namespace
 				updatePatch.ObjectMeta.Annotations = map[string]string{
@@ -320,7 +321,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 				Expect(newUpdate.Status.LastHandledReconcileAt).To(Equal(ts))
 
 				// check that a new commit was made
-				compareRepoWithExpected(repoURL, "testdata/appconfig-setters-expected", func(tmp string) {
+				compareRepoWithExpected(repoURL, branch, "testdata/appconfig-setters-expected", func(tmp string) {
 					replaceMarker(tmp, policyKey)
 				})
 			})
@@ -342,14 +343,14 @@ func setterRef(name types.NamespacedName) string {
 	return fmt.Sprintf(`{"%s": "%s:%s"}`, update.SetterShortHand, name.Namespace, name.Name)
 }
 
-func waitForNewHead(repo *git.Repository) {
+func waitForNewHead(repo *git.Repository, branch string) {
 	head, _ := repo.Head()
 	headHash := head.Hash().String()
 	working, err := repo.Worktree()
 	Expect(err).ToNot(HaveOccurred())
 	Eventually(func() bool {
 		if working.Pull(&git.PullOptions{
-			ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+			ReferenceName: plumbing.NewBranchReferenceName(branch),
 		}); err != nil {
 			return false
 		}
@@ -358,7 +359,7 @@ func waitForNewHead(repo *git.Repository) {
 	}, timeout, time.Second).Should(BeTrue())
 }
 
-func compareRepoWithExpected(repoURL, fixture string, changeFixture func(tmp string)) {
+func compareRepoWithExpected(repoURL, branch, fixture string, changeFixture func(tmp string)) {
 	expected, err := ioutil.TempDir("", "gotest-imageauto-expected")
 	Expect(err).ToNot(HaveOccurred())
 	defer os.RemoveAll(expected)
@@ -370,19 +371,19 @@ func compareRepoWithExpected(repoURL, fixture string, changeFixture func(tmp str
 	defer os.RemoveAll(tmp)
 	_, err = git.PlainClone(tmp, false, &git.CloneOptions{
 		URL:           repoURL,
-		ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+		ReferenceName: plumbing.NewBranchReferenceName(branch),
 	})
 	Expect(err).ToNot(HaveOccurred())
 	test.ExpectMatchingDirectories(tmp, expected)
 }
 
-func commitInRepo(repoURL, msg string, changeFiles func(path string)) {
+func commitInRepo(repoURL, branch, msg string, changeFiles func(path string)) {
 	tmp, err := ioutil.TempDir("", "gotest-imageauto")
 	Expect(err).ToNot(HaveOccurred())
 	defer os.RemoveAll(tmp)
 	repo, err := git.PlainClone(tmp, false, &git.CloneOptions{
 		URL:           repoURL,
-		ReferenceName: plumbing.NewBranchReferenceName(defaultBranch),
+		ReferenceName: plumbing.NewBranchReferenceName(branch),
 	})
 	Expect(err).ToNot(HaveOccurred())
 
@@ -404,7 +405,7 @@ func commitInRepo(repoURL, msg string, changeFiles func(path string)) {
 }
 
 // Initialise a git server with a repo including the files in dir.
-func initGitRepo(gitServer *gittestserver.GitServer, fixture, repositoryPath string) error {
+func initGitRepo(gitServer *gittestserver.GitServer, fixture, branch, repositoryPath string) error {
 	fs := memfs.New()
 	repo, err := git.Init(memory.NewStorage(), fs)
 	if err != nil {
@@ -457,7 +458,7 @@ func initGitRepo(gitServer *gittestserver.GitServer, fixture, repositoryPath str
 	}
 
 	if err = working.Checkout(&git.CheckoutOptions{
-		Branch: plumbing.NewBranchReferenceName(defaultBranch),
+		Branch: plumbing.NewBranchReferenceName(branch),
 		Create: true,
 	}); err != nil {
 		return err
