@@ -1,3 +1,19 @@
+/*
+Copyright 2020, 2021 The Flux authors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package update
 
 import (
@@ -36,6 +52,9 @@ func resetSchema() {
 	openapi.SuppressBuiltInSchemaUse()
 }
 
+// UpdateWithSetters takes all YAML files from `inpath`, updates any
+// that contain an "in scope" image policy marker, and writes files it
+// updated (and only those files) back to `outpath`.
 func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.ImagePolicy) error {
 	// the OpenAPI schema is a package variable in kyaml/openapi. In
 	// lieu of being able to isolate invocations (per
@@ -104,9 +123,9 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 	}
 
 	// get ready with the reader and writer
-	reader := &kio.LocalPackageReader{
-		PackagePath:        inpath,
-		IncludeSubpackages: true,
+	reader := &ScreeningLocalReader{
+		Path:  inpath,
+		Token: fmt.Sprintf("%q", SetterShortHand),
 	}
 	writer := &kio.LocalPackageWriter{
 		PackagePath: outpath,
@@ -115,7 +134,12 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 	pipeline := kio.Pipeline{
 		Inputs:  []kio.Reader{reader},
 		Outputs: []kio.Writer{writer},
-		Filters: []kio.Filter{kio.FilterAll(&setters2.Set{SetAll: true})},
+		Filters: []kio.Filter{
+			setters2.SetAll( // run the enclosed single-node setters2.Filter on all nodes,
+				// and only include those in files that changed in the output
+				&setters2.Set{SetAll: true}, // set all images that are in the constructed schema
+			),
+		},
 	}
 
 	// go!
