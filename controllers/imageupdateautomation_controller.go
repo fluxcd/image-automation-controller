@@ -200,7 +200,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 			log.V(debug).Info("no changes made in working directory; no commit")
 			statusMessage = "no updates made"
 			if lastCommit, lastTime := auto.Status.LastPushCommit, auto.Status.LastPushTime; lastCommit != "" {
-				statusMessage = fmt.Sprintf("%s; last commit %s at %s", statusMessage, lastCommit, lastTime.Format(time.RFC3339))
+				statusMessage = fmt.Sprintf("%s; last commit %s at %s", statusMessage, lastCommit[:7], lastTime.Format(time.RFC3339))
 			}
 		} else {
 			return failWithError(err)
