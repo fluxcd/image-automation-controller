@@ -36,7 +36,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/otiai10/copy"
 	corev1 "k8s.io/api/core/v1"
-	//	apimeta "k8s.io/apimachinery/pkg/api/meta"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -241,6 +241,11 @@ var _ = Describe("ImageUpdateAutomation", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(commit.Message).To(Equal(commitMessage))
 
+				var newObj imagev1.ImageUpdateAutomation
+				Expect(k8sClient.Get(context.Background(), updateKey, &newObj)).To(Succeed())
+				Expect(newObj.Status.LastPushCommit).To(Equal(head.Hash().String()))
+				Expect(newObj.Status.LastPushTime).ToNot(BeNil())
+
 				compareRepoWithExpected(repoURL, branch, "testdata/appconfig-setters-expected", func(tmp string) {
 					replaceMarker(tmp, policyKey)
 				})
@@ -319,6 +324,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 				}, timeout, time.Second).Should(BeTrue())
 				// check that the annotation was recorded as seen
 				Expect(newUpdate.Status.LastHandledReconcileAt).To(Equal(ts))
+				expectCommittedAndPushed(newUpdate.Status.Conditions)
 
 				// check that a new commit was made
 				compareRepoWithExpected(repoURL, branch, "testdata/appconfig-setters-expected", func(tmp string) {
@@ -328,6 +334,12 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		})
 	})
 })
+
+func expectCommittedAndPushed(conditions []metav1.Condition) {
+	rc := apimeta.FindStatusCondition(conditions, meta.ReadyCondition)
+	Expect(rc).ToNot(BeNil())
+	Expect(rc.Message).To(ContainSubstring("committed and pushed"))
+}
 
 func replaceMarker(path string, policyKey types.NamespacedName) {
 	// NB this requires knowledge of what's in the git

@@ -94,6 +94,13 @@ type ImageUpdateAutomationStatus struct {
 	// made).
 	// +optional
 	LastAutomationRunTime *metav1.Time `json:"lastAutomationRunTime,omitempty"`
+	// LastPushCommit records the SHA1 of the last commit made by the
+	// controller, for this automation object
+	// +optional
+	LastPushCommit string `json:"lastPushCommit,omitempty"`
+	// LastPushTime records the time of the last pushed change.
+	// +optional
+	LastPushTime *metav1.Time `json:"lastPushTime,omitempty"`
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 	// +optional

@@ -199,12 +199,17 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 			r.event(auto, events.EventSeverityInfo, "no updates made")
 			log.V(debug).Info("no changes made in working directory; no commit")
 			statusMessage = "no updates made"
+			if lastCommit, lastTime := auto.Status.LastPushCommit, auto.Status.LastPushTime; lastCommit != "" {
+				statusMessage = fmt.Sprintf("%s; last commit %s at %s", statusMessage, lastCommit[:7], lastTime.Format(time.RFC3339))
+			}
 		} else {
 			return failWithError(err)
 		}
 	} else {
 		r.event(auto, events.EventSeverityInfo, "committed and pushed change "+rev)
 		log.Info("pushed commit to origin", "revision", rev)
+		auto.Status.LastPushCommit = rev
+		auto.Status.LastPushTime = &metav1.Time{Time: now}
 		statusMessage = "committed and pushed " + rev
 	}
 
