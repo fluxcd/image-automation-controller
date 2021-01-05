@@ -54,11 +54,9 @@ type GitCheckoutSpec struct {
 	// to a git repository to update files in.
 	// +required
 	GitRepositoryRef corev1.LocalObjectReference `json:"gitRepositoryRef"`
-	// Branch gives the branch to clone from the git repository. If
-	// missing, it will be left to default; be aware this may give
-	// indeterminate results.
-	// +optional
-	Branch string `json:"branch,omitempty"`
+	// Branch gives the branch to clone from the git repository.
+	// +required
+	Branch string `json:"branch"`
 }
 
 // UpdateStrategy is a union of the various strategies for updating
