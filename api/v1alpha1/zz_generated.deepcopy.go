@@ -141,6 +141,10 @@ func (in *ImageUpdateAutomationStatus) DeepCopyInto(out *ImageUpdateAutomationSt
 		in, out := &in.LastAutomationRunTime, &out.LastAutomationRunTime
 		*out = (*in).DeepCopy()
 	}
+	if in.LastPushTime != nil {
+		in, out := &in.LastPushTime, &out.LastPushTime
+		*out = (*in).DeepCopy()
+	}
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
 		*out = make([]v1.Condition, len(*in))

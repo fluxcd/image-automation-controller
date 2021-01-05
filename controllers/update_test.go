@@ -241,6 +241,11 @@ var _ = Describe("ImageUpdateAutomation", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(commit.Message).To(Equal(commitMessage))
 
+				var newObj imagev1.ImageUpdateAutomation
+				Expect(k8sClient.Get(context.Background(), updateKey, &newObj)).To(Succeed())
+				Expect(newObj.Status.LastPushCommit).To(Equal(head.Hash().String()))
+				Expect(newObj.Status.LastPushTime).ToNot(BeNil())
+
 				compareRepoWithExpected(repoURL, branch, "testdata/appconfig-setters-expected", func(tmp string) {
 					replaceMarker(tmp, policyKey)
 				})
