@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.2.0
+
+**Release date:** 2021-01-06
+
+This prerelease comes with a fix to the manifest update
+mechanism. The controller now only writes files that were
+actually updated by an image policy setter instead of 
+reformatting all Kubernetes YAMLs.
+
+Starting with this version, the `spec.checkout.branch`
+field is mandatory.
+
+Fixes:
+* Screen files, and output only those updated
+  [#73](https://github.com/fluxcd/kustomize-controller/pull/73)
+
+Improvements:
+* Record last pushed commit in status
+  [#75](https://github.com/fluxcd/kustomize-controller/pull/75)
+* Make the branch field mandatory
+  [#74](https://github.com/fluxcd/kustomize-controller/pull/74)
+
 ## 0.1.0
 
 **Release date:** 2020-12-10
