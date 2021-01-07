@@ -62,7 +62,7 @@ func (r *ScreeningLocalReader) Read() ([]*yaml.RNode, error) {
 
 	// For the filename annotation, I want a directory for filenames
 	// to be relative to; but I don't know whether path is a directory
-	// or file yetm so this must wait until the body of the filepath.Walk.
+	// or file yet so this must wait until the body of the filepath.Walk.
 	var relativePath string
 
 	tokenbytes := []byte(r.Token)
