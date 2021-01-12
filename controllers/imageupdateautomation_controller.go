@@ -195,7 +195,10 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	var statusMessage string
 
-	if rev, err := commitAllAndPush(ctx, auto.Spec.Checkout.Branch, tmp, repo, access, &auto.Spec.Commit); err != nil {
+	// The status message depends on what happens next. Since there's
+	// more than one way to succeed, there's some if..else below, and
+	// early returns only on failure.
+	if rev, err := commitAll(ctx, repo, &auto.Spec.Commit); err != nil {
 		if err == errNoChanges {
 			r.event(ctx, auto, events.EventSeverityInfo, "no updates made")
 			log.V(debug).Info("no changes made in working directory; no commit")
@@ -207,6 +210,10 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			return failWithError(err)
 		}
 	} else {
+		if err := push(ctx, tmp, auto.Spec.Checkout.Branch, access); err != nil {
+			return failWithError(err)
+		}
+
 		r.event(ctx, auto, events.EventSeverityInfo, "committed and pushed change "+rev)
 		log.Info("pushed commit to origin", "revision", rev)
 		auto.Status.LastPushCommit = rev
@@ -340,7 +347,7 @@ func cloneInto(ctx context.Context, access repoAccess, branch, path string) (*go
 
 var errNoChanges error = errors.New("no changes made to working directory")
 
-func commitAllAndPush(ctx context.Context, branch, path string, repo *gogit.Repository, access repoAccess, commit *imagev1.CommitSpec) (string, error) {
+func commitAll(ctx context.Context, repo *gogit.Repository, commit *imagev1.CommitSpec) (string, error) {
 	working, err := repo.Worktree()
 	if err != nil {
 		return "", err
@@ -378,17 +385,21 @@ func commitAllAndPush(ctx context.Context, branch, path string, repo *gogit.Repo
 		return "", err
 	}
 
-	// FIXME this just arbitrarily uses libgit2, so I can see whether
-	// it works
+	return rev.String(), nil
+}
+
+func push(ctx context.Context, path, branch string, access repoAccess) error {
 	lg2repo, err := libgit2.OpenRepository(path)
 	if err != nil {
-		return "", err
+		return err
 	}
-	return rev.String(), pushLibgit2(lg2repo, access, branch)
+	return pushLibgit2(lg2repo, access, branch)
+}
 
-	// return rev.String(), repo.PushContext(ctx, &gogit.PushOptions{
-	// 	Auth: access.auth.AuthMethod,
-	// })
+func pushGoGit(ctx context.Context, repo *gogit.Repository, access repoAccess) error {
+	return repo.PushContext(ctx, &gogit.PushOptions{
+		Auth: access.auth.AuthMethod,
+	})
 }
 
 func pushLibgit2(repo *libgit2.Repository, access repoAccess, branch string) error {
