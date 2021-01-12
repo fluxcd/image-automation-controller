@@ -42,6 +42,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -69,7 +70,6 @@ const imagePolicyKey = ".spec.update.imagePolicy"
 // ImageUpdateAutomationReconciler reconciles a ImageUpdateAutomation object
 type ImageUpdateAutomationReconciler struct {
 	client.Client
-	Log                   logr.Logger
 	Scheme                *runtime.Scheme
 	EventRecorder         kuberecorder.EventRecorder
 	ExternalEventRecorder *events.Recorder
@@ -80,9 +80,8 @@ type ImageUpdateAutomationReconciler struct {
 // +kubebuilder:rbac:groups=image.toolkit.fluxcd.io,resources=imageupdateautomations/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=gitrepositories,verbs=get;list;watch
 
-func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
-	log := r.Log.WithValues("imageupdateautomation", req.NamespacedName)
+func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	log := logr.FromContext(ctx)
 	now := time.Now()
 
 	var auto imagev1.ImageUpdateAutomation
@@ -98,7 +97,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 	// Record readiness metric when exiting; if there's any points at
 	// which the readiness is updated _without also exiting_, they
 	// should also record the readiness.
-	defer r.recordReadinessMetric(&auto)
+	defer r.recordReadinessMetric(ctx, &auto)
 	// Record reconciliation duration when exiting
 	if r.MetricsRecorder != nil {
 		objRef, err := reference.GetReference(r.Scheme, &auto)
@@ -119,7 +118,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 
 	// failWithError is a helper for bailing on the reconciliation.
 	failWithError := func(err error) (ctrl.Result, error) {
-		r.event(auto, events.EventSeverityError, err.Error())
+		r.event(ctx, auto, events.EventSeverityError, err.Error())
 		imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, meta.ReconciliationFailedReason, err.Error())
 		if err := r.Status().Update(ctx, &auto); err != nil {
 			log.Error(err, "failed to reconcile")
@@ -184,7 +183,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 	default:
 		log.Info("no update strategy given in the spec")
 		// no sense rescheduling until this resource changes
-		r.event(auto, events.EventSeverityInfo, "no update strategy in spec, failing trivially")
+		r.event(ctx, auto, events.EventSeverityInfo, "no update strategy in spec, failing trivially")
 		imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, imagev1.NoStrategyReason, "no update strategy is given for object")
 		err := r.Status().Update(ctx, &auto)
 		return ctrl.Result{}, err
@@ -196,7 +195,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 
 	if rev, err := commitAllAndPush(ctx, repo, access, &auto.Spec.Commit); err != nil {
 		if err == errNoChanges {
-			r.event(auto, events.EventSeverityInfo, "no updates made")
+			r.event(ctx, auto, events.EventSeverityInfo, "no updates made")
 			log.V(debug).Info("no changes made in working directory; no commit")
 			statusMessage = "no updates made"
 			if lastCommit, lastTime := auto.Status.LastPushCommit, auto.Status.LastPushTime; lastCommit != "" {
@@ -206,7 +205,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 			return failWithError(err)
 		}
 	} else {
-		r.event(auto, events.EventSeverityInfo, "committed and pushed change "+rev)
+		r.event(ctx, auto, events.EventSeverityInfo, "committed and pushed change "+rev)
 		log.Info("pushed commit to origin", "revision", rev)
 		auto.Status.LastPushCommit = rev
 		auto.Status.LastPushTime = &metav1.Time{Time: now}
@@ -232,7 +231,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	ctx := context.Background()
 	// Index the git repository object that each I-U-A refers to
-	if err := mgr.GetFieldIndexer().IndexField(ctx, &imagev1.ImageUpdateAutomation{}, repoRefKey, func(obj runtime.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &imagev1.ImageUpdateAutomation{}, repoRefKey, func(obj client.Object) []string {
 		updater := obj.(*imagev1.ImageUpdateAutomation)
 		ref := updater.Spec.Checkout.GitRepositoryRef
 		return []string{ref.Name}
@@ -242,11 +241,8 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) err
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&imagev1.ImageUpdateAutomation{}).
-		WithEventFilter(predicates.ChangePredicate{}).
-		Watches(&source.Kind{Type: &sourcev1.GitRepository{}},
-			&handler.EnqueueRequestsFromMapFunc{
-				ToRequests: handler.ToRequestsFunc(r.automationsForGitRepo),
-			}).
+		WithEventFilter(predicate.Or(predicate.GenerationChangedPredicate{}, predicates.ReconcileRequestedPredicate{})).
+		Watches(&source.Kind{Type: &sourcev1.GitRepository{}}, handler.EnqueueRequestsFromMapFunc(r.automationsForGitRepo)).
 		Complete(r)
 }
 
@@ -271,14 +267,11 @@ func durationSinceLastRun(auto *imagev1.ImageUpdateAutomation, now time.Time) ti
 
 // automationsForGitRepo fetches all the automations that refer to a
 // particular source.GitRepository object.
-func (r *ImageUpdateAutomationReconciler) automationsForGitRepo(obj handler.MapObject) []reconcile.Request {
+func (r *ImageUpdateAutomationReconciler) automationsForGitRepo(obj client.Object) []reconcile.Request {
 	ctx := context.Background()
 	var autoList imagev1.ImageUpdateAutomationList
-	if err := r.List(ctx, &autoList, client.InNamespace(obj.Meta.GetNamespace()), client.MatchingFields{repoRefKey: obj.Meta.GetName()}); err != nil {
-		r.Log.Error(err, "failed to list ImageUpdateAutomations for GitRepository", "name", types.NamespacedName{
-			Name:      obj.Meta.GetName(),
-			Namespace: obj.Meta.GetNamespace(),
-		})
+	if err := r.List(ctx, &autoList, client.InNamespace(obj.GetNamespace()),
+		client.MatchingFields{repoRefKey: obj.GetName()}); err != nil {
 		return nil
 	}
 	reqs := make([]reconcile.Request, len(autoList.Items), len(autoList.Items))
@@ -382,41 +375,32 @@ func commitAllAndPush(ctx context.Context, repo *gogit.Repository, access repoAc
 
 // --- events, metrics
 
-func (r *ImageUpdateAutomationReconciler) event(auto imagev1.ImageUpdateAutomation, severity, msg string) {
+func (r *ImageUpdateAutomationReconciler) event(ctx context.Context, auto imagev1.ImageUpdateAutomation, severity, msg string) {
 	if r.EventRecorder != nil {
 		r.EventRecorder.Event(&auto, "Normal", severity, msg)
 	}
 	if r.ExternalEventRecorder != nil {
 		objRef, err := reference.GetReference(r.Scheme, &auto)
 		if err != nil {
-			r.Log.WithValues(
-				"request",
-				fmt.Sprintf("%s/%s", auto.GetNamespace(), auto.GetName()),
-			).Error(err, "unable to send event")
+			logr.FromContext(ctx).Error(err, "unable to send event")
 			return
 		}
 
 		if err := r.ExternalEventRecorder.Eventf(*objRef, nil, severity, severity, msg); err != nil {
-			r.Log.WithValues(
-				"request",
-				fmt.Sprintf("%s/%s", auto.GetNamespace(), auto.GetName()),
-			).Error(err, "unable to send event")
+			logr.FromContext(ctx).Error(err, "unable to send event")
 			return
 		}
 	}
 }
 
-func (r *ImageUpdateAutomationReconciler) recordReadinessMetric(auto *imagev1.ImageUpdateAutomation) {
+func (r *ImageUpdateAutomationReconciler) recordReadinessMetric(ctx context.Context, auto *imagev1.ImageUpdateAutomation) {
 	if r.MetricsRecorder == nil {
 		return
 	}
 
 	objRef, err := reference.GetReference(r.Scheme, auto)
 	if err != nil {
-		r.Log.WithValues(
-			strings.ToLower(auto.Kind),
-			fmt.Sprintf("%s/%s", auto.GetNamespace(), auto.GetName()),
-		).Error(err, "unable to record readiness metric")
+		logr.FromContext(ctx).Error(err, "unable to record readiness metric")
 		return
 	}
 	if rc := apimeta.FindStatusCondition(auto.Status.Conditions, meta.ReadyCondition); rc != nil {

@@ -5,7 +5,7 @@ CRD_OPTIONS ?= crd:crdVersions=v1
 
 # Version of the Toolkit from which to get CRDs. Change this if you
 # bump the go module version.
-TOOLKIT_VERSION:=v0.5.0
+TOOLKIT_VERSION:=v0.6.1
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))

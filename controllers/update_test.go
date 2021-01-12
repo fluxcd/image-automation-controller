@@ -32,6 +32,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/memory"
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/otiai10/copy"
@@ -268,7 +269,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 				}, timeout, time.Second).Should(BeTrue())
 				// run the reconciliation explicitly, and make sure it
 				// doesn't do anything
-				result, err := imageAutoReconciler.Reconcile(ctrl.Request{
+				result, err := imageAutoReconciler.Reconcile(logr.NewContext(context.TODO(), ctrl.Log), ctrl.Request{
 					NamespacedName: updateKey,
 				})
 				Expect(err).To(BeNil())
