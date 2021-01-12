@@ -28,6 +28,8 @@ import (
 	"time"
 
 	gogit "github.com/go-git/go-git/v5"
+	libgit2 "github.com/libgit2/git2go/v31"
+
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-logr/logr"
@@ -193,7 +195,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	var statusMessage string
 
-	if rev, err := commitAllAndPush(ctx, repo, access, &auto.Spec.Commit); err != nil {
+	if rev, err := commitAllAndPush(ctx, auto.Spec.Checkout.Branch, tmp, repo, access, &auto.Spec.Commit); err != nil {
 		if err == errNoChanges {
 			r.event(ctx, auto, events.EventSeverityInfo, "no updates made")
 			log.V(debug).Info("no changes made in working directory; no commit")
@@ -321,9 +323,11 @@ func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, rep
 }
 
 func cloneInto(ctx context.Context, access repoAccess, branch, path string) (*gogit.Repository, error) {
+	// FIXME this just arbitrarily uses libgit2, so I can see whether
+	// it works
 	checkoutStrat, err := git.CheckoutStrategyForRef(&sourcev1.GitRepositoryRef{
 		Branch: branch,
-	}, sourcev1.GoGitImplementation)
+	}, sourcev1.LibGit2Implementation)
 	if err == nil {
 		_, _, err = checkoutStrat.Checkout(ctx, path, access.url, access.auth)
 	}
@@ -336,7 +340,7 @@ func cloneInto(ctx context.Context, access repoAccess, branch, path string) (*go
 
 var errNoChanges error = errors.New("no changes made to working directory")
 
-func commitAllAndPush(ctx context.Context, repo *gogit.Repository, access repoAccess, commit *imagev1.CommitSpec) (string, error) {
+func commitAllAndPush(ctx context.Context, branch, path string, repo *gogit.Repository, access repoAccess, commit *imagev1.CommitSpec) (string, error) {
 	working, err := repo.Worktree()
 	if err != nil {
 		return "", err
@@ -374,8 +378,29 @@ func commitAllAndPush(ctx context.Context, repo *gogit.Repository, access repoAc
 		return "", err
 	}
 
-	return rev.String(), repo.PushContext(ctx, &gogit.PushOptions{
-		Auth: access.auth.AuthMethod,
+	// FIXME this just arbitrarily uses libgit2, so I can see whether
+	// it works
+	lg2repo, err := libgit2.OpenRepository(path)
+	if err != nil {
+		return "", err
+	}
+	return rev.String(), pushLibgit2(lg2repo, access, branch)
+
+	// return rev.String(), repo.PushContext(ctx, &gogit.PushOptions{
+	// 	Auth: access.auth.AuthMethod,
+	// })
+}
+
+func pushLibgit2(repo *libgit2.Repository, access repoAccess, branch string) error {
+	origin, err := repo.Remotes.Lookup(originRemote)
+	if err != nil {
+		return err
+	}
+	return origin.Push([]string{fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch)}, &libgit2.PushOptions{
+		RemoteCallbacks: libgit2.RemoteCallbacks{
+			CertificateCheckCallback: access.auth.CertCallback,
+			CredentialsCallback:      access.auth.CredCallback,
+		},
 	})
 }
 
