@@ -30,7 +30,6 @@ import (
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
@@ -53,6 +52,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 	"github.com/fluxcd/source-controller/pkg/git"
+	gitcommon "github.com/fluxcd/source-controller/pkg/git/common"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha1"
 	"github.com/fluxcd/image-automation-controller/pkg/update"
@@ -285,14 +285,18 @@ func (r *ImageUpdateAutomationReconciler) automationsForGitRepo(obj client.Objec
 // --- git ops
 
 type repoAccess struct {
-	auth transport.AuthMethod
+	auth *gitcommon.Auth
 	url  string
 }
 
 func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, repository *sourcev1.GitRepository) (repoAccess, error) {
 	var access repoAccess
+	access.auth = &gitcommon.Auth{}
 	access.url = repository.Spec.URL
-	authStrat := git.AuthSecretStrategyForURL(access.url)
+	authStrat, err := git.AuthSecretStrategyForURL(access.url, sourcev1.GoGitImplementation)
+	if err != nil {
+		return access, err
+	}
 
 	if repository.Spec.SecretRef != nil && authStrat != nil {
 		name := types.NamespacedName{
@@ -317,10 +321,12 @@ func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, rep
 }
 
 func cloneInto(ctx context.Context, access repoAccess, branch, path string) (*gogit.Repository, error) {
-	checkoutStrat := git.CheckoutStrategyForRef(&sourcev1.GitRepositoryRef{
+	checkoutStrat, err := git.CheckoutStrategyForRef(&sourcev1.GitRepositoryRef{
 		Branch: branch,
-	})
-	_, _, err := checkoutStrat.Checkout(ctx, path, access.url, access.auth)
+	}, sourcev1.GoGitImplementation)
+	if err == nil {
+		_, _, err = checkoutStrat.Checkout(ctx, path, access.url, access.auth)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -369,7 +375,7 @@ func commitAllAndPush(ctx context.Context, repo *gogit.Repository, access repoAc
 	}
 
 	return rev.String(), repo.PushContext(ctx, &gogit.PushOptions{
-		Auth: access.auth,
+		Auth: access.auth.AuthMethod,
 	})
 }
 
