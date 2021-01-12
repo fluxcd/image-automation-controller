@@ -69,13 +69,12 @@ func randStringRunes(n int) string {
 
 var _ = Describe("ImageUpdateAutomation", func() {
 	var (
+		impl           string
 		branch         string
 		repositoryPath string
 		repoURL        string
 		namespace      *corev1.Namespace
 		gitServer      *gittestserver.GitServer
-		gitRepoKey     types.NamespacedName
-		commitMessage  string
 	)
 
 	// Start the git server
@@ -94,40 +93,24 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		Expect(gitServer.StartHTTP()).To(Succeed())
 
 		repoURL = gitServer.HTTPAddress() + repositoryPath
-
-		gitRepoKey = types.NamespacedName{
-			Name:      "image-auto-" + randStringRunes(5),
-			Namespace: namespace.Name,
-		}
-
-		gitRepo := &sourcev1.GitRepository{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      gitRepoKey.Name,
-				Namespace: namespace.Name,
-			},
-			Spec: sourcev1.GitRepositorySpec{
-				URL:      repoURL,
-				Interval: metav1.Duration{Duration: time.Minute},
-			},
-		}
-		Expect(k8sClient.Create(context.Background(), gitRepo)).To(Succeed())
 	})
 
 	AfterEach(func() {
 		gitServer.StopHTTP()
 		os.RemoveAll(gitServer.Root())
-		Expect(k8sClient.Delete(context.Background(), namespace)).To(Succeed())
 	})
 
 	It("Initialises git OK", func() {
 		Expect(initGitRepo(gitServer, "testdata/appconfig", branch, repositoryPath)).To(Succeed())
 	})
 
-	Context("with ImagePolicy", func() {
+	withImagePolicy := func() {
 		var (
-			localRepo *git.Repository
-			policy    *imagev1_reflect.ImagePolicy
-			policyKey types.NamespacedName
+			localRepo     *git.Repository
+			policy        *imagev1_reflect.ImagePolicy
+			policyKey     types.NamespacedName
+			gitRepoKey    types.NamespacedName
+			commitMessage string
 		)
 
 		const latestImage = "helloworld:1.0.1"
@@ -145,6 +128,24 @@ var _ = Describe("ImageUpdateAutomation", func() {
 				ReferenceName: plumbing.NewBranchReferenceName(branch),
 			})
 			Expect(err).ToNot(HaveOccurred())
+
+			gitRepoKey = types.NamespacedName{
+				Name:      "image-auto-" + randStringRunes(5),
+				Namespace: namespace.Name,
+			}
+
+			gitRepo := &sourcev1.GitRepository{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      gitRepoKey.Name,
+					Namespace: namespace.Name,
+				},
+				Spec: sourcev1.GitRepositorySpec{
+					URL:               repoURL,
+					Interval:          metav1.Duration{Duration: time.Minute},
+					GitImplementation: impl,
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), gitRepo)).To(Succeed())
 
 			policyKey = types.NamespacedName{
 				Name:      "policy-" + randStringRunes(5),
@@ -177,6 +178,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		})
 
 		AfterEach(func() {
+			Expect(k8sClient.Delete(context.Background(), namespace)).To(Succeed())
 			Expect(k8sClient.Delete(context.Background(), policy)).To(Succeed())
 		})
 
@@ -289,51 +291,26 @@ var _ = Describe("ImageUpdateAutomation", func() {
 				// the annotation and make sure it runs again.
 				Expect(k8sClient.Get(context.Background(), updateKey, updateBySetters)).To(Succeed())
 				Expect(updateBySetters.Status.LastAutomationRunTime).ToNot(BeNil())
-				lastRunTime := updateBySetters.Status.LastAutomationRunTime.Time
-
-				commitInRepo(repoURL, branch, "Revert image update", func(tmp string) {
-					// revert the change made by copying the old version
-					// of the file back over then restoring the setter
-					// marker
-					copy.Copy("testdata/appconfig/deploy.yaml", filepath.Join(tmp, "deploy.yaml"))
-					replaceMarker(tmp, policyKey)
-				})
-				// check that it was reverted correctly
-				compareRepoWithExpected(repoURL, branch, "testdata/appconfig", func(tmp string) {
-					replaceMarker(tmp, policyKey)
-				})
-
-				ts := time.Now().String()
-				var updatePatch imagev1.ImageUpdateAutomation
-				updatePatch.Spec = updateBySetters.Spec // otherwise the patch will blank some fields
-				updatePatch.Name = updateKey.Name
-				updatePatch.Namespace = updateKey.Namespace
-				updatePatch.ObjectMeta.Annotations = map[string]string{
-					meta.ReconcileRequestAnnotation: ts,
-				}
-				Expect(k8sClient.Patch(context.Background(), &updatePatch, client.Merge)).To(Succeed())
-
-				// ... this is where the reconciler is supposed to do its work ...
-
-				var newUpdate imagev1.ImageUpdateAutomation
-				Eventually(func() bool {
-					if err := k8sClient.Get(context.Background(), updateKey, &newUpdate); err != nil {
-						return false
-					}
-					newLastRun := newUpdate.Status.LastAutomationRunTime
-					return newLastRun != nil && newLastRun.Time.After(lastRunTime)
-				}, timeout, time.Second).Should(BeTrue())
-				// check that the annotation was recorded as seen
-				Expect(newUpdate.Status.LastHandledReconcileAt).To(Equal(ts))
-				expectCommittedAndPushed(newUpdate.Status.Conditions)
-
-				// check that a new commit was made
-				compareRepoWithExpected(repoURL, branch, "testdata/appconfig-setters-expected", func(tmp string) {
-					replaceMarker(tmp, policyKey)
-				})
 			})
 		})
+	}
+
+	Context("Using go-git", func() {
+		BeforeEach(func() {
+			impl = sourcev1.GoGitImplementation
+		})
+
+		Context("with image policy", withImagePolicy)
 	})
+
+	Context("Using libgit2", func() {
+		BeforeEach(func() {
+			impl = sourcev1.LibGit2Implementation
+		})
+
+		Context("with image policy", withImagePolicy)
+	})
+
 })
 
 func expectCommittedAndPushed(conditions []metav1.Condition) {

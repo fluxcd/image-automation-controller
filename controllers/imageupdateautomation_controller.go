@@ -162,7 +162,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	var repo *gogit.Repository
-	if repo, err = cloneInto(ctx, access, auto.Spec.Checkout.Branch, tmp); err != nil {
+	if repo, err = cloneInto(ctx, access, auto.Spec.Checkout.Branch, tmp, origin.Spec.GitImplementation); err != nil {
 		return failWithError(err)
 	}
 
@@ -210,7 +210,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			return failWithError(err)
 		}
 	} else {
-		if err := push(ctx, tmp, auto.Spec.Checkout.Branch, access); err != nil {
+		if err := push(ctx, tmp, repo, auto.Spec.Checkout.Branch, access, origin.Spec.GitImplementation); err != nil {
 			return failWithError(err)
 		}
 
@@ -329,12 +329,14 @@ func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, rep
 	return access, nil
 }
 
-func cloneInto(ctx context.Context, access repoAccess, branch, path string) (*gogit.Repository, error) {
-	// FIXME this just arbitrarily uses libgit2, so I can see whether
-	// it works
+// cloneInto clones the upstream repository at the `branch` given,
+// using the git library indicated by `impl`. It returns a
+// `*gogit.Repository` regardless of the git library, since that is
+// used for committing changes.
+func cloneInto(ctx context.Context, access repoAccess, branch, path, impl string) (*gogit.Repository, error) {
 	checkoutStrat, err := git.CheckoutStrategyForRef(&sourcev1.GitRepositoryRef{
 		Branch: branch,
-	}, sourcev1.LibGit2Implementation)
+	}, impl)
 	if err == nil {
 		_, _, err = checkoutStrat.Checkout(ctx, path, access.url, access.auth)
 	}
@@ -388,12 +390,23 @@ func commitAll(ctx context.Context, repo *gogit.Repository, commit *imagev1.Comm
 	return rev.String(), nil
 }
 
-func push(ctx context.Context, path, branch string, access repoAccess) error {
-	lg2repo, err := libgit2.OpenRepository(path)
-	if err != nil {
-		return err
+// push pushes the branch given to the origin using the git library
+// indicated by `impl`. It's passed both the path to the repo and a
+// gogit.Repository value, since the latter may as well be used if the
+// implementation is GoGit.
+func push(ctx context.Context, path string, repo *gogit.Repository, branch string, access repoAccess, impl string) error {
+	switch impl {
+	case sourcev1.LibGit2Implementation:
+		lg2repo, err := libgit2.OpenRepository(path)
+		if err != nil {
+			return err
+		}
+		return pushLibgit2(lg2repo, access, branch)
+	case sourcev1.GoGitImplementation:
+		return pushGoGit(ctx, repo, access)
+	default:
+		return fmt.Errorf("unknown git implementation %q", impl)
 	}
-	return pushLibgit2(lg2repo, access, branch)
 }
 
 func pushGoGit(ctx context.Context, repo *gogit.Repository, access repoAccess) error {
