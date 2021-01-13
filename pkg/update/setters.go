@@ -18,7 +18,6 @@ package update
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/go-openapi/spec"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -39,16 +38,9 @@ const (
 
 func init() {
 	fieldmeta.SetShortHandRef(SetterShortHand)
-}
-
-var (
-	// used to serialise access to the global schema, which needs to
-	// be reset for each run
-	schemaMu = &sync.Mutex{}
-)
-
-func resetSchema() {
-	openapi.ResetOpenAPI()
+	// this prevents the global schema, should it be initialised, from
+	// parsing all the Kubernetes openAPI definitions, which is not
+	// necessary.
 	openapi.SuppressBuiltInSchemaUse()
 }
 
@@ -122,6 +114,9 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 		defs[fieldmeta.SetterDefinitionPrefix+nameSetter] = setterSchema(nameSetter, name)
 	}
 
+	var settersSchema spec.Schema
+	settersSchema.Definitions = defs
+
 	// get ready with the reader and writer
 	reader := &ScreeningLocalReader{
 		Path:  inpath,
@@ -137,18 +132,16 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 		Filters: []kio.Filter{
 			setters2.SetAll( // run the enclosed single-node setters2.Filter on all nodes,
 				// and only include those in files that changed in the output
-				&setters2.Set{SetAll: true}, // set all images that are in the constructed schema
+				&setters2.Set{
+					SetAll:        true,
+					SettersSchema: &settersSchema,
+				}, // set all images that are in the constructed schema
 			),
 		},
 	}
 
 	// go!
-	schemaMu.Lock()
-	resetSchema()
-	openapi.AddDefinitions(defs)
-	err := pipeline.Execute()
-	schemaMu.Unlock()
-	return err
+	return pipeline.Execute()
 }
 
 func setterSchema(name, value string) spec.Schema {
