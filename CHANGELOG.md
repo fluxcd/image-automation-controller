@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.3.0
+
+**Release date:** 2021-01-15
+
+This prerelease adds support for the `libgit2` implementation,
+making it possible to push changes to Git servers that require
+support for the v2 protocol, like Azure DevOps.
+
+The container image for ARMv7 and ARM64 that used to be published
+separately as `image-automation-controller:*-arm64` has been merged
+with the AMD64 image.
+
+Improvements:
+* Update to kyaml 0.10.5
+  [#87](https://github.com/fluxcd/kustomize-controller/pull/87)
+* Upgrade controller-runtime to v0.7.0
+  [#84](https://github.com/fluxcd/kustomize-controller/pull/84)
+* Libgit2 support
+  [#82](https://github.com/fluxcd/kustomize-controller/pull/82)
+* Publish as single multi-arch Docker image
+  [#80](https://github.com/fluxcd/kustomize-controller/pull/80)
+
 ## 0.2.0
 
 **Release date:** 2021-01-06
