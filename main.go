@@ -17,9 +17,10 @@ limitations under the License.
 package main
 
 import (
-	"flag"
+	goflag "flag"
 	"os"
 
+	flag "github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -60,8 +61,7 @@ func main() {
 		eventsAddr           string
 		healthAddr           string
 		enableLeaderElection bool
-		logLevel             string
-		logJSON              bool
+		logOptions           logger.Options
 		watchAllNamespaces   bool
 	)
 
@@ -71,13 +71,19 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	flag.StringVar(&logLevel, "log-level", "info", "Set logging level. Can be debug, info or error.")
-	flag.BoolVar(&logJSON, "log-json", false, "Set logging to JSON format.")
 	flag.BoolVar(&watchAllNamespaces, "watch-all-namespaces", true,
 		"Watch for custom resources in all namespaces, if set to false it will only watch the runtime namespace.")
+	flag.Bool("log-json", false, "Set logging to JSON format.")
+	flag.CommandLine.MarkDeprecated("log-json", "Please use --log-encoding=json instead.")
+	{
+		var fs goflag.FlagSet
+		logOptions.BindFlags(&fs)
+		flag.CommandLine.AddGoFlagSet(&fs)
+	}
 	flag.Parse()
 
-	ctrl.SetLogger(logger.NewLogger(logLevel, logJSON))
+	log := logger.NewLogger(logOptions)
+	ctrl.SetLogger(log)
 
 	var eventRecorder *events.Recorder
 	if eventsAddr != "" {
@@ -115,7 +121,6 @@ func main() {
 
 	if err = (&controllers.ImageUpdateAutomationReconciler{
 		Client:                mgr.GetClient(),
-		Log:                   ctrl.Log.WithName("controllers").WithName("ImageUpdateAutomation"),
 		Scheme:                mgr.GetScheme(),
 		EventRecorder:         mgr.GetEventRecorderFor(controllerName),
 		ExternalEventRecorder: eventRecorder,
