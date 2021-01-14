@@ -28,9 +28,10 @@ import (
 	"time"
 
 	gogit "github.com/go-git/go-git/v5"
+	libgit2 "github.com/libgit2/git2go/v31"
+
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
@@ -53,6 +54,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 	"github.com/fluxcd/source-controller/pkg/git"
+	gitcommon "github.com/fluxcd/source-controller/pkg/git/common"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha1"
 	"github.com/fluxcd/image-automation-controller/pkg/update"
@@ -160,7 +162,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	var repo *gogit.Repository
-	if repo, err = cloneInto(ctx, access, auto.Spec.Checkout.Branch, tmp); err != nil {
+	if repo, err = cloneInto(ctx, access, auto.Spec.Checkout.Branch, tmp, origin.Spec.GitImplementation); err != nil {
 		return failWithError(err)
 	}
 
@@ -193,7 +195,10 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	var statusMessage string
 
-	if rev, err := commitAllAndPush(ctx, repo, access, &auto.Spec.Commit); err != nil {
+	// The status message depends on what happens next. Since there's
+	// more than one way to succeed, there's some if..else below, and
+	// early returns only on failure.
+	if rev, err := commitAll(ctx, repo, &auto.Spec.Commit); err != nil {
 		if err == errNoChanges {
 			r.event(ctx, auto, events.EventSeverityInfo, "no updates made")
 			log.V(debug).Info("no changes made in working directory; no commit")
@@ -205,6 +210,10 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			return failWithError(err)
 		}
 	} else {
+		if err := push(ctx, tmp, repo, auto.Spec.Checkout.Branch, access, origin.Spec.GitImplementation); err != nil {
+			return failWithError(err)
+		}
+
 		r.event(ctx, auto, events.EventSeverityInfo, "committed and pushed change "+rev)
 		log.Info("pushed commit to origin", "revision", rev)
 		auto.Status.LastPushCommit = rev
@@ -285,14 +294,18 @@ func (r *ImageUpdateAutomationReconciler) automationsForGitRepo(obj client.Objec
 // --- git ops
 
 type repoAccess struct {
-	auth transport.AuthMethod
+	auth *gitcommon.Auth
 	url  string
 }
 
 func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, repository *sourcev1.GitRepository) (repoAccess, error) {
 	var access repoAccess
+	access.auth = &gitcommon.Auth{}
 	access.url = repository.Spec.URL
-	authStrat := git.AuthSecretStrategyForURL(access.url)
+	authStrat, err := git.AuthSecretStrategyForURL(access.url, sourcev1.GoGitImplementation)
+	if err != nil {
+		return access, err
+	}
 
 	if repository.Spec.SecretRef != nil && authStrat != nil {
 		name := types.NamespacedName{
@@ -316,11 +329,17 @@ func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, rep
 	return access, nil
 }
 
-func cloneInto(ctx context.Context, access repoAccess, branch, path string) (*gogit.Repository, error) {
-	checkoutStrat := git.CheckoutStrategyForRef(&sourcev1.GitRepositoryRef{
+// cloneInto clones the upstream repository at the `branch` given,
+// using the git library indicated by `impl`. It returns a
+// `*gogit.Repository` regardless of the git library, since that is
+// used for committing changes.
+func cloneInto(ctx context.Context, access repoAccess, branch, path, impl string) (*gogit.Repository, error) {
+	checkoutStrat, err := git.CheckoutStrategyForRef(&sourcev1.GitRepositoryRef{
 		Branch: branch,
-	})
-	_, _, err := checkoutStrat.Checkout(ctx, path, access.url, access.auth)
+	}, impl)
+	if err == nil {
+		_, _, err = checkoutStrat.Checkout(ctx, path, access.url, access.auth)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +349,7 @@ func cloneInto(ctx context.Context, access repoAccess, branch, path string) (*go
 
 var errNoChanges error = errors.New("no changes made to working directory")
 
-func commitAllAndPush(ctx context.Context, repo *gogit.Repository, access repoAccess, commit *imagev1.CommitSpec) (string, error) {
+func commitAll(ctx context.Context, repo *gogit.Repository, commit *imagev1.CommitSpec) (string, error) {
 	working, err := repo.Worktree()
 	if err != nil {
 		return "", err
@@ -368,8 +387,44 @@ func commitAllAndPush(ctx context.Context, repo *gogit.Repository, access repoAc
 		return "", err
 	}
 
-	return rev.String(), repo.PushContext(ctx, &gogit.PushOptions{
-		Auth: access.auth,
+	return rev.String(), nil
+}
+
+// push pushes the branch given to the origin using the git library
+// indicated by `impl`. It's passed both the path to the repo and a
+// gogit.Repository value, since the latter may as well be used if the
+// implementation is GoGit.
+func push(ctx context.Context, path string, repo *gogit.Repository, branch string, access repoAccess, impl string) error {
+	switch impl {
+	case sourcev1.LibGit2Implementation:
+		lg2repo, err := libgit2.OpenRepository(path)
+		if err != nil {
+			return err
+		}
+		return pushLibgit2(lg2repo, access, branch)
+	case sourcev1.GoGitImplementation:
+		return pushGoGit(ctx, repo, access)
+	default:
+		return fmt.Errorf("unknown git implementation %q", impl)
+	}
+}
+
+func pushGoGit(ctx context.Context, repo *gogit.Repository, access repoAccess) error {
+	return repo.PushContext(ctx, &gogit.PushOptions{
+		Auth: access.auth.AuthMethod,
+	})
+}
+
+func pushLibgit2(repo *libgit2.Repository, access repoAccess, branch string) error {
+	origin, err := repo.Remotes.Lookup(originRemote)
+	if err != nil {
+		return err
+	}
+	return origin.Push([]string{fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch)}, &libgit2.PushOptions{
+		RemoteCallbacks: libgit2.RemoteCallbacks{
+			CertificateCheckCallback: access.auth.CertCallback,
+			CredentialsCallback:      access.auth.CredCallback,
+		},
 	})
 }
 
