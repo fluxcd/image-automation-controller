@@ -8,7 +8,7 @@ replace github.com/fluxcd/image-automation-controller/api => ./api
 replace gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 
 require (
-	github.com/fluxcd/image-automation-controller/api v0.2.0
+	github.com/fluxcd/image-automation-controller/api v0.3.0
 	github.com/fluxcd/image-reflector-controller/api v0.2.0
 	github.com/fluxcd/pkg/apis/meta v0.5.0
 	github.com/fluxcd/pkg/gittestserver v0.1.0
