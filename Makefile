@@ -3,9 +3,9 @@ IMG ?= fluxcd/image-automation-controller:latest
 # Produce CRDs that work back to Kubernetes 1.16
 CRD_OPTIONS ?= crd:crdVersions=v1
 
-# Version of the Toolkit from which to get CRDs. Change this if you
-# bump the go module version.
-TOOLKIT_VERSION:=v0.6.1
+# Version of the source-controller from which to get the GitRepository CRD.
+# Change this if you bump the source-controller/api version in go.mod.
+SOURCE_VER ?= v0.6.2
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -26,7 +26,7 @@ clean_test_deps:
 
 ${TEST_CRDS}/gitrepositories.yaml:
 	mkdir -p ${TEST_CRDS}
-	curl -s --fail https://raw.githubusercontent.com/fluxcd/source-controller/${TOOLKIT_VERSION}/config/crd/bases/source.toolkit.fluxcd.io_gitrepositories.yaml \
+	curl -s --fail https://raw.githubusercontent.com/fluxcd/source-controller/${SOURCE_VER}/config/crd/bases/source.toolkit.fluxcd.io_gitrepositories.yaml \
 		-o ${TEST_CRDS}/gitrepositories.yaml
 
 ${TEST_CRDS}/imagepolicies.yaml:
@@ -73,6 +73,11 @@ manifests: controller-gen
 # Generate API reference documentation
 api-docs: gen-crd-api-reference-docs
 	$(API_REF_GEN) -api-dir=./api/v1alpha1 -config=./hack/api-docs/config.json -template-dir=./hack/api-docs/template -out-file=./docs/api/image-automation.md
+
+# Run go mod tidy
+tidy:
+	cd api; rm -f go.sum; go mod tidy
+	rm -f go.sum; go mod tidy
 
 # Run go fmt against code
 fmt:
