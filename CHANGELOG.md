@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1
+
+**Release date:** 2021-01-18
+
+This prerelease comes with updates to Kubernetes and Kustomize dependencies.
+The Kubernetes packages were updated to v1.20.2 and kyaml to v0.10.6.
+
 ## 0.3.0
 
 **Release date:** 2021-01-15
