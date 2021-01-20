@@ -78,6 +78,7 @@ const (
 type UpdateStrategy struct {
 	// Strategy names the strategy to be used.
 	// +required
+	// +kubebuilder:default=Setters
 	Strategy UpdateStrategyName `json:"strategy"`
 }
 

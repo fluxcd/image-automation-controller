@@ -97,6 +97,7 @@ spec:
                   value.
                 properties:
                   strategy:
+                    default: Setters
                     description: Strategy names the strategy to be used.
                     enum:
                     - Setters
