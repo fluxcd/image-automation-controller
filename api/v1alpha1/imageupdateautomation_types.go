@@ -36,9 +36,10 @@ type ImageUpdateAutomationSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 	// Update gives the specification for how to update the files in
-	// the repository
-	// +required
-	Update UpdateStrategy `json:"update"`
+	// the repository. This can be left empty, to use the default
+	// value.
+	// +kubebuilder:default={"strategy":"Setters"}
+	Update *UpdateStrategy `json:"update,omitempty"`
 	// Commit specifies how to commit to the git repo
 	// +required
 	Commit CommitSpec `json:"commit"`
@@ -59,18 +60,26 @@ type GitCheckoutSpec struct {
 	Branch string `json:"branch"`
 }
 
-// UpdateStrategy is a union of the various strategies for updating
-// the git repository.
-type UpdateStrategy struct {
-	// Setters if present means update workloads using setters, via
-	// fields marked in the files themselves.
-	// +optional
-	Setters *SettersStrategy `json:"setters,omitempty"`
-}
+// UpdateStrategyName is the type for names that go in
+// .update.strategy. NB the value in the const immediately below.
+// +kubebuilder:validation:Enum=Setters
+type UpdateStrategyName string
 
-// SettersStrategy specifies how to use kyaml setters to update the
-// git repository.
-type SettersStrategy struct {
+const (
+	// UpdateStrategySetters is the name of the update strategy that
+	// uses kyaml setters. NB the value in the enum annotation for the
+	// type, above.
+	UpdateStrategySetters UpdateStrategyName = "Setters"
+)
+
+// UpdateStrategy is a union of the various strategies for updating
+// the Git repository. Parameters for each strategy (if any) can be
+// inlined here.
+type UpdateStrategy struct {
+	// Strategy names the strategy to be used.
+	// +required
+	// +kubebuilder:default=Setters
+	Strategy UpdateStrategyName `json:"strategy"`
 }
 
 // CommitSpec specifies how to commit changes to the git repository

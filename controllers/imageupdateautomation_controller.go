@@ -168,9 +168,8 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	log.V(debug).Info("cloned git repository", "gitrepository", originName, "branch", auto.Spec.Checkout.Branch, "working", tmp)
 
-	updateStrat := auto.Spec.Update
 	switch {
-	case updateStrat.Setters != nil:
+	case auto.Spec.Update != nil && auto.Spec.Update.Strategy == imagev1.UpdateStrategySetters:
 		// For setters we first want to compile a list of _all_ the
 		// policies in the same namespace (maybe in the future this
 		// could be filtered by the automation object).
@@ -185,8 +184,8 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	default:
 		log.Info("no update strategy given in the spec")
 		// no sense rescheduling until this resource changes
-		r.event(ctx, auto, events.EventSeverityInfo, "no update strategy in spec, failing trivially")
-		imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, imagev1.NoStrategyReason, "no update strategy is given for object")
+		r.event(ctx, auto, events.EventSeverityInfo, "no known update strategy in spec, failing trivially")
+		imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, imagev1.NoStrategyReason, "no known update strategy is given for object")
 		err := r.Status().Update(ctx, &auto)
 		return ctrl.Result{}, err
 	}

@@ -106,10 +106,7 @@ string
 </em>
 </td>
 <td>
-<em>(Optional)</em>
-<p>Branch gives the branch to clone from the git repository. If
-missing, it will be left to default; be aware this may give
-indeterminate results.</p>
+<p>Branch gives the branch to clone from the git repository.</p>
 </td>
 </tr>
 </tbody>
@@ -195,7 +192,8 @@ UpdateStrategy
 </td>
 <td>
 <p>Update gives the specification for how to update the files in
-the repository</p>
+the repository. This can be left empty, to use the default
+value.</p>
 </td>
 </tr>
 <tr>
@@ -299,7 +297,8 @@ UpdateStrategy
 </td>
 <td>
 <p>Update gives the specification for how to update the files in
-the repository</p>
+the repository. This can be left empty, to use the default
+value.</p>
 </td>
 </tr>
 <tr>
@@ -367,6 +366,33 @@ made).</p>
 </tr>
 <tr>
 <td>
+<code>lastPushCommit</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastPushCommit records the SHA1 of the last commit made by the
+controller, for this automation object</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>lastPushTime</code><br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastPushTime records the time of the last pushed change.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>observedGeneration</code><br>
 <em>
 int64
@@ -408,42 +434,6 @@ github.com/fluxcd/pkg/apis/meta.ReconcileRequestStatus
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha1.SettersStrategy">SettersStrategy
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.UpdateStrategy">UpdateStrategy</a>)
-</p>
-<p>SettersStrategy specifies how to use kyaml setters to update the
-git repository.</p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>paths</code><br>
-<em>
-[]string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Paths gives all paths that should be subject to updates using
-setters. If missing, the path <code>.</code> (the root of the git
-repository) is assumed.</p>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
 <h3 id="image.toolkit.fluxcd.io/v1alpha1.UpdateStrategy">UpdateStrategy
 </h3>
 <p>
@@ -451,7 +441,8 @@ repository) is assumed.</p>
 <a href="#image.toolkit.fluxcd.io/v1alpha1.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec</a>)
 </p>
 <p>UpdateStrategy is a union of the various strategies for updating
-the git repository.</p>
+the Git repository. Parameters for each strategy (if any) can be
+inlined here.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -464,23 +455,29 @@ the git repository.</p>
 <tbody>
 <tr>
 <td>
-<code>setters</code><br>
+<code>strategy</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.SettersStrategy">
-SettersStrategy
+<a href="#image.toolkit.fluxcd.io/v1alpha1.UpdateStrategyName">
+UpdateStrategyName
 </a>
 </em>
 </td>
 <td>
-<em>(Optional)</em>
-<p>Setters if present means update workloads using setters, via
-fields marked in the files themselves.</p>
+<p>Strategy names the strategy to be used.</p>
 </td>
 </tr>
 </tbody>
 </table>
 </div>
 </div>
+<h3 id="image.toolkit.fluxcd.io/v1alpha1.UpdateStrategyName">UpdateStrategyName
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#image.toolkit.fluxcd.io/v1alpha1.UpdateStrategy">UpdateStrategy</a>)
+</p>
+<p>UpdateStrategyName is the type for names that go in
+.update.strategy. NB the value in the const immediately below.</p>
 <div class="admonition note">
 <p class="last">This page was automatically generated with <code>gen-crd-api-reference-docs</code></p>
 </div>

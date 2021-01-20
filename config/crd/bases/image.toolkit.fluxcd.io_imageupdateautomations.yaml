@@ -90,19 +90,25 @@ spec:
                   until it is unset (or set to false). Defaults to false.
                 type: boolean
               update:
+                default:
+                  strategy: Setters
                 description: Update gives the specification for how to update the
-                  files in the repository
+                  files in the repository. This can be left empty, to use the default
+                  value.
                 properties:
-                  setters:
-                    description: Setters if present means update workloads using setters,
-                      via fields marked in the files themselves.
-                    type: object
+                  strategy:
+                    default: Setters
+                    description: Strategy names the strategy to be used.
+                    enum:
+                    - Setters
+                    type: string
+                required:
+                - strategy
                 type: object
             required:
             - checkout
             - commit
             - interval
-            - update
             type: object
           status:
             description: ImageUpdateAutomationStatus defines the observed state of
