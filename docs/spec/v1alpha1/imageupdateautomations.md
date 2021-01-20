@@ -23,9 +23,10 @@ type ImageUpdateAutomationSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 	// Update gives the specification for how to update the files in
-	// the repository
-	// +required
-	Update UpdateStrategy `json:"update"`
+	// the repository. This can be left empty, to use the default
+	// value.
+	// +kubebuilder:default={"strategy":"Setters"}
+	Update *UpdateStrategy `json:"update,omitempty"`
 	// Commit specifies how to commit to the git repo
 	// +required
 	Commit CommitSpec `json:"commit"`
@@ -77,34 +78,37 @@ details.
 
 ## Update strategy
 
-The `update` field specifies how to carry out updates on the git repository:
+The `update` field specifies how to carry out updates on the git repository. There is one strategy
+possible at present -- `{strategy: Setters}`. This field may be left empty, to default to that
+value.
 
 ```go
-// UpdateStrategy is a union of the various strategies for updating
-// the git repository.
-type UpdateStrategy struct {
-	// Setters if present means update workloads using setters, via
-	// fields marked in the files themselves.
-	// +optional
-	Setters *SettersStrategy `json:"setters,omitempty"`
-}
+// UpdateStrategyName is the type for names that go in
+// .update.strategy. NB the value in the const immediately below.
+// +kubebuilder:validation:Enum=Setters
+type UpdateStrategyName string
 
-// SettersStrategy specifies how to use kyaml setters to update the
-// git repository.
-type SettersStrategy struct {
+const (
+	// UpdateStrategySetters is the name of the update strategy that
+	// uses kyaml setters. NB the value in the enum annotation for the
+	// type, above.
+	UpdateStrategySetters UpdateStrategyName = "Setters"
+)
+
+// UpdateStrategy is a union of the various strategies for updating
+// the Git repository. Parameters for each strategy (if any) can be
+// inlined here.
+type UpdateStrategy struct {
+	// Strategy names the strategy to be used.
+	// +required
+	Strategy UpdateStrategyName `json:"strategy"`
 }
 ```
+
+**Setters strategy**
 
 At present, there is one strategy: "Setters". This uses field markers referring to image policies,
-as described in the [image automation guide][image-auto-guide]. Since the setters policy has no
-fields itself, but a value is required, a full update strategy looks like this:
-
-```yaml
-spec:
-  # ... checkout, interval etc.
-  update:
-    setters: {}
-```
+as described in the [image automation guide][image-auto-guide].
 
 ## Commit
 
