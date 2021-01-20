@@ -3,5 +3,12 @@ kind: ImageUpdateAutomation
 metadata:
   name: imageupdateautomation-sample
 spec:
-  # Add fields here
-  foo: bar
+  checkout:
+    gitRepositoryRef:
+      name: app-repo
+    branch: main
+  interval: 5m
+  # update strategy is left to default to "Setters"
+  commit:
+    authorName: Fluxbot
+    authorEmail: fluxbot@example.com
