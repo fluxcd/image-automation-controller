@@ -5,4 +5,4 @@ resources:
 images:
 - name: fluxcd/image-automation-controller
   newName: fluxcd/image-automation-controller
-  newTag: v0.3.1
+  newTag: v0.4.0

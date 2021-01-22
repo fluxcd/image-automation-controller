@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.4.0
+
+**Release date:** 2021-01-22
+
+This prerelease reforms the update strategy types API in a backwards
+compatible manner.
+
+In addition, it comes with two new argument flags introduced to support
+configuring the QPS (`--kube-api-qps`) and burst (`--kube-api-burst`)
+while communicating with the Kubernetes API server.
+
+The `LocalObjectReference` from the Kubernetes core has been replaced
+with our own, making the `name` a required field. The impact of this
+should be limited to direct API consumers only, as the field was
+already required by controller logic.
+
+Improvements:
+* Update fluxcd/pkg/runtime to v0.8.0
+  [#98](https://github.com/fluxcd/image-automation-controller/pull/98)
+* Reform update strategy types
+  [#95](https://github.com/fluxcd/kustomize-controller/pull/95)
+* Add API reference for ImageUpdateAutomation
+  [#94](https://github.com/fluxcd/image-automation-controller/pull/94)  
+
 ## 0.3.1
 
 **Release date:** 2021-01-18
