@@ -159,7 +159,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 					Namespace: policyKey.Namespace,
 				},
 				Spec: imagev1_reflect.ImagePolicySpec{
-					ImageRepositoryRef: corev1.LocalObjectReference{
+					ImageRepositoryRef: meta.LocalObjectReference{
 						Name: "not-expected-to-exist",
 					},
 					Policy: imagev1_reflect.ImagePolicyChoice{
@@ -199,7 +199,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 					Spec: imagev1.ImageUpdateAutomationSpec{
 						Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
 						Checkout: imagev1.GitCheckoutSpec{
-							GitRepositoryRef: corev1.LocalObjectReference{
+							GitRepositoryRef: meta.LocalObjectReference{
 								Name: "garbage",
 							},
 							Branch: branch,
@@ -257,7 +257,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 					Spec: imagev1.ImageUpdateAutomationSpec{
 						Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
 						Checkout: imagev1.GitCheckoutSpec{
-							GitRepositoryRef: corev1.LocalObjectReference{
+							GitRepositoryRef: meta.LocalObjectReference{
 								Name: gitRepoKey.Name,
 							},
 							Branch: branch,

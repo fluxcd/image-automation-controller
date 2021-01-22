@@ -17,7 +17,7 @@ limitations under the License.
 package main
 
 import (
-	goflag "flag"
+	"github.com/fluxcd/pkg/runtime/client"
 	"os"
 
 	flag "github.com/spf13/pflag"
@@ -61,6 +61,7 @@ func main() {
 		eventsAddr           string
 		healthAddr           string
 		enableLeaderElection bool
+		clientOptions        client.Options
 		logOptions           logger.Options
 		watchAllNamespaces   bool
 	)
@@ -75,11 +76,8 @@ func main() {
 		"Watch for custom resources in all namespaces, if set to false it will only watch the runtime namespace.")
 	flag.Bool("log-json", false, "Set logging to JSON format.")
 	flag.CommandLine.MarkDeprecated("log-json", "Please use --log-encoding=json instead.")
-	{
-		var fs goflag.FlagSet
-		logOptions.BindFlags(&fs)
-		flag.CommandLine.AddGoFlagSet(&fs)
-	}
+	clientOptions.BindFlags(flag.CommandLine)
+	logOptions.BindFlags(flag.CommandLine)
 	flag.Parse()
 
 	log := logger.NewLogger(logOptions)
@@ -103,7 +101,8 @@ func main() {
 		watchNamespace = os.Getenv("RUNTIME_NAMESPACE")
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	restConfig := client.GetConfigOrDie(clientOptions)
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
 		HealthProbeBindAddress: healthAddr,

@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -54,7 +53,7 @@ type GitCheckoutSpec struct {
 	// GitRepositoryRef refers to the resource giving access details
 	// to a git repository to update files in.
 	// +required
-	GitRepositoryRef corev1.LocalObjectReference `json:"gitRepositoryRef"`
+	GitRepositoryRef meta.LocalObjectReference `json:"gitRepositoryRef"`
 	// Branch gives the branch to clone from the git repository.
 	// +required
 	Branch string `json:"branch"`
