@@ -29,7 +29,7 @@ COPY controllers/ controllers/
 # Build
 RUN CGO_ENABLED=1 go build -o image-automation-controller main.go
 
-FROM alpine:3.12
+FROM alpine:3.13
 
 LABEL org.opencontainers.image.source="https://github.com/fluxcd/image-automation-controller"
 
@@ -45,7 +45,7 @@ COPY --from=builder /workspace/image-automation-controller /usr/local/bin/
 # https://github.com/gliderlabs/docker-alpine/issues/367#issuecomment-354316460
 RUN [ ! -e /etc/nsswitch.conf ] && echo 'hosts: files dns' > /etc/nsswitch.conf
 
-RUN addgroup -S controller && adduser -S -g controller controller
+RUN addgroup -S controller && adduser -S controller -G controller
 
 USER controller
 
