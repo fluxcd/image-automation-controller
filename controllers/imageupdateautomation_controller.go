@@ -53,8 +53,8 @@ import (
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
-	gitstrat "github.com/fluxcd/source-controller/pkg/git"
-	git "github.com/fluxcd/source-controller/pkg/git/common"
+	git "github.com/fluxcd/source-controller/pkg/git"
+	gitstrat "github.com/fluxcd/source-controller/pkg/git/strategy"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha1"
 	"github.com/fluxcd/image-automation-controller/pkg/update"
