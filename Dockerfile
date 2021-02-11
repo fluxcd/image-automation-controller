@@ -2,11 +2,7 @@ FROM golang:1.15-alpine as builder
 
 # These are so as to be able to build with libgit2
 RUN apk add gcc pkgconfig libc-dev
-RUN apk add --no-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/community libgit2-dev~=1.1
-# TODO: replace with non-edge musl 1.2.x when made available
-#  musl 1.2.x is a strict requirement of libgit2 due to time_t changes
-#  ref: https://musl.libc.org/time64.html
-RUN apk add --no-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/main musl~=1.2
+RUN apk add --no-cache musl~=1.2 libgit2-dev~=1.1
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -36,8 +32,7 @@ LABEL org.opencontainers.image.source="https://github.com/fluxcd/image-automatio
 RUN apk add --no-cache ca-certificates tini
 
 # For libgit2 -- just the runtime libs this time
-RUN apk add --no-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/community libgit2~=1.1
-RUN apk add --no-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/main musl~=1.2
+RUN apk add --no-cache musl~=1.2 libgit2~=1.1
 
 COPY --from=builder /workspace/image-automation-controller /usr/local/bin/
 
