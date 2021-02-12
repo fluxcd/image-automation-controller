@@ -22,8 +22,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/go-git/go-billy/v5/memfs"
@@ -46,6 +48,7 @@ import (
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/gittestserver"
+	"github.com/fluxcd/pkg/ssh"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha1"
@@ -69,12 +72,11 @@ func randStringRunes(n int) string {
 
 var _ = Describe("ImageUpdateAutomation", func() {
 	var (
-		impl           string
-		branch         string
-		repositoryPath string
-		repoURL        string
-		namespace      *corev1.Namespace
-		gitServer      *gittestserver.GitServer
+		branch             string
+		repositoryPath     string
+		namespace          *corev1.Namespace
+		username, password string
+		gitServer          *gittestserver.GitServer
 	)
 
 	// Start the git server
@@ -89,10 +91,15 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		var err error
 		gitServer, err = gittestserver.NewTempGitServer()
 		Expect(err).NotTo(HaveOccurred())
+		username = randStringRunes(5)
+		password = randStringRunes(5)
+		// using authentication makes using the server more fiddly in
+		// general, but is required for testing SSH.
+		gitServer.Auth(username, password)
 		gitServer.AutoCreate()
 		Expect(gitServer.StartHTTP()).To(Succeed())
-
-		repoURL = gitServer.HTTPAddress() + repositoryPath
+		gitServer.KeyDir(filepath.Join(gitServer.Root(), "keys"))
+		Expect(gitServer.ListenSSH()).To(Succeed())
 	})
 
 	AfterEach(func() {
@@ -104,8 +111,20 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		Expect(initGitRepo(gitServer, "testdata/appconfig", branch, repositoryPath)).To(Succeed())
 	})
 
+	// These are used for end-to-end tests; withImagePolicy is
+	// effectively parameterised on these two values.
+	var (
+		// set the proto and impl in BeforeEach
+		proto string
+		impl  string
+	)
+
 	withImagePolicy := func() {
 		var (
+			// for cloning locally
+			cloneLocalRepoURL string
+			// for the controller
+			repoURL       string
 			localRepo     *git.Repository
 			policy        *imagev1_reflect.ImagePolicy
 			policyKey     types.NamespacedName
@@ -117,13 +136,31 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		const evenLatestImage = "helloworld:1.2.0"
 
 		BeforeEach(func() {
+			cloneLocalRepoURL = gitServer.HTTPAddressWithCredentials() + repositoryPath
+			if proto == "http" {
+				repoURL = cloneLocalRepoURL // NB not testing auth for git over HTTP
+			} else if proto == "ssh" {
+				sshURL := gitServer.SSHAddress()
+				// this is expected to use 127.0.0.1, but host key
+				// checking usually wants a hostname, so use
+				// "localhost".
+				sshURL = strings.Replace(sshURL, "127.0.0.1", "localhost", 1)
+				repoURL = sshURL + repositoryPath
+				go func() {
+					defer GinkgoRecover()
+					gitServer.StartSSH()
+				}()
+			} else {
+				Fail("proto not set to http or ssh")
+			}
+
 			commitMessage = "Commit a difference " + randStringRunes(5)
 
 			Expect(initGitRepo(gitServer, "testdata/appconfig", branch, repositoryPath)).To(Succeed())
 
 			var err error
 			localRepo, err = git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
-				URL:           repoURL,
+				URL:           cloneLocalRepoURL,
 				RemoteName:    "origin",
 				ReferenceName: plumbing.NewBranchReferenceName(branch),
 			})
@@ -145,6 +182,31 @@ var _ = Describe("ImageUpdateAutomation", func() {
 					GitImplementation: impl,
 				},
 			}
+
+			// If using SSH, we need to provide an identity (private
+			// key) and known_hosts file in a secret.
+			if proto == "ssh" {
+				url, err := url.Parse(repoURL)
+				Expect(err).ToNot(HaveOccurred())
+				knownhosts, err := ssh.ScanHostKey(url.Host, 5*time.Second)
+				Expect(err).ToNot(HaveOccurred())
+				keygen := ssh.NewRSAGenerator(2048)
+				pair, err := keygen.Generate()
+				Expect(err).ToNot(HaveOccurred())
+
+				sec := &corev1.Secret{
+					StringData: map[string]string{
+						"known_hosts":  string(knownhosts),
+						"identity":     string(pair.PrivateKey),
+						"identity.pub": string(pair.PublicKey),
+					},
+				}
+				sec.Name = "git-secret-" + randStringRunes(5)
+				sec.Namespace = namespace.Name
+				Expect(k8sClient.Create(context.Background(), sec)).To(Succeed())
+				gitRepo.Spec.SecretRef = &meta.LocalObjectReference{Name: sec.Name}
+			}
+
 			Expect(k8sClient.Create(context.Background(), gitRepo)).To(Succeed())
 
 			policyKey = types.NamespacedName{
@@ -180,6 +242,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		AfterEach(func() {
 			Expect(k8sClient.Delete(context.Background(), namespace)).To(Succeed())
 			Expect(k8sClient.Delete(context.Background(), policy)).To(Succeed())
+			Expect(gitServer.StopSSH()).To(Succeed())
 		})
 
 		Context("defaulting", func() {
@@ -234,7 +297,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 			BeforeEach(func() {
 				// Insert a setter reference into the deployment file,
 				// before creating the automation object itself.
-				commitInRepo(repoURL, branch, "Install setter marker", func(tmp string) {
+				commitInRepo(cloneLocalRepoURL, branch, "Install setter marker", func(tmp string) {
 					replaceMarker(tmp, policyKey)
 				})
 
@@ -291,7 +354,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 				Expect(newObj.Status.LastPushCommit).To(Equal(head.Hash().String()))
 				Expect(newObj.Status.LastPushTime).ToNot(BeNil())
 
-				compareRepoWithExpected(repoURL, branch, "testdata/appconfig-setters-expected", func(tmp string) {
+				compareRepoWithExpected(cloneLocalRepoURL, branch, "testdata/appconfig-setters-expected", func(tmp string) {
 					replaceMarker(tmp, policyKey)
 				})
 			})
@@ -338,21 +401,35 @@ var _ = Describe("ImageUpdateAutomation", func() {
 	}
 
 	Context("Using go-git", func() {
-		BeforeEach(func() {
-			impl = sourcev1.GoGitImplementation
+		BeforeEach(func() { impl = sourcev1.GoGitImplementation })
+
+		Context("with HTTP", func() {
+			BeforeEach(func() { proto = "http" })
+			Describe("with image policy", withImagePolicy)
 		})
 
-		Context("with image policy", withImagePolicy)
+		Context("with SSH", func() {
+			BeforeEach(func() { proto = "ssh" })
+			Describe("with image policy", withImagePolicy)
+		})
 	})
 
 	Context("Using libgit2", func() {
-		BeforeEach(func() {
-			impl = sourcev1.LibGit2Implementation
+		BeforeEach(func() { impl = sourcev1.LibGit2Implementation })
+
+		Context("with HTTP", func() {
+			BeforeEach(func() { proto = "http" })
+			Describe("with image policy", withImagePolicy)
 		})
 
-		Context("with image policy", withImagePolicy)
+		// Marked "Pending" because the libgit2 SSH implementation
+		// won't work with the gittestserver yet -- see
+		// https://github.com/fluxcd/source-controller/issues/287
+		Context("with SSH", func() {
+			BeforeEach(func() { proto = "ssh" })
+			Describe("with image policy", withImagePolicy)
+		})
 	})
-
 })
 
 func expectCommittedAndPushed(conditions []metav1.Condition) {
@@ -498,7 +575,7 @@ func initGitRepo(gitServer *gittestserver.GitServer, fixture, branch, repository
 
 	remote, err := repo.CreateRemote(&config.RemoteConfig{
 		Name: "origin",
-		URLs: []string{gitServer.HTTPAddress() + repositoryPath},
+		URLs: []string{gitServer.HTTPAddressWithCredentials() + repositoryPath},
 	})
 	if err != nil {
 		return err

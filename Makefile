@@ -5,7 +5,7 @@ CRD_OPTIONS ?= crd:crdVersions=v1
 
 # Version of the source-controller from which to get the GitRepository CRD.
 # Change this if you bump the source-controller/api version in go.mod.
-SOURCE_VER ?= v0.7.0
+SOURCE_VER ?= v0.8.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))

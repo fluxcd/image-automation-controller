@@ -53,8 +53,8 @@ import (
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
-	"github.com/fluxcd/source-controller/pkg/git"
-	gitcommon "github.com/fluxcd/source-controller/pkg/git/common"
+	git "github.com/fluxcd/source-controller/pkg/git"
+	gitstrat "github.com/fluxcd/source-controller/pkg/git/strategy"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha1"
 	"github.com/fluxcd/image-automation-controller/pkg/update"
@@ -293,15 +293,15 @@ func (r *ImageUpdateAutomationReconciler) automationsForGitRepo(obj client.Objec
 // --- git ops
 
 type repoAccess struct {
-	auth *gitcommon.Auth
+	auth *git.Auth
 	url  string
 }
 
 func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, repository *sourcev1.GitRepository) (repoAccess, error) {
 	var access repoAccess
-	access.auth = &gitcommon.Auth{}
+	access.auth = &git.Auth{}
 	access.url = repository.Spec.URL
-	authStrat, err := git.AuthSecretStrategyForURL(access.url, sourcev1.GoGitImplementation)
+	authStrat, err := gitstrat.AuthSecretStrategyForURL(access.url, repository.Spec.GitImplementation)
 	if err != nil {
 		return access, err
 	}
@@ -333,7 +333,7 @@ func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, rep
 // `*gogit.Repository` regardless of the git library, since that is
 // used for committing changes.
 func cloneInto(ctx context.Context, access repoAccess, branch, path, impl string) (*gogit.Repository, error) {
-	checkoutStrat, err := git.CheckoutStrategyForRef(&sourcev1.GitRepositoryRef{
+	checkoutStrat, err := gitstrat.CheckoutStrategyForRef(&sourcev1.GitRepositoryRef{
 		Branch: branch,
 	}, impl)
 	if err == nil {
