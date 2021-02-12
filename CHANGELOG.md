@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.5.0
+
+**Release date:** 2021-02-12
+
+Alpine has been updated to `3.13`, making it possible to move away from `edge`
+for `libgit2` and `musl` dependencies.
+
+`pprof` endpoints have been enabled on the metrics server, making it easier to
+collect runtime information to for example debug performance issues.
+
+A bug has been fixed that caused SSH authentication for the `libgit2` Git
+implementation to fail.
+
+Improvements:
+* Enable pprof endpoints on metrics server
+  [#104](https://github.com/fluxcd/image-automation-controller/pull/104)
+* Update Alpine to v3.13
+  [#105](https://github.com/fluxcd/image-automation-controller/pull/105)
+* Use musl and libgit2 packages from v3.13 branch
+  [#107](https://github.com/fluxcd/image-automation-controller/pull/107)
+* Update kyaml to v0.10.9
+  [#108](https://github.com/fluxcd/image-automation-controller/pull/108)
+
+Fixes:
+* Test git over SSH too, and correct hard-wired implementation causing
+  SSH/libgit2 problems
+  [#109](https://github.com/fluxcd/image-automation-controller/pull/109)
+
 ## 0.4.0
 
 **Release date:** 2021-01-22
