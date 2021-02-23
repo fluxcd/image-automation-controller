@@ -12,11 +12,11 @@ require (
 	github.com/fluxcd/image-reflector-controller/api v0.6.0
 	github.com/fluxcd/pkg/apis/meta v0.8.0
 	github.com/fluxcd/pkg/gittestserver v0.2.1
-	github.com/fluxcd/pkg/runtime v0.8.1
+	github.com/fluxcd/pkg/runtime v0.8.3
 	github.com/fluxcd/pkg/ssh v0.0.5
-	github.com/fluxcd/source-controller v0.8.0
+	github.com/fluxcd/source-controller v0.9.0
 	// If you bump this, change SOURCE_VER in the Makefile to match
-	github.com/fluxcd/source-controller/api v0.8.0
+	github.com/fluxcd/source-controller/api v0.9.0
 	github.com/go-git/go-billy/v5 v5.0.0
 	github.com/go-git/go-git/v5 v5.2.0
 	github.com/go-logr/logr v0.3.0
@@ -30,6 +30,13 @@ require (
 	k8s.io/api v0.20.2
 	k8s.io/apimachinery v0.20.2
 	k8s.io/client-go v0.20.2
-	sigs.k8s.io/controller-runtime v0.8.0
+	sigs.k8s.io/controller-runtime v0.8.2
 	sigs.k8s.io/kustomize/kyaml v0.10.9
+)
+
+// side-effect of depending on source-controller
+// required by https://github.com/helm/helm/blob/v3.5.2/go.mod
+replace (
+	github.com/docker/distribution => github.com/docker/distribution v0.0.0-20191216044856-a8371794149d
+	github.com/docker/docker => github.com/moby/moby v17.12.0-ce-rc1.0.20200618181300-9dc6525e6118+incompatible
 )

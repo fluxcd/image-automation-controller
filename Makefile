@@ -5,7 +5,7 @@ CRD_OPTIONS ?= crd:crdVersions=v1
 
 # Version of the source-controller from which to get the GitRepository CRD.
 # Change this if you bump the source-controller/api version in go.mod.
-SOURCE_VER ?= v0.8.0
+SOURCE_VER ?= v0.9.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -101,6 +101,10 @@ docker-build: test
 docker-push:
 	docker push ${IMG}
 
+# Set the docker image in-cluster
+docker-deploy:
+	kubectl -n flux-system set image deployment/image-automation-controller manager=${IMG}
+
 # find or download controller-gen
 # download controller-gen if necessary
 controller-gen:
@@ -110,7 +114,7 @@ ifeq (, $(shell which controller-gen))
 	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
 	cd $$CONTROLLER_GEN_TMP_DIR ;\
 	go mod init tmp ;\
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.3.0 ;\
+	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1 ;\
 	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
 	}
 CONTROLLER_GEN=$(GOBIN)/controller-gen
