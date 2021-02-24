@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.6.0
+
+**Release date:** 2021-02-24
+
+This prerelease comes with various updates to the controller's
+dependencies.
+
+The Kubernetes custom resource definitions are packaged as
+a multi-doc YAML asset and published on the GitHub release page.
+
+Improvements:
+* Refactor release workflow
+  [#112](https://github.com/fluxcd/image-automation-controller/pull/112)
+* Update dependencies
+  [#111](https://github.com/fluxcd/image-automation-controller/pull/111)
+
 ## 0.5.0
 
 **Release date:** 2021-02-12
