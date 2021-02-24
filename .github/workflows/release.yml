@@ -5,7 +5,7 @@ on:
       - 'v*'
 
 env:
-  CONTROLLER: image-automation-controller
+  CONTROLLER: ${{ github.event.repository.name }}
 
 jobs:
   build-push:
@@ -63,39 +63,21 @@ jobs:
             org.opencontainers.image.created=${{ steps.prep.outputs.BUILD_DATE }}
       - name: Check images
         run: |
-          docker buildx imagetools inspect docker.io/fluxcd/${CONTROLLER}:${{ steps.prep.outputs.VERSION }}
-          docker buildx imagetools inspect ghcr.io/fluxcd/${CONTROLLER}:${{ steps.prep.outputs.VERSION }}
-          docker pull docker.io/fluxcd/${CONTROLLER}:${{ steps.prep.outputs.VERSION }}
-          docker pull ghcr.io/fluxcd/${CONTROLLER}:${{ steps.prep.outputs.VERSION }}
-      - name: Generate release asset
-        if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+          docker buildx imagetools inspect docker.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
+          docker buildx imagetools inspect ghcr.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
+          docker pull docker.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
+          docker pull ghcr.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
+      - name: Generate release manifests
         run: |
           mkdir -p config/release
-          cp config/default/* config/release
-          cd config/release
-          kustomize edit set image fluxcd/${CONTROLLER}=fluxcd/${CONTROLLER}:${{ steps.get_version.outputs.VERSION }}
-          kustomize build . > ${CONTROLLER}.yaml
+          kustomize build ./config/crd > ./config/release/${{ env.CONTROLLER }}.crds.yaml
+          kustomize build ./config/manager > ./config/release/${{ env.CONTROLLER }}.deployment.yaml
       - name: Create release
-        if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
-        id: create_release
-        uses: actions/create-release@latest
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          draft: false
           prerelease: true
+          artifacts: "config/release/*.yaml"
+          artifactContentType: "text/plain"
           body: |
             [CHANGELOG](https://github.com/fluxcd/${{ env.CONTROLLER }}/blob/main/CHANGELOG.md)
-      - name: Upload artifacts
-        if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./config/release/${{ env.CONTROLLER }}.yaml
-          asset_name: ${{ env.CONTROLLER }}.yaml
-          asset_content_type: text/plain
+          token: ${{ secrets.GITHUB_TOKEN }}
