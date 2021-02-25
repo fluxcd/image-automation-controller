@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.1
+
+**Release date:** 2021-02-25
+
+This prerelease improves the formatting of error messages returned when
+a `git push` to an upstream Git repository fails.
+
+Improvements:
+* Better error messages from `git push`
+  [#115](https://github.com/fluxcd/image-automation-controller/pull/115)
+
 ## 0.6.0
 
 **Release date:** 2021-02-24
