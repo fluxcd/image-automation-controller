@@ -409,9 +409,28 @@ func push(ctx context.Context, path string, repo *gogit.Repository, branch strin
 }
 
 func pushGoGit(ctx context.Context, repo *gogit.Repository, access repoAccess) error {
-	return repo.PushContext(ctx, &gogit.PushOptions{
+	err := repo.PushContext(ctx, &gogit.PushOptions{
 		Auth: access.auth.AuthMethod,
 	})
+	return gogitPushError(err)
+}
+
+func gogitPushError(err error) error {
+	if err == nil {
+		return nil
+	}
+	switch strings.TrimSpace(err.Error()) {
+	case "unknown error: remote:":
+		// this unhelpful error arises because go-git takes the first
+		// line of the output on stderr, and for some git providers
+		// (GitLab, at least) the output has a blank line at the
+		// start. The rest of stderr is thrown away, so we can't get
+		// the actual error; but at least we know what was being
+		// attempted, and the likely cause.
+		return fmt.Errorf("push rejected; check git secret has write access")
+	default:
+		return err
+	}
 }
 
 func pushLibgit2(repo *libgit2.Repository, access repoAccess, branch string) error {
@@ -419,12 +438,45 @@ func pushLibgit2(repo *libgit2.Repository, access repoAccess, branch string) err
 	if err != nil {
 		return err
 	}
-	return origin.Push([]string{fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch)}, &libgit2.PushOptions{
+	err = origin.Push([]string{fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch)}, &libgit2.PushOptions{
 		RemoteCallbacks: libgit2.RemoteCallbacks{
 			CertificateCheckCallback: access.auth.CertCallback,
 			CredentialsCallback:      access.auth.CredCallback,
 		},
 	})
+	return libgit2PushError(err)
+}
+
+func libgit2PushError(err error) error {
+	if err == nil {
+		return err
+	}
+	// libgit2 returns the whole output from stderr, and we only need
+	// the message. GitLab likes to return a banner, so as an
+	// heuristic, strip any lines that are just "remote:" and spaces
+	// or fencing.
+	msg := err.Error()
+	lines := strings.Split(msg, "\n")
+	if len(lines) == 1 {
+		return err
+	}
+	var b strings.Builder
+	// the following removes the prefix "remote:" from each line; to
+	// retain a bit of fidelity to the original error, start with it.
+	b.WriteString("remote: ")
+
+	var appending bool
+	for _, line := range lines {
+		m := strings.TrimPrefix(line, "remote:")
+		if m = strings.Trim(m, " \t="); m != "" {
+			if appending {
+				b.WriteString(" ")
+			}
+			b.WriteString(m)
+			appending = true
+		}
+	}
+	return errors.New(b.String())
 }
 
 // --- events, metrics
