@@ -178,7 +178,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			return failWithError(err)
 		}
 
-		if err := updateAccordingToSetters(ctx, tmp, policies.Items); err != nil {
+		if _, err := updateAccordingToSetters(ctx, tmp, policies.Items); err != nil {
 			return failWithError(err)
 		}
 	default:
@@ -523,6 +523,6 @@ func (r *ImageUpdateAutomationReconciler) recordReadinessMetric(ctx context.Cont
 
 // updateAccordingToSetters updates files under the root by treating
 // the given image policies as kyaml setters.
-func updateAccordingToSetters(ctx context.Context, path string, policies []imagev1_reflect.ImagePolicy) error {
+func updateAccordingToSetters(ctx context.Context, path string, policies []imagev1_reflect.ImagePolicy) (update.Result, error) {
 	return update.UpdateWithSetters(path, path, policies)
 }

@@ -23,8 +23,11 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"sigs.k8s.io/kustomize/kyaml/fieldmeta"
 	"sigs.k8s.io/kustomize/kyaml/kio"
+	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 	"sigs.k8s.io/kustomize/kyaml/openapi"
+	"sigs.k8s.io/kustomize/kyaml/sets"
 	"sigs.k8s.io/kustomize/kyaml/setters2"
+	"sigs.k8s.io/kustomize/kyaml/yaml"
 
 	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
 )
@@ -47,7 +50,7 @@ func init() {
 // UpdateWithSetters takes all YAML files from `inpath`, updates any
 // that contain an "in scope" image policy marker, and writes files it
 // updated (and only those files) back to `outpath`.
-func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.ImagePolicy) error {
+func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.ImagePolicy) (Result, error) {
 	// the OpenAPI schema is a package variable in kyaml/openapi. In
 	// lieu of being able to isolate invocations (per
 	// https://github.com/kubernetes-sigs/kustomize/issues/3058), I
@@ -83,6 +86,12 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 	// used to separate namespace and name in the key, because a slash
 	// would be interpreted as part of the $ref path.
 
+	var settersSchema spec.Schema
+	var setters []*setters2.Set
+	setterToImage := make(map[string]name.Reference)
+
+	// collect setter defs and setters by going through all the image
+	// policies available.
 	defs := map[string]spec.Schema{}
 	for _, policy := range policies {
 		if policy.Status.LatestImage == "" {
@@ -97,7 +106,7 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 		image := policy.Status.LatestImage
 		ref, err := name.ParseReference(image, name.WeakValidation)
 		if err != nil {
-			return fmt.Errorf("encountered invalid image ref %q: %w", policy.Status.LatestImage, err)
+			return Result{}, fmt.Errorf("encountered invalid image ref %q: %w", policy.Status.LatestImage, err)
 		}
 		tag := ref.Identifier()
 		// annoyingly, neither the library imported above, nor an
@@ -107,15 +116,35 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 
 		imageSetter := fmt.Sprintf("%s:%s", policy.GetNamespace(), policy.GetName())
 		defs[fieldmeta.SetterDefinitionPrefix+imageSetter] = setterSchema(imageSetter, policy.Status.LatestImage)
+		setterToImage[imageSetter] = ref
+		setters = append(setters, &setters2.Set{
+			Name:          imageSetter,
+			SettersSchema: &settersSchema,
+		})
+
 		tagSetter := imageSetter + ":tag"
+
 		defs[fieldmeta.SetterDefinitionPrefix+tagSetter] = setterSchema(tagSetter, tag)
+		setterToImage[tagSetter] = ref
+		setters = append(setters, &setters2.Set{
+			Name:          tagSetter,
+			SettersSchema: &settersSchema,
+		})
+
 		// Context().Name() gives the image repository _as supplied_
 		nameSetter := imageSetter + ":name"
+		setterToImage[nameSetter] = ref
 		defs[fieldmeta.SetterDefinitionPrefix+nameSetter] = setterSchema(nameSetter, name)
+		setters = append(setters, &setters2.Set{
+			Name:          nameSetter,
+			SettersSchema: &settersSchema,
+		})
 	}
 
-	var settersSchema spec.Schema
 	settersSchema.Definitions = defs
+	setAll := &setAllRecorder{
+		setters: setters,
+	}
 
 	// get ready with the reader and writer
 	reader := &ScreeningLocalReader{
@@ -130,18 +159,102 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 		Inputs:  []kio.Reader{reader},
 		Outputs: []kio.Writer{writer},
 		Filters: []kio.Filter{
-			setters2.SetAll( // run the enclosed single-node setters2.Filter on all nodes,
-				// and only include those in files that changed in the output
-				&setters2.Set{
-					SetAll:        true,
-					SettersSchema: &settersSchema,
-				}, // set all images that are in the constructed schema
-			),
+			setAll,
 		},
 	}
 
 	// go!
-	return pipeline.Execute()
+	err := pipeline.Execute()
+	if err != nil {
+		return Result{}, err
+	}
+	return setAll.getResult(setterToImage), nil
+}
+
+type update struct {
+	file, name string
+	object     *yaml.RNode
+}
+
+type setAllRecorder struct {
+	setters []*setters2.Set
+	updates []update
+}
+
+func (s *setAllRecorder) getResult(nameToImage map[string]name.Reference) Result {
+	result := Result{
+		Files: make(map[string]FileResult),
+	}
+updates:
+	for _, update := range s.updates {
+		file, ok := result.Files[update.file]
+		if !ok {
+			file = FileResult{
+				Objects: make(map[yaml.ResourceIdentifier][]name.Reference),
+			}
+			result.Files[update.file] = file
+		}
+		objects := file.Objects
+
+		meta, err := update.object.GetMeta()
+		if err != nil {
+			continue updates
+		}
+		id := meta.GetIdentifier()
+		name, ok := nameToImage[update.name]
+		if !ok { // this means an update was made that wasn't recorded as being an image
+			continue updates
+		}
+		// if the name and tag of an image are both used, we don't need to record it twice
+		for _, n := range objects[id] {
+			if n == name {
+				continue updates
+			}
+		}
+		objects[id] = append(objects[id], name)
+	}
+	return result
+}
+
+// Filter is an implementation of kio.Filter which records each use of
+// a setter at each object in each file, and only includes the files
+// that were updated in the output nodes. The implementation is
+// adapted from
+// https://github.com/kubernetes-sigs/kustomize/blob/kyaml/v0.10.13/kyaml/setters2/set.go#L503
+func (s *setAllRecorder) Filter(nodes []*yaml.RNode) ([]*yaml.RNode, error) {
+	filesToUpdate := sets.String{}
+	for i := range nodes {
+		for _, setter := range s.setters {
+			preCount := setter.Count
+			_, err := setter.Filter(nodes[i])
+			if err != nil {
+				return nil, err
+			}
+			if setter.Count > preCount {
+				path, _, err := kioutil.GetFileAnnotations(nodes[i])
+				if err != nil {
+					return nil, err
+				}
+				filesToUpdate.Insert(path)
+				s.updates = append(s.updates, update{
+					file:   path,
+					name:   setter.Name,
+					object: nodes[i],
+				})
+			}
+		}
+	}
+	var nodesInUpdatedFiles []*yaml.RNode
+	for i := range nodes {
+		path, _, err := kioutil.GetFileAnnotations(nodes[i])
+		if err != nil {
+			return nil, err
+		}
+		if filesToUpdate.Has(path) {
+			nodesInUpdatedFiles = append(nodesInUpdatedFiles, nodes[i])
+		}
+	}
+	return nodesInUpdatedFiles, nil
 }
 
 func setterSchema(name, value string) spec.Schema {
