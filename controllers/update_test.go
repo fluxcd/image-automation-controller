@@ -245,48 +245,6 @@ var _ = Describe("ImageUpdateAutomation", func() {
 			Expect(gitServer.StopSSH()).To(Succeed())
 		})
 
-		Context("defaulting", func() {
-			var key types.NamespacedName
-			var auto *imagev1.ImageUpdateAutomation
-
-			BeforeEach(func() {
-				key = types.NamespacedName{
-					Namespace: gitRepoKey.Namespace,
-					Name:      "update-" + randStringRunes(5),
-				}
-				auto = &imagev1.ImageUpdateAutomation{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      key.Name,
-						Namespace: key.Namespace,
-					},
-					Spec: imagev1.ImageUpdateAutomationSpec{
-						Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
-						Checkout: imagev1.GitCheckoutSpec{
-							GitRepositoryRef: meta.LocalObjectReference{
-								Name: "garbage",
-							},
-							Branch: branch,
-						},
-						// leave Update field out
-						Commit: imagev1.CommitSpec{
-							MessageTemplate: commitMessage,
-						},
-					},
-				}
-				Expect(k8sClient.Create(context.Background(), auto)).To(Succeed())
-			})
-
-			AfterEach(func() {
-				Expect(k8sClient.Delete(context.Background(), auto)).To(Succeed())
-			})
-
-			It("defaults .spec.update to {strategy: Setters}", func() {
-				var fetchedAuto imagev1.ImageUpdateAutomation
-				Expect(k8sClient.Get(context.Background(), key, &fetchedAuto)).To(Succeed())
-				Expect(fetchedAuto.Spec.Update).To(Equal(&imagev1.UpdateStrategy{Strategy: imagev1.UpdateStrategySetters}))
-			})
-		})
-
 		Context("with Setters", func() {
 
 			var (
@@ -430,6 +388,49 @@ var _ = Describe("ImageUpdateAutomation", func() {
 			Describe("with image policy", withImagePolicy)
 		})
 	})
+
+	Context("defaulting", func() {
+		var key types.NamespacedName
+		var auto *imagev1.ImageUpdateAutomation
+
+		BeforeEach(func() {
+			key = types.NamespacedName{
+				Namespace: namespace.Name,
+				Name:      "update-" + randStringRunes(5),
+			}
+			auto = &imagev1.ImageUpdateAutomation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: imagev1.ImageUpdateAutomationSpec{
+					Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
+					Checkout: imagev1.GitCheckoutSpec{
+						GitRepositoryRef: meta.LocalObjectReference{
+							Name: "garbage",
+						},
+						Branch: branch,
+					},
+					// leave Update field out
+					Commit: imagev1.CommitSpec{
+						MessageTemplate: "nothing",
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), auto)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			Expect(k8sClient.Delete(context.Background(), auto)).To(Succeed())
+		})
+
+		It("defaults .spec.update to {strategy: Setters}", func() {
+			var fetchedAuto imagev1.ImageUpdateAutomation
+			Expect(k8sClient.Get(context.Background(), key, &fetchedAuto)).To(Succeed())
+			Expect(fetchedAuto.Spec.Update).To(Equal(&imagev1.UpdateStrategy{Strategy: imagev1.UpdateStrategySetters}))
+		})
+	})
+
 })
 
 func expectCommittedAndPushed(conditions []metav1.Condition) {
