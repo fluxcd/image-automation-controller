@@ -111,6 +111,157 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		Expect(initGitRepo(gitServer, "testdata/appconfig", branch, repositoryPath)).To(Succeed())
 	})
 
+	Context("commit message template", func() {
+
+		var (
+			localRepo     *git.Repository
+			commitMessage string
+		)
+
+		const (
+			commitTemplate = `Commit summary
+
+Automation: {{ .AutomationObject }}
+
+Files:
+{{ range $filename, $_ := .Updated.Files -}}
+- {{ $filename }}
+{{ end -}}
+
+Objects:
+{{ range $resource, $_ := .Updated.Objects -}}
+- {{ $resource.Kind }} {{ $resource.Name }}
+{{ end -}}
+
+Images:
+{{ range .Updated.Images -}}
+- {{.}}
+{{ end -}}
+`
+			commitMessageFmt = `Commit summary
+
+Automation: %s/update-test
+
+Files:
+- deploy.yaml
+Objects:
+- Deployment test
+Images:
+- helloworld:v1.0.0
+`
+		)
+
+		BeforeEach(func() {
+			commitMessage = fmt.Sprintf(commitMessageFmt, namespace.Name)
+
+			Expect(initGitRepo(gitServer, "testdata/appconfig", branch, repositoryPath)).To(Succeed())
+			repoURL := gitServer.HTTPAddressWithCredentials() + repositoryPath
+			var err error
+			localRepo, err = git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
+				URL:           repoURL,
+				RemoteName:    "origin",
+				ReferenceName: plumbing.NewBranchReferenceName(branch),
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			gitRepoKey := types.NamespacedName{
+				Name:      "image-auto-" + randStringRunes(5),
+				Namespace: namespace.Name,
+			}
+			gitRepo := &sourcev1.GitRepository{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      gitRepoKey.Name,
+					Namespace: namespace.Name,
+				},
+				Spec: sourcev1.GitRepositorySpec{
+					URL:      repoURL,
+					Interval: metav1.Duration{Duration: time.Minute},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), gitRepo)).To(Succeed())
+			policyKey := types.NamespacedName{
+				Name:      "policy-" + randStringRunes(5),
+				Namespace: namespace.Name,
+			}
+			// NB not testing the image reflector controller; this
+			// will make a "fully formed" ImagePolicy object.
+			policy := &imagev1_reflect.ImagePolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      policyKey.Name,
+					Namespace: policyKey.Namespace,
+				},
+				Spec: imagev1_reflect.ImagePolicySpec{
+					ImageRepositoryRef: meta.LocalObjectReference{
+						Name: "not-expected-to-exist",
+					},
+					Policy: imagev1_reflect.ImagePolicyChoice{
+						SemVer: &imagev1_reflect.SemVerPolicy{
+							Range: "1.x",
+						},
+					},
+				},
+				Status: imagev1_reflect.ImagePolicyStatus{
+					LatestImage: "helloworld:v1.0.0",
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), policy)).To(Succeed())
+			Expect(k8sClient.Status().Update(context.Background(), policy)).To(Succeed())
+
+			// Insert a setter reference into the deployment file,
+			// before creating the automation object itself.
+			commitInRepo(repoURL, branch, "Install setter marker", func(tmp string) {
+				replaceMarker(tmp, policyKey)
+			})
+
+			// pull the head commit we just pushed, so it's not
+			// considered a new commit when checking for a commit
+			// made by automation.
+			waitForNewHead(localRepo, branch)
+
+			// now create the automation object, and let it (one
+			// hopes!) make a commit itself.
+			updateKey := types.NamespacedName{
+				Namespace: namespace.Name,
+				Name:      "update-test",
+			}
+			updateBySetters := &imagev1.ImageUpdateAutomation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      updateKey.Name,
+					Namespace: updateKey.Namespace,
+				},
+				Spec: imagev1.ImageUpdateAutomationSpec{
+					Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
+					Checkout: imagev1.GitCheckoutSpec{
+						GitRepositoryRef: meta.LocalObjectReference{
+							Name: gitRepoKey.Name,
+						},
+						Branch: branch,
+					},
+					Update: &imagev1.UpdateStrategy{
+						Strategy: imagev1.UpdateStrategySetters,
+					},
+					Commit: imagev1.CommitSpec{
+						MessageTemplate: commitTemplate,
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), updateBySetters)).To(Succeed())
+			// wait for a new commit to be made by the controller
+			waitForNewHead(localRepo, branch)
+		})
+
+		AfterEach(func() {
+			Expect(k8sClient.Delete(context.Background(), namespace)).To(Succeed())
+		})
+
+		It("formats the commit message as in the template", func() {
+			head, _ := localRepo.Head()
+			commit, err := localRepo.CommitObject(head.Hash())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(commit.Message).To(Equal(commitMessage))
+		})
+	})
+
 	endToEnd := func(impl, proto string) func() {
 		return func() {
 			var (
