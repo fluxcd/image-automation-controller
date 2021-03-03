@@ -79,13 +79,13 @@ var _ = Describe("Update image via kyaml setters2", func() {
 		result, err := UpdateWithSetters("testdata/setters/original", tmp, policies)
 		Expect(err).ToNot(HaveOccurred())
 
-		kustomizeResourceID := yaml.ResourceIdentifier{
+		kustomizeResourceID := ObjectIdentifier{yaml.ResourceIdentifier{
 			TypeMeta: yaml.TypeMeta{
 				APIVersion: "kustomize.config.k8s.io/v1beta1",
 				Kind:       "Kustomization",
 			},
-		}
-		markedResourceID := yaml.ResourceIdentifier{
+		}}
+		markedResourceID := ObjectIdentifier{yaml.ResourceIdentifier{
 			TypeMeta: yaml.TypeMeta{
 				APIVersion: "batch/v1beta1",
 				Kind:       "CronJob",
@@ -94,20 +94,21 @@ var _ = Describe("Update image via kyaml setters2", func() {
 				Namespace: "bar",
 				Name:      "foo",
 			},
-		}
-		expectedImageRef, _ := name.ParseReference("updated:v1.0.1")
+		}}
+		r, _ := name.ParseReference("updated:v1.0.1")
+		expectedImageRef := imageRef{r}
 
 		expectedResult := Result{
 			Files: map[string]FileResult{
 				"kustomization.yaml": {
-					Objects: map[yaml.ResourceIdentifier][]name.Reference{
+					Objects: map[ObjectIdentifier][]ImageRef{
 						kustomizeResourceID: {
 							expectedImageRef,
 						},
 					},
 				},
 				"marked.yaml": {
-					Objects: map[yaml.ResourceIdentifier][]name.Reference{
+					Objects: map[ObjectIdentifier][]ImageRef{
 						markedResourceID: {
 							expectedImageRef,
 						},

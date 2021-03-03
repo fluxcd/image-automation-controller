@@ -190,7 +190,7 @@ updates:
 		file, ok := result.Files[update.file]
 		if !ok {
 			file = FileResult{
-				Objects: make(map[yaml.ResourceIdentifier][]name.Reference),
+				Objects: make(map[ObjectIdentifier][]ImageRef),
 			}
 			result.Files[update.file] = file
 		}
@@ -200,18 +200,20 @@ updates:
 		if err != nil {
 			continue updates
 		}
-		id := meta.GetIdentifier()
+		id := ObjectIdentifier{meta.GetIdentifier()}
+
 		name, ok := nameToImage[update.name]
 		if !ok { // this means an update was made that wasn't recorded as being an image
 			continue updates
 		}
 		// if the name and tag of an image are both used, we don't need to record it twice
+		ref := imageRef{name}
 		for _, n := range objects[id] {
-			if n == name {
+			if n == ref {
 				continue updates
 			}
 		}
-		objects[id] = append(objects[id], name)
+		objects[id] = append(objects[id], ref)
 	}
 	return result
 }

@@ -69,7 +69,9 @@ const defaultMessageTemplate = `Update from image update automation`
 const repoRefKey = ".spec.gitRepository"
 const imagePolicyKey = ".spec.update.imagePolicy"
 
-type TemplateValues struct {
+// TemplateData is the type of the value given to the commit message
+// template.
+type TemplateData struct {
 	AutomationObject types.NamespacedName
 	Updated          update.Result
 }
@@ -90,7 +92,7 @@ type ImageUpdateAutomationReconciler struct {
 func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logr.FromContext(ctx)
 	now := time.Now()
-	var templateValues TemplateValues
+	var templateValues TemplateData
 
 	var auto imagev1.ImageUpdateAutomation
 	if err := r.Get(ctx, req.NamespacedName, &auto); err != nil {
@@ -358,7 +360,7 @@ func cloneInto(ctx context.Context, access repoAccess, branch, path, impl string
 
 var errNoChanges error = errors.New("no changes made to working directory")
 
-func commitAll(ctx context.Context, repo *gogit.Repository, commit *imagev1.CommitSpec, values TemplateValues) (string, error) {
+func commitAll(ctx context.Context, repo *gogit.Repository, commit *imagev1.CommitSpec, values TemplateData) (string, error) {
 	working, err := repo.Worktree()
 	if err != nil {
 		return "", err

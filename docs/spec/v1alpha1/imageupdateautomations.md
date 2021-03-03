@@ -156,6 +156,104 @@ spec:
       [ci skip]
 ```
 
+### Commit template data
+
+The data available to the commit message template have this structure (not reproduced verbatim):
+
+```go
+// controllers/imageupdateautomation_controller.go
+
+// TemplateData is the type of the value given to the commit message
+// template.
+type TemplateData struct {
+	AutomationObject struct {
+      Name, Namespace string
+    }
+	Updated          update.Result
+}
+
+// pkg/update/result.go
+
+// ImageRef represents the image reference used to replace a field
+// value in an update.
+type ImageRef interface {
+	// String returns a string representation of the image ref as it
+	// is used in the update; e.g., "helloworld:v1.0.1"
+	String() string
+	// Identifier returns the tag or digest; e.g., "v1.0.1"
+	Identifier() string
+	// Repository returns the repository component of the ImageRef,
+	// with an implied defaults, e.g., "library/helloworld"
+	Repository() string
+	// Registry returns the registry component of the ImageRef, e.g.,
+	// "index.docker.io"
+	Registry() string
+	// Name gives the fully-qualified reference name, e.g.,
+	// "index.docker.io/library/helloworld:v1.0.1"
+	Name() string
+}
+
+// ObjectIdentifier holds the identifying data for a particular
+// object. This won't always have a name (e.g., a kustomization.yaml).
+type ObjectIdentifier struct {
+	Name, Namespace, APIVersion, Kind string
+}
+
+// Result reports the outcome of an automated update. It has a nested
+// structure file->objects->images. Different projections (e.g., all
+// the images, regardless of object) are available via methods.
+type Result struct {
+	Files map[string]FileResult
+}
+
+// FileResult gives the updates in a particular file.
+type FileResult struct {
+	Objects map[ObjectIdentifier][]ImageRef
+}
+```
+
+These methods are defined on `update.Result`:
+
+```go
+// Images returns all the images that were involved in at least one
+// update.
+func (r Result) Images() []ImageRef {
+    // ...
+}
+
+// Objects returns a map of all the objects against the images updated
+// within, regardless of which file they appear in.
+func (r Result) Objects() map[ObjectIdentifier][]ImageRef {
+    // ...
+}
+```
+
+The methods let you range over the objects and images without descending the data structure. Here's
+an example of using the fields and methods in a template:
+
+```go
+commitTemplate := `
+`Automated image update
+
+Automation name: {{ .AutomationObject }}
+
+Files:
+{{ range $filename, $_ := .Updated.Files -}}
+- {{ $filename }}
+{{ end -}}
+
+Objects:
+{{ range $resource, $_ := .Updated.Objects -}}
+- {{ $resource.Kind }} {{ $resource.Name }}
+{{ end -}}
+
+Images:
+{{ range .Updated.Images -}}
+- {{.}}
+{{ end -}}
+`
+```
+
 ## Status
 
 The status of an `ImageUpdateAutomation` object records the result of the last automation run.
