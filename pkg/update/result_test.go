@@ -4,15 +4,18 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
+// mustRef creates an imageRef for use in tests. It panics if the ref
+// given is invalid.
 func mustRef(ref string) imageRef {
 	r, err := name.ParseReference(ref)
 	if err != nil {
 		panic(err)
 	}
-	return imageRef{r}
+	return imageRef{r, types.NamespacedName{}}
 }
 
 var _ = Describe("image ref", func() {

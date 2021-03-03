@@ -135,7 +135,7 @@ Objects:
 
 Images:
 {{ range .Updated.Images -}}
-- {{.}}
+- {{.}} ({{.Policy.Name}})
 {{ end -}}
 `
 			commitMessageFmt = `Commit summary
@@ -147,13 +147,11 @@ Files:
 Objects:
 - Deployment test
 Images:
-- helloworld:v1.0.0
+- helloworld:v1.0.0 (%s)
 `
 		)
 
 		BeforeEach(func() {
-			commitMessage = fmt.Sprintf(commitMessageFmt, namespace.Name)
-
 			Expect(initGitRepo(gitServer, "testdata/appconfig", branch, repositoryPath)).To(Succeed())
 			repoURL := gitServer.HTTPAddressWithCredentials() + repositoryPath
 			var err error
@@ -206,6 +204,9 @@ Images:
 			}
 			Expect(k8sClient.Create(context.Background(), policy)).To(Succeed())
 			Expect(k8sClient.Status().Update(context.Background(), policy)).To(Succeed())
+
+			// Format the expected message given the generated values
+			commitMessage = fmt.Sprintf(commitMessageFmt, namespace.Name, policyKey.Name)
 
 			// Insert a setter reference into the deployment file,
 			// before creating the automation object itself.

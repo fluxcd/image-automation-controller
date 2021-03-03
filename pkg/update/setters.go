@@ -21,6 +21,7 @@ import (
 
 	"github.com/go-openapi/spec"
 	"github.com/google/go-containerregistry/pkg/name"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/kustomize/kyaml/fieldmeta"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
@@ -88,7 +89,7 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 
 	var settersSchema spec.Schema
 	var setters []*setters2.Set
-	setterToImage := make(map[string]name.Reference)
+	setterToImage := make(map[string]imageRef)
 
 	// collect setter defs and setters by going through all the image
 	// policies available.
@@ -104,10 +105,18 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 		// being `latest` if empty in the input; but I'm assuming here
 		// that the policy won't have a tagless ref.
 		image := policy.Status.LatestImage
-		ref, err := name.ParseReference(image, name.WeakValidation)
+		r, err := name.ParseReference(image, name.WeakValidation)
 		if err != nil {
 			return Result{}, fmt.Errorf("encountered invalid image ref %q: %w", policy.Status.LatestImage, err)
 		}
+		ref := imageRef{
+			Reference: r,
+			policy: types.NamespacedName{
+				Name:      policy.Name,
+				Namespace: policy.Namespace,
+			},
+		}
+
 		tag := ref.Identifier()
 		// annoyingly, neither the library imported above, nor an
 		// alternative, I found will yield the original image name;
@@ -181,7 +190,7 @@ type setAllRecorder struct {
 	updates []update
 }
 
-func (s *setAllRecorder) getResult(nameToImage map[string]name.Reference) Result {
+func (s *setAllRecorder) getResult(nameToImage map[string]imageRef) Result {
 	result := Result{
 		Files: make(map[string]FileResult),
 	}
@@ -202,12 +211,11 @@ updates:
 		}
 		id := ObjectIdentifier{meta.GetIdentifier()}
 
-		name, ok := nameToImage[update.name]
+		ref, ok := nameToImage[update.name]
 		if !ok { // this means an update was made that wasn't recorded as being an image
 			continue updates
 		}
 		// if the name and tag of an image are both used, we don't need to record it twice
-		ref := imageRef{name}
 		for _, n := range objects[id] {
 			if n == ref {
 				continue updates

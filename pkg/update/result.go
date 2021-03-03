@@ -2,6 +2,7 @@ package update
 
 import (
 	"github.com/google/go-containerregistry/pkg/name"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
@@ -22,10 +23,20 @@ type ImageRef interface {
 	// Name gives the fully-qualified reference name, e.g.,
 	// "index.docker.io/library/helloworld:v1.0.1"
 	Name() string
+	// Policy gives the namespaced name of the image policy that led
+	// to the update.
+	Policy() types.NamespacedName
 }
 
 type imageRef struct {
 	name.Reference
+	policy types.NamespacedName
+}
+
+// Policy gives the namespaced name of the policy that led to the
+// update.
+func (i imageRef) Policy() types.NamespacedName {
+	return i.policy
 }
 
 // Repository gives the repository component of the image ref.

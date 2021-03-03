@@ -25,6 +25,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 
 	"github.com/fluxcd/image-automation-controller/pkg/test"
@@ -96,7 +97,10 @@ var _ = Describe("Update image via kyaml setters2", func() {
 			},
 		}}
 		r, _ := name.ParseReference("updated:v1.0.1")
-		expectedImageRef := imageRef{r}
+		expectedImageRef := imageRef{r, types.NamespacedName{
+			Name:      "policy",
+			Namespace: "automation-ns",
+		}}
 
 		expectedResult := Result{
 			Files: map[string]FileResult{
