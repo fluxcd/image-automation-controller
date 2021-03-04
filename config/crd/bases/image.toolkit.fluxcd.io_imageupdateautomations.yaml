@@ -47,6 +47,8 @@ spec:
                 properties:
                   branch:
                     description: Branch gives the branch to clone from the git repository.
+                      If `.spec.push` is not supplied, commits will also be pushed
+                      to this branch.
                     type: string
                   gitRepositoryRef:
                     description: GitRepositoryRef refers to the resource giving access
@@ -63,7 +65,7 @@ spec:
                 - gitRepositoryRef
                 type: object
               commit:
-                description: Commit specifies how to commit to the git repo
+                description: Commit specifies how to commit to the git repository.
                 properties:
                   authorEmail:
                     description: AuthorEmail gives the email to provide when making
@@ -86,6 +88,18 @@ spec:
                 description: Interval gives an lower bound for how often the automation
                   run should be attempted.
                 type: string
+              push:
+                description: Push specifies how and where to push commits made by
+                  the automation. If missing, commits are pushed (back) to `.spec.checkout.branch`.
+                properties:
+                  branch:
+                    description: Branch specifies that commits should be pushed to
+                      the branch named. The branch is created using `.spec.checkout.branch`
+                      as the starting point, if it doesn't already exist.
+                    type: string
+                required:
+                - branch
+                type: object
               suspend:
                 description: Suspend tells the controller to not run this automation,
                   until it is unset (or set to false). Defaults to false.

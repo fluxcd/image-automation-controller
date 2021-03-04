@@ -39,9 +39,15 @@ type ImageUpdateAutomationSpec struct {
 	// value.
 	// +kubebuilder:default={"strategy":"Setters"}
 	Update *UpdateStrategy `json:"update,omitempty"`
-	// Commit specifies how to commit to the git repo
+	// Commit specifies how to commit to the git repository.
 	// +required
 	Commit CommitSpec `json:"commit"`
+
+	// Push specifies how and where to push commits made by the
+	// automation. If missing, commits are pushed (back) to
+	// `.spec.checkout.branch`.
+	// +optional
+	Push *PushSpec `json:"push,omitempty"`
 
 	// Suspend tells the controller to not run this automation, until
 	// it is unset (or set to false). Defaults to false.
@@ -54,7 +60,9 @@ type GitCheckoutSpec struct {
 	// to a git repository to update files in.
 	// +required
 	GitRepositoryRef meta.LocalObjectReference `json:"gitRepositoryRef"`
-	// Branch gives the branch to clone from the git repository.
+	// Branch gives the branch to clone from the git repository. If
+	// `.spec.push` is not supplied, commits will also be pushed to
+	// this branch.
 	// +required
 	Branch string `json:"branch"`
 }
@@ -93,6 +101,15 @@ type CommitSpec struct {
 	// into which will be interpolated the details of the change made.
 	// +optional
 	MessageTemplate string `json:"messageTemplate,omitempty"`
+}
+
+// PushSpec specifies how and where to push commits.
+type PushSpec struct {
+	// Branch specifies that commits should be pushed to the branch
+	// named. The branch is created using `.spec.checkout.branch` as the
+	// starting point, if it doesn't already exist.
+	// +required
+	Branch string `json:"branch"`
 }
 
 // ImageUpdateAutomationStatus defines the observed state of ImageUpdateAutomation
