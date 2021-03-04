@@ -143,9 +143,9 @@ spec:
 
 will result in commits with the author `Fluxbot <flux@example.com>`.
 
-The `messageTemplate` field is a string which will be used as the commit message. If empty, there is
-a default message; but you will likely want to provide your own, especially if you want to put
-tokens in to control how CI reacts to commits made by automation. For example,
+The `messageTemplate` field is a string which will be used as a template for the commit message. If
+empty, there is a default message; but you will likely want to provide your own, especially if you
+want to put tokens in to control how CI reacts to commits made by automation. For example,
 
 ```yaml
 spec:
@@ -158,7 +158,8 @@ spec:
 
 ### Commit template data
 
-The data available to the commit message template have this structure (not reproduced verbatim):
+The message template is a [Go text template][go-text-template]. The data available to the template
+have this structure (not reproduced verbatim):
 
 ```go
 // controllers/imageupdateautomation_controller.go
@@ -231,27 +232,28 @@ func (r Result) Objects() map[ObjectIdentifier][]ImageRef {
 The methods let you range over the objects and images without descending the data structure. Here's
 an example of using the fields and methods in a template:
 
-```go
-commitTemplate := `
-`Automated image update
-
-Automation name: {{ .AutomationObject }}
-
-Files:
-{{ range $filename, $_ := .Updated.Files -}}
-- {{ $filename }}
-{{ end -}}
-
-Objects:
-{{ range $resource, $_ := .Updated.Objects -}}
-- {{ $resource.Kind }} {{ $resource.Name }}
-{{ end -}}
-
-Images:
-{{ range .Updated.Images -}}
-- {{.}}
-{{ end -}}
-`
+```yaml
+spec:
+  commit:
+    messsageTemplate: |
+      Automated image update
+      
+      Automation name: {{ .AutomationObject }}
+      
+      Files:
+      {{ range $filename, $_ := .Updated.Files -}}
+      - {{ $filename }}
+      {{ end -}}
+      
+      Objects:
+      {{ range $resource, $_ := .Updated.Objects -}}
+      - {{ $resource.Kind }} {{ $resource.Name }}
+      {{ end -}}
+      
+      Images:
+      {{ range .Updated.Images -}}
+      - {{.}}
+      {{ end -}}
 ```
 
 ## Status
@@ -295,3 +297,4 @@ resulted in a commit.
 [git-repo-ref]: https://toolkit.fluxcd.io/components/source/gitrepositories/
 [durations]: https://godoc.org/time#ParseDuration
 [source-docs]: https://toolkit.fluxcd.io/components/source/gitrepositories/#git-implementation
+[go-text-template]: https://golang.org/pkg/text/template/
