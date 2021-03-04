@@ -69,6 +69,13 @@ const defaultMessageTemplate = `Update from image update automation`
 const repoRefKey = ".spec.gitRepository"
 const imagePolicyKey = ".spec.update.imagePolicy"
 
+// TemplateData is the type of the value given to the commit message
+// template.
+type TemplateData struct {
+	AutomationObject types.NamespacedName
+	Updated          update.Result
+}
+
 // ImageUpdateAutomationReconciler reconciles a ImageUpdateAutomation object
 type ImageUpdateAutomationReconciler struct {
 	client.Client
@@ -85,6 +92,7 @@ type ImageUpdateAutomationReconciler struct {
 func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logr.FromContext(ctx)
 	now := time.Now()
+	var templateValues TemplateData
 
 	var auto imagev1.ImageUpdateAutomation
 	if err := r.Get(ctx, req.NamespacedName, &auto); err != nil {
@@ -95,6 +103,8 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		log.Info("ImageUpdateAutomation is suspended, skipping automation run")
 		return ctrl.Result{}, nil
 	}
+
+	templateValues.AutomationObject = req.NamespacedName
 
 	// Record readiness metric when exiting; if there's any points at
 	// which the readiness is updated _without also exiting_, they
@@ -178,8 +188,10 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			return failWithError(err)
 		}
 
-		if err := updateAccordingToSetters(ctx, tmp, policies.Items); err != nil {
+		if result, err := updateAccordingToSetters(ctx, tmp, policies.Items); err != nil {
 			return failWithError(err)
+		} else {
+			templateValues.Updated = result
 		}
 	default:
 		log.Info("no update strategy given in the spec")
@@ -197,7 +209,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	// The status message depends on what happens next. Since there's
 	// more than one way to succeed, there's some if..else below, and
 	// early returns only on failure.
-	if rev, err := commitAll(ctx, repo, &auto.Spec.Commit); err != nil {
+	if rev, err := commitAll(ctx, repo, &auto.Spec.Commit, templateValues); err != nil {
 		if err == errNoChanges {
 			r.event(ctx, auto, events.EventSeverityInfo, "no updates made")
 			log.V(debug).Info("no changes made in working directory; no commit")
@@ -348,7 +360,7 @@ func cloneInto(ctx context.Context, access repoAccess, branch, path, impl string
 
 var errNoChanges error = errors.New("no changes made to working directory")
 
-func commitAll(ctx context.Context, repo *gogit.Repository, commit *imagev1.CommitSpec) (string, error) {
+func commitAll(ctx context.Context, repo *gogit.Repository, commit *imagev1.CommitSpec, values TemplateData) (string, error) {
 	working, err := repo.Worktree()
 	if err != nil {
 		return "", err
@@ -370,7 +382,7 @@ func commitAll(ctx context.Context, repo *gogit.Repository, commit *imagev1.Comm
 		return "", err
 	}
 	buf := &strings.Builder{}
-	if err := tmpl.Execute(buf, "no data! yet"); err != nil {
+	if err := tmpl.Execute(buf, values); err != nil {
 		return "", err
 	}
 
@@ -523,6 +535,6 @@ func (r *ImageUpdateAutomationReconciler) recordReadinessMetric(ctx context.Cont
 
 // updateAccordingToSetters updates files under the root by treating
 // the given image policies as kyaml setters.
-func updateAccordingToSetters(ctx context.Context, path string, policies []imagev1_reflect.ImagePolicy) error {
+func updateAccordingToSetters(ctx context.Context, path string, policies []imagev1_reflect.ImagePolicy) (update.Result, error) {
 	return update.UpdateWithSetters(path, path, policies)
 }

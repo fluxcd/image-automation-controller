@@ -111,111 +111,79 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		Expect(initGitRepo(gitServer, "testdata/appconfig", branch, repositoryPath)).To(Succeed())
 	})
 
-	// These are used for end-to-end tests; withImagePolicy is
-	// effectively parameterised on these two values.
-	var (
-		// set the proto and impl in BeforeEach
-		proto string
-		impl  string
-	)
+	Context("commit message template", func() {
 
-	withImagePolicy := func() {
 		var (
-			// for cloning locally
-			cloneLocalRepoURL string
-			// for the controller
-			repoURL       string
 			localRepo     *git.Repository
-			policy        *imagev1_reflect.ImagePolicy
-			policyKey     types.NamespacedName
-			gitRepoKey    types.NamespacedName
 			commitMessage string
 		)
 
-		const latestImage = "helloworld:1.0.1"
-		const evenLatestImage = "helloworld:1.2.0"
+		const (
+			commitTemplate = `Commit summary
+
+Automation: {{ .AutomationObject }}
+
+Files:
+{{ range $filename, $_ := .Updated.Files -}}
+- {{ $filename }}
+{{ end -}}
+
+Objects:
+{{ range $resource, $_ := .Updated.Objects -}}
+- {{ $resource.Kind }} {{ $resource.Name }}
+{{ end -}}
+
+Images:
+{{ range .Updated.Images -}}
+- {{.}} ({{.Policy.Name}})
+{{ end -}}
+`
+			commitMessageFmt = `Commit summary
+
+Automation: %s/update-test
+
+Files:
+- deploy.yaml
+Objects:
+- Deployment test
+Images:
+- helloworld:v1.0.0 (%s)
+`
+		)
 
 		BeforeEach(func() {
-			cloneLocalRepoURL = gitServer.HTTPAddressWithCredentials() + repositoryPath
-			if proto == "http" {
-				repoURL = cloneLocalRepoURL // NB not testing auth for git over HTTP
-			} else if proto == "ssh" {
-				sshURL := gitServer.SSHAddress()
-				// this is expected to use 127.0.0.1, but host key
-				// checking usually wants a hostname, so use
-				// "localhost".
-				sshURL = strings.Replace(sshURL, "127.0.0.1", "localhost", 1)
-				repoURL = sshURL + repositoryPath
-				go func() {
-					defer GinkgoRecover()
-					gitServer.StartSSH()
-				}()
-			} else {
-				Fail("proto not set to http or ssh")
-			}
-
-			commitMessage = "Commit a difference " + randStringRunes(5)
-
 			Expect(initGitRepo(gitServer, "testdata/appconfig", branch, repositoryPath)).To(Succeed())
-
+			repoURL := gitServer.HTTPAddressWithCredentials() + repositoryPath
 			var err error
 			localRepo, err = git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
-				URL:           cloneLocalRepoURL,
+				URL:           repoURL,
 				RemoteName:    "origin",
 				ReferenceName: plumbing.NewBranchReferenceName(branch),
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			gitRepoKey = types.NamespacedName{
+			gitRepoKey := types.NamespacedName{
 				Name:      "image-auto-" + randStringRunes(5),
 				Namespace: namespace.Name,
 			}
-
 			gitRepo := &sourcev1.GitRepository{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      gitRepoKey.Name,
 					Namespace: namespace.Name,
 				},
 				Spec: sourcev1.GitRepositorySpec{
-					URL:               repoURL,
-					Interval:          metav1.Duration{Duration: time.Minute},
-					GitImplementation: impl,
+					URL:      repoURL,
+					Interval: metav1.Duration{Duration: time.Minute},
 				},
 			}
-
-			// If using SSH, we need to provide an identity (private
-			// key) and known_hosts file in a secret.
-			if proto == "ssh" {
-				url, err := url.Parse(repoURL)
-				Expect(err).ToNot(HaveOccurred())
-				knownhosts, err := ssh.ScanHostKey(url.Host, 5*time.Second)
-				Expect(err).ToNot(HaveOccurred())
-				keygen := ssh.NewRSAGenerator(2048)
-				pair, err := keygen.Generate()
-				Expect(err).ToNot(HaveOccurred())
-
-				sec := &corev1.Secret{
-					StringData: map[string]string{
-						"known_hosts":  string(knownhosts),
-						"identity":     string(pair.PrivateKey),
-						"identity.pub": string(pair.PublicKey),
-					},
-				}
-				sec.Name = "git-secret-" + randStringRunes(5)
-				sec.Namespace = namespace.Name
-				Expect(k8sClient.Create(context.Background(), sec)).To(Succeed())
-				gitRepo.Spec.SecretRef = &meta.LocalObjectReference{Name: sec.Name}
-			}
-
 			Expect(k8sClient.Create(context.Background(), gitRepo)).To(Succeed())
-
-			policyKey = types.NamespacedName{
+			policyKey := types.NamespacedName{
 				Name:      "policy-" + randStringRunes(5),
 				Namespace: namespace.Name,
 			}
 			// NB not testing the image reflector controller; this
 			// will make a "fully formed" ImagePolicy object.
-			policy = &imagev1_reflect.ImagePolicy{
+			policy := &imagev1_reflect.ImagePolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      policyKey.Name,
 					Namespace: policyKey.Namespace,
@@ -231,205 +199,371 @@ var _ = Describe("ImageUpdateAutomation", func() {
 					},
 				},
 				Status: imagev1_reflect.ImagePolicyStatus{
-					LatestImage: latestImage,
+					LatestImage: "helloworld:v1.0.0",
 				},
 			}
 			Expect(k8sClient.Create(context.Background(), policy)).To(Succeed())
 			Expect(k8sClient.Status().Update(context.Background(), policy)).To(Succeed())
 
+			// Format the expected message given the generated values
+			commitMessage = fmt.Sprintf(commitMessageFmt, namespace.Name, policyKey.Name)
+
+			// Insert a setter reference into the deployment file,
+			// before creating the automation object itself.
+			commitInRepo(repoURL, branch, "Install setter marker", func(tmp string) {
+				replaceMarker(tmp, policyKey)
+			})
+
+			// pull the head commit we just pushed, so it's not
+			// considered a new commit when checking for a commit
+			// made by automation.
+			waitForNewHead(localRepo, branch)
+
+			// now create the automation object, and let it (one
+			// hopes!) make a commit itself.
+			updateKey := types.NamespacedName{
+				Namespace: namespace.Name,
+				Name:      "update-test",
+			}
+			updateBySetters := &imagev1.ImageUpdateAutomation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      updateKey.Name,
+					Namespace: updateKey.Namespace,
+				},
+				Spec: imagev1.ImageUpdateAutomationSpec{
+					Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
+					Checkout: imagev1.GitCheckoutSpec{
+						GitRepositoryRef: meta.LocalObjectReference{
+							Name: gitRepoKey.Name,
+						},
+						Branch: branch,
+					},
+					Update: &imagev1.UpdateStrategy{
+						Strategy: imagev1.UpdateStrategySetters,
+					},
+					Commit: imagev1.CommitSpec{
+						MessageTemplate: commitTemplate,
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), updateBySetters)).To(Succeed())
+			// wait for a new commit to be made by the controller
+			waitForNewHead(localRepo, branch)
 		})
 
 		AfterEach(func() {
 			Expect(k8sClient.Delete(context.Background(), namespace)).To(Succeed())
-			Expect(k8sClient.Delete(context.Background(), policy)).To(Succeed())
-			Expect(gitServer.StopSSH()).To(Succeed())
 		})
 
-		Context("defaulting", func() {
-			var key types.NamespacedName
-			var auto *imagev1.ImageUpdateAutomation
-
-			BeforeEach(func() {
-				key = types.NamespacedName{
-					Namespace: gitRepoKey.Namespace,
-					Name:      "update-" + randStringRunes(5),
-				}
-				auto = &imagev1.ImageUpdateAutomation{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      key.Name,
-						Namespace: key.Namespace,
-					},
-					Spec: imagev1.ImageUpdateAutomationSpec{
-						Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
-						Checkout: imagev1.GitCheckoutSpec{
-							GitRepositoryRef: meta.LocalObjectReference{
-								Name: "garbage",
-							},
-							Branch: branch,
-						},
-						// leave Update field out
-						Commit: imagev1.CommitSpec{
-							MessageTemplate: commitMessage,
-						},
-					},
-				}
-				Expect(k8sClient.Create(context.Background(), auto)).To(Succeed())
-			})
-
-			AfterEach(func() {
-				Expect(k8sClient.Delete(context.Background(), auto)).To(Succeed())
-			})
-
-			It("defaults .spec.update to {strategy: Setters}", func() {
-				var fetchedAuto imagev1.ImageUpdateAutomation
-				Expect(k8sClient.Get(context.Background(), key, &fetchedAuto)).To(Succeed())
-				Expect(fetchedAuto.Spec.Update).To(Equal(&imagev1.UpdateStrategy{Strategy: imagev1.UpdateStrategySetters}))
-			})
+		It("formats the commit message as in the template", func() {
+			head, _ := localRepo.Head()
+			commit, err := localRepo.CommitObject(head.Hash())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(commit.Message).To(Equal(commitMessage))
 		})
+	})
 
-		Context("with Setters", func() {
-
+	endToEnd := func(impl, proto string) func() {
+		return func() {
 			var (
-				updateKey       types.NamespacedName
-				updateBySetters *imagev1.ImageUpdateAutomation
+				// for cloning locally
+				cloneLocalRepoURL string
+				// for the controller
+				repoURL       string
+				localRepo     *git.Repository
+				policy        *imagev1_reflect.ImagePolicy
+				policyKey     types.NamespacedName
+				gitRepoKey    types.NamespacedName
+				commitMessage string
 			)
 
+			const latestImage = "helloworld:1.0.1"
+			const evenLatestImage = "helloworld:1.2.0"
+
 			BeforeEach(func() {
-				// Insert a setter reference into the deployment file,
-				// before creating the automation object itself.
-				commitInRepo(cloneLocalRepoURL, branch, "Install setter marker", func(tmp string) {
-					replaceMarker(tmp, policyKey)
+				cloneLocalRepoURL = gitServer.HTTPAddressWithCredentials() + repositoryPath
+				if proto == "http" {
+					repoURL = cloneLocalRepoURL // NB not testing auth for git over HTTP
+				} else if proto == "ssh" {
+					sshURL := gitServer.SSHAddress()
+					// this is expected to use 127.0.0.1, but host key
+					// checking usually wants a hostname, so use
+					// "localhost".
+					sshURL = strings.Replace(sshURL, "127.0.0.1", "localhost", 1)
+					repoURL = sshURL + repositoryPath
+					go func() {
+						defer GinkgoRecover()
+						gitServer.StartSSH()
+					}()
+				} else {
+					Fail("proto not set to http or ssh")
+				}
+
+				commitMessage = "Commit a difference " + randStringRunes(5)
+
+				Expect(initGitRepo(gitServer, "testdata/appconfig", branch, repositoryPath)).To(Succeed())
+
+				var err error
+				localRepo, err = git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
+					URL:           cloneLocalRepoURL,
+					RemoteName:    "origin",
+					ReferenceName: plumbing.NewBranchReferenceName(branch),
 				})
+				Expect(err).ToNot(HaveOccurred())
 
-				// pull the head commit we just pushed, so it's not
-				// considered a new commit when checking for a commit
-				// made by automation.
-				waitForNewHead(localRepo, branch)
-
-				// now create the automation object, and let it (one
-				// hopes!) make a commit itself.
-				updateKey = types.NamespacedName{
-					Namespace: gitRepoKey.Namespace,
-					Name:      "update-" + randStringRunes(5),
+				gitRepoKey = types.NamespacedName{
+					Name:      "image-auto-" + randStringRunes(5),
+					Namespace: namespace.Name,
 				}
-				updateBySetters = &imagev1.ImageUpdateAutomation{
+
+				gitRepo := &sourcev1.GitRepository{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      updateKey.Name,
-						Namespace: updateKey.Namespace,
+						Name:      gitRepoKey.Name,
+						Namespace: namespace.Name,
 					},
-					Spec: imagev1.ImageUpdateAutomationSpec{
-						Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
-						Checkout: imagev1.GitCheckoutSpec{
-							GitRepositoryRef: meta.LocalObjectReference{
-								Name: gitRepoKey.Name,
-							},
-							Branch: branch,
-						},
-						Update: &imagev1.UpdateStrategy{
-							Strategy: imagev1.UpdateStrategySetters,
-						},
-						Commit: imagev1.CommitSpec{
-							MessageTemplate: commitMessage,
-						},
+					Spec: sourcev1.GitRepositorySpec{
+						URL:               repoURL,
+						Interval:          metav1.Duration{Duration: time.Minute},
+						GitImplementation: impl,
 					},
 				}
-				Expect(k8sClient.Create(context.Background(), updateBySetters)).To(Succeed())
-				// wait for a new commit to be made by the controller
-				waitForNewHead(localRepo, branch)
+
+				// If using SSH, we need to provide an identity (private
+				// key) and known_hosts file in a secret.
+				if proto == "ssh" {
+					url, err := url.Parse(repoURL)
+					Expect(err).ToNot(HaveOccurred())
+					knownhosts, err := ssh.ScanHostKey(url.Host, 5*time.Second)
+					Expect(err).ToNot(HaveOccurred())
+					keygen := ssh.NewRSAGenerator(2048)
+					pair, err := keygen.Generate()
+					Expect(err).ToNot(HaveOccurred())
+
+					sec := &corev1.Secret{
+						StringData: map[string]string{
+							"known_hosts":  string(knownhosts),
+							"identity":     string(pair.PrivateKey),
+							"identity.pub": string(pair.PublicKey),
+						},
+					}
+					sec.Name = "git-secret-" + randStringRunes(5)
+					sec.Namespace = namespace.Name
+					Expect(k8sClient.Create(context.Background(), sec)).To(Succeed())
+					gitRepo.Spec.SecretRef = &meta.LocalObjectReference{Name: sec.Name}
+				}
+
+				Expect(k8sClient.Create(context.Background(), gitRepo)).To(Succeed())
+
+				policyKey = types.NamespacedName{
+					Name:      "policy-" + randStringRunes(5),
+					Namespace: namespace.Name,
+				}
+				// NB not testing the image reflector controller; this
+				// will make a "fully formed" ImagePolicy object.
+				policy = &imagev1_reflect.ImagePolicy{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      policyKey.Name,
+						Namespace: policyKey.Namespace,
+					},
+					Spec: imagev1_reflect.ImagePolicySpec{
+						ImageRepositoryRef: meta.LocalObjectReference{
+							Name: "not-expected-to-exist",
+						},
+						Policy: imagev1_reflect.ImagePolicyChoice{
+							SemVer: &imagev1_reflect.SemVerPolicy{
+								Range: "1.x",
+							},
+						},
+					},
+					Status: imagev1_reflect.ImagePolicyStatus{
+						LatestImage: latestImage,
+					},
+				}
+				Expect(k8sClient.Create(context.Background(), policy)).To(Succeed())
+				Expect(k8sClient.Status().Update(context.Background(), policy)).To(Succeed())
+
 			})
 
 			AfterEach(func() {
-				Expect(k8sClient.Delete(context.Background(), updateBySetters)).To(Succeed())
+				Expect(k8sClient.Delete(context.Background(), namespace)).To(Succeed())
+				Expect(k8sClient.Delete(context.Background(), policy)).To(Succeed())
+				Expect(gitServer.StopSSH()).To(Succeed())
 			})
 
-			It("updates to the most recent image", func() {
-				// having passed the BeforeEach, we should see a commit
-				head, _ := localRepo.Head()
-				commit, err := localRepo.CommitObject(head.Hash())
-				Expect(err).ToNot(HaveOccurred())
-				Expect(commit.Message).To(Equal(commitMessage))
+			Context("with Setters", func() {
 
-				var newObj imagev1.ImageUpdateAutomation
-				Expect(k8sClient.Get(context.Background(), updateKey, &newObj)).To(Succeed())
-				Expect(newObj.Status.LastPushCommit).To(Equal(head.Hash().String()))
-				Expect(newObj.Status.LastPushTime).ToNot(BeNil())
+				var (
+					updateKey       types.NamespacedName
+					updateBySetters *imagev1.ImageUpdateAutomation
+				)
 
-				compareRepoWithExpected(cloneLocalRepoURL, branch, "testdata/appconfig-setters-expected", func(tmp string) {
-					replaceMarker(tmp, policyKey)
-				})
-			})
+				BeforeEach(func() {
+					// Insert a setter reference into the deployment file,
+					// before creating the automation object itself.
+					commitInRepo(cloneLocalRepoURL, branch, "Install setter marker", func(tmp string) {
+						replaceMarker(tmp, policyKey)
+					})
 
-			It("stops updating when suspended", func() {
-				// suspend it, and check that reconciliation does not run
-				var updatePatch imagev1.ImageUpdateAutomation
-				updatePatch.Name = updateKey.Name
-				updatePatch.Namespace = updateKey.Namespace
-				updatePatch.Spec.Suspend = true
-				Expect(k8sClient.Patch(context.Background(), &updatePatch, client.Merge)).To(Succeed())
-				// wait for the suspension to reach the cache
-				var newUpdate imagev1.ImageUpdateAutomation
-				Eventually(func() bool {
-					if err := imageAutoReconciler.Get(context.Background(), updateKey, &newUpdate); err != nil {
-						return false
+					// pull the head commit we just pushed, so it's not
+					// considered a new commit when checking for a commit
+					// made by automation.
+					waitForNewHead(localRepo, branch)
+
+					// now create the automation object, and let it (one
+					// hopes!) make a commit itself.
+					updateKey = types.NamespacedName{
+						Namespace: gitRepoKey.Namespace,
+						Name:      "update-" + randStringRunes(5),
 					}
-					return newUpdate.Spec.Suspend
-				}, timeout, time.Second).Should(BeTrue())
-				// run the reconciliation explicitly, and make sure it
-				// doesn't do anything
-				result, err := imageAutoReconciler.Reconcile(logr.NewContext(context.TODO(), ctrl.Log), ctrl.Request{
-					NamespacedName: updateKey,
+					updateBySetters = &imagev1.ImageUpdateAutomation{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      updateKey.Name,
+							Namespace: updateKey.Namespace,
+						},
+						Spec: imagev1.ImageUpdateAutomationSpec{
+							Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
+							Checkout: imagev1.GitCheckoutSpec{
+								GitRepositoryRef: meta.LocalObjectReference{
+									Name: gitRepoKey.Name,
+								},
+								Branch: branch,
+							},
+							Update: &imagev1.UpdateStrategy{
+								Strategy: imagev1.UpdateStrategySetters,
+							},
+							Commit: imagev1.CommitSpec{
+								MessageTemplate: commitMessage,
+							},
+						},
+					}
+					Expect(k8sClient.Create(context.Background(), updateBySetters)).To(Succeed())
+					// wait for a new commit to be made by the controller
+					waitForNewHead(localRepo, branch)
 				})
-				Expect(err).To(BeNil())
-				// this ought to fail if suspend is not working, since the item would be requeued;
-				// but if not, additional checks lie below.
-				Expect(result).To(Equal(ctrl.Result{}))
 
-				var checkUpdate imagev1.ImageUpdateAutomation
-				Expect(k8sClient.Get(context.Background(), updateKey, &checkUpdate)).To(Succeed())
-				Expect(checkUpdate.Status.ObservedGeneration).NotTo(Equal(checkUpdate.ObjectMeta.Generation))
-			})
+				AfterEach(func() {
+					Expect(k8sClient.Delete(context.Background(), updateBySetters)).To(Succeed())
+				})
 
-			It("runs when the reconcile request annotation is added", func() {
-				// the automation has run, and is not expected to run
-				// again for 2 hours. Make a commit to the git repo
-				// which needs to be undone by automation, then add
-				// the annotation and make sure it runs again.
-				Expect(k8sClient.Get(context.Background(), updateKey, updateBySetters)).To(Succeed())
-				Expect(updateBySetters.Status.LastAutomationRunTime).ToNot(BeNil())
+				It("updates to the most recent image", func() {
+					// having passed the BeforeEach, we should see a commit
+					head, _ := localRepo.Head()
+					commit, err := localRepo.CommitObject(head.Hash())
+					Expect(err).ToNot(HaveOccurred())
+					Expect(commit.Message).To(Equal(commitMessage))
+
+					var newObj imagev1.ImageUpdateAutomation
+					Expect(k8sClient.Get(context.Background(), updateKey, &newObj)).To(Succeed())
+					Expect(newObj.Status.LastPushCommit).To(Equal(head.Hash().String()))
+					Expect(newObj.Status.LastPushTime).ToNot(BeNil())
+
+					compareRepoWithExpected(cloneLocalRepoURL, branch, "testdata/appconfig-setters-expected", func(tmp string) {
+						replaceMarker(tmp, policyKey)
+					})
+				})
+
+				It("stops updating when suspended", func() {
+					// suspend it, and check that reconciliation does not run
+					var updatePatch imagev1.ImageUpdateAutomation
+					updatePatch.Name = updateKey.Name
+					updatePatch.Namespace = updateKey.Namespace
+					updatePatch.Spec.Suspend = true
+					Expect(k8sClient.Patch(context.Background(), &updatePatch, client.Merge)).To(Succeed())
+					// wait for the suspension to reach the cache
+					var newUpdate imagev1.ImageUpdateAutomation
+					Eventually(func() bool {
+						if err := imageAutoReconciler.Get(context.Background(), updateKey, &newUpdate); err != nil {
+							return false
+						}
+						return newUpdate.Spec.Suspend
+					}, timeout, time.Second).Should(BeTrue())
+					// run the reconciliation explicitly, and make sure it
+					// doesn't do anything
+					result, err := imageAutoReconciler.Reconcile(logr.NewContext(context.TODO(), ctrl.Log), ctrl.Request{
+						NamespacedName: updateKey,
+					})
+					Expect(err).To(BeNil())
+					// this ought to fail if suspend is not working, since the item would be requeued;
+					// but if not, additional checks lie below.
+					Expect(result).To(Equal(ctrl.Result{}))
+
+					var checkUpdate imagev1.ImageUpdateAutomation
+					Expect(k8sClient.Get(context.Background(), updateKey, &checkUpdate)).To(Succeed())
+					Expect(checkUpdate.Status.ObservedGeneration).NotTo(Equal(checkUpdate.ObjectMeta.Generation))
+				})
+
+				It("runs when the reconcile request annotation is added", func() {
+					// the automation has run, and is not expected to run
+					// again for 2 hours. Make a commit to the git repo
+					// which needs to be undone by automation, then add
+					// the annotation and make sure it runs again.
+					Expect(k8sClient.Get(context.Background(), updateKey, updateBySetters)).To(Succeed())
+					Expect(updateBySetters.Status.LastAutomationRunTime).ToNot(BeNil())
+				})
 			})
-		})
+		}
 	}
 
 	Context("Using go-git", func() {
-		BeforeEach(func() { impl = sourcev1.GoGitImplementation })
-
 		Context("with HTTP", func() {
-			BeforeEach(func() { proto = "http" })
-			Describe("with image policy", withImagePolicy)
+			Describe("runs end to end", endToEnd(sourcev1.GoGitImplementation, "http"))
 		})
-
 		Context("with SSH", func() {
-			BeforeEach(func() { proto = "ssh" })
-			Describe("with image policy", withImagePolicy)
+			Describe("runs end to end", endToEnd(sourcev1.GoGitImplementation, "ssh"))
 		})
 	})
 
 	Context("Using libgit2", func() {
-		BeforeEach(func() { impl = sourcev1.LibGit2Implementation })
-
 		Context("with HTTP", func() {
-			BeforeEach(func() { proto = "http" })
-			Describe("with image policy", withImagePolicy)
+			Describe("runs end to end", endToEnd(sourcev1.LibGit2Implementation, "http"))
 		})
-
-		// Marked "Pending" because the libgit2 SSH implementation
-		// won't work with the gittestserver yet -- see
-		// https://github.com/fluxcd/source-controller/issues/287
 		Context("with SSH", func() {
-			BeforeEach(func() { proto = "ssh" })
-			Describe("with image policy", withImagePolicy)
+			Describe("runs end to end", endToEnd(sourcev1.LibGit2Implementation, "ssh"))
 		})
 	})
+
+	Context("defaulting", func() {
+		var key types.NamespacedName
+		var auto *imagev1.ImageUpdateAutomation
+
+		BeforeEach(func() {
+			key = types.NamespacedName{
+				Namespace: namespace.Name,
+				Name:      "update-" + randStringRunes(5),
+			}
+			auto = &imagev1.ImageUpdateAutomation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: imagev1.ImageUpdateAutomationSpec{
+					Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
+					Checkout: imagev1.GitCheckoutSpec{
+						GitRepositoryRef: meta.LocalObjectReference{
+							Name: "garbage",
+						},
+						Branch: branch,
+					},
+					// leave Update field out
+					Commit: imagev1.CommitSpec{
+						MessageTemplate: "nothing",
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), auto)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			Expect(k8sClient.Delete(context.Background(), auto)).To(Succeed())
+		})
+
+		It("defaults .spec.update to {strategy: Setters}", func() {
+			var fetchedAuto imagev1.ImageUpdateAutomation
+			Expect(k8sClient.Get(context.Background(), key, &fetchedAuto)).To(Succeed())
+			Expect(fetchedAuto.Spec.Update).To(Equal(&imagev1.UpdateStrategy{Strategy: imagev1.UpdateStrategySetters}))
+		})
+	})
+
 })
 
 func expectCommittedAndPushed(conditions []metav1.Condition) {

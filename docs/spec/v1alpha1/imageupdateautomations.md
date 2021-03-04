@@ -143,9 +143,9 @@ spec:
 
 will result in commits with the author `Fluxbot <flux@example.com>`.
 
-The `messageTemplate` field is a string which will be used as the commit message. If empty, there is
-a default message; but you will likely want to provide your own, especially if you want to put
-tokens in to control how CI reacts to commits made by automation. For example,
+The `messageTemplate` field is a string which will be used as a template for the commit message. If
+empty, there is a default message; but you will likely want to provide your own, especially if you
+want to put tokens in to control how CI reacts to commits made by automation. For example,
 
 ```yaml
 spec:
@@ -154,6 +154,106 @@ spec:
       Automated image update by Flux
       
       [ci skip]
+```
+
+### Commit template data
+
+The message template is a [Go text template][go-text-template]. The data available to the template
+have this structure (not reproduced verbatim):
+
+```go
+// controllers/imageupdateautomation_controller.go
+
+// TemplateData is the type of the value given to the commit message
+// template.
+type TemplateData struct {
+	AutomationObject struct {
+      Name, Namespace string
+    }
+	Updated          update.Result
+}
+
+// pkg/update/result.go
+
+// ImageRef represents the image reference used to replace a field
+// value in an update.
+type ImageRef interface {
+	// String returns a string representation of the image ref as it
+	// is used in the update; e.g., "helloworld:v1.0.1"
+	String() string
+	// Identifier returns the tag or digest; e.g., "v1.0.1"
+	Identifier() string
+	// Repository returns the repository component of the ImageRef,
+	// with an implied defaults, e.g., "library/helloworld"
+	Repository() string
+	// Registry returns the registry component of the ImageRef, e.g.,
+	// "index.docker.io"
+	Registry() string
+	// Name gives the fully-qualified reference name, e.g.,
+	// "index.docker.io/library/helloworld:v1.0.1"
+	Name() string
+}
+
+// ObjectIdentifier holds the identifying data for a particular
+// object. This won't always have a name (e.g., a kustomization.yaml).
+type ObjectIdentifier struct {
+	Name, Namespace, APIVersion, Kind string
+}
+
+// Result reports the outcome of an automated update. It has a nested
+// structure file->objects->images. Different projections (e.g., all
+// the images, regardless of object) are available via methods.
+type Result struct {
+	Files map[string]FileResult
+}
+
+// FileResult gives the updates in a particular file.
+type FileResult struct {
+	Objects map[ObjectIdentifier][]ImageRef
+}
+```
+
+These methods are defined on `update.Result`:
+
+```go
+// Images returns all the images that were involved in at least one
+// update.
+func (r Result) Images() []ImageRef {
+    // ...
+}
+
+// Objects returns a map of all the objects against the images updated
+// within, regardless of which file they appear in.
+func (r Result) Objects() map[ObjectIdentifier][]ImageRef {
+    // ...
+}
+```
+
+The methods let you range over the objects and images without descending the data structure. Here's
+an example of using the fields and methods in a template:
+
+```yaml
+spec:
+  commit:
+    messsageTemplate: |
+      Automated image update
+      
+      Automation name: {{ .AutomationObject }}
+      
+      Files:
+      {{ range $filename, $_ := .Updated.Files -}}
+      - {{ $filename }}
+      {{ end -}}
+      
+      Objects:
+      {{ range $resource, $_ := .Updated.Objects -}}
+      - {{ $resource.Kind }} {{ $resource.Name }}
+      {{ end -}}
+      
+      Images:
+      {{ range .Updated.Images -}}
+      - {{.}}
+      {{ end -}}
 ```
 
 ## Status
@@ -197,3 +297,4 @@ resulted in a commit.
 [git-repo-ref]: https://toolkit.fluxcd.io/components/source/gitrepositories/
 [durations]: https://godoc.org/time#ParseDuration
 [source-docs]: https://toolkit.fluxcd.io/components/source/gitrepositories/#git-implementation
+[go-text-template]: https://golang.org/pkg/text/template/
