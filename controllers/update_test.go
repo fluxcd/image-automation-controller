@@ -390,6 +390,62 @@ Images:
 				Expect(gitServer.StopSSH()).To(Succeed())
 			})
 
+			Context("with PushSpec", func() {
+
+				var (
+					update     *imagev1.ImageUpdateAutomation
+					pushBranch string
+				)
+
+				BeforeEach(func() {
+					commitInRepo(cloneLocalRepoURL, branch, "Install setter marker", func(tmp string) {
+						replaceMarker(tmp, policyKey)
+					})
+					waitForNewHead(localRepo, branch)
+
+					pushBranch = "pr-" + randStringRunes(5)
+
+					update = &imagev1.ImageUpdateAutomation{
+						Spec: imagev1.ImageUpdateAutomationSpec{
+							Interval: metav1.Duration{Duration: 2 * time.Hour},
+							Checkout: imagev1.GitCheckoutSpec{
+								GitRepositoryRef: meta.LocalObjectReference{
+									Name: gitRepoKey.Name,
+								},
+								Branch: branch,
+							},
+							Update: &imagev1.UpdateStrategy{
+								Strategy: imagev1.UpdateStrategySetters,
+							},
+							Commit: imagev1.CommitSpec{
+								MessageTemplate: commitMessage,
+							},
+							Push: &imagev1.PushSpec{
+								Branch: pushBranch,
+							},
+						},
+					}
+					update.Name = "update-" + randStringRunes(5)
+					update.Namespace = namespace.Name
+
+					Expect(k8sClient.Create(context.Background(), update)).To(Succeed())
+				})
+
+				It("creates and pushes the push branch", func() {
+					waitForNewHead(localRepo, pushBranch)
+					head, err := localRepo.Reference(plumbing.NewRemoteReferenceName(originRemote, pushBranch), true)
+					Expect(err).NotTo(HaveOccurred())
+					commit, err := localRepo.CommitObject(head.Hash())
+					Expect(err).ToNot(HaveOccurred())
+					Expect(commit.Message).To(Equal(commitMessage))
+				})
+
+				AfterEach(func() {
+					Expect(k8sClient.Delete(context.Background(), update)).To(Succeed())
+				})
+
+			})
+
 			Context("with Setters", func() {
 
 				var (
@@ -586,20 +642,49 @@ func setterRef(name types.NamespacedName) string {
 	return fmt.Sprintf(`{"%s": "%s:%s"}`, update.SetterShortHand, name.Namespace, name.Name)
 }
 
+// waitForHead fetches the remote branch given until it differs from
+// the remote ref locally (or if there's no ref locally, until it has
+// fetched the remote branch). It resets the working tree head to the
+// remote branch ref.
 func waitForNewHead(repo *git.Repository, branch string) {
-	head, _ := repo.Head()
-	headHash := head.Hash().String()
 	working, err := repo.Worktree()
 	Expect(err).ToNot(HaveOccurred())
+
+	// Try to find the remote branch in the repo locally; this will
+	// fail if we're on a branch that didn't exist when we cloned the
+	// repo (e.g., if the automation is pushing to another branch).
+	remoteHeadHash := ""
+	remoteBranch := plumbing.NewRemoteReferenceName(originRemote, branch)
+	remoteHead, err := repo.Reference(remoteBranch, false)
+	if err != plumbing.ErrReferenceNotFound {
+		Expect(err).ToNot(HaveOccurred())
+	}
+	if err == nil {
+		remoteHeadHash = remoteHead.Hash().String()
+	} // otherwise, any reference fetched will do.
+
+	// Now try to fetch new commits from that remote branch
 	Eventually(func() bool {
-		if working.Pull(&git.PullOptions{
-			ReferenceName: plumbing.NewBranchReferenceName(branch),
+		if err := repo.Fetch(&git.FetchOptions{
+			RefSpecs: []config.RefSpec{
+				config.RefSpec("refs/heads/" + branch + ":refs/remotes/origin/" + branch),
+			},
 		}); err != nil {
 			return false
 		}
-		h, _ := repo.Head()
-		return headHash != h.Hash().String()
+		remoteHead, err = repo.Reference(remoteBranch, false)
+		if err != nil {
+			return false
+		}
+		return remoteHead.Hash().String() != remoteHeadHash
 	}, timeout, time.Second).Should(BeTrue())
+
+	// New commits in the remote branch -- reset the working tree head
+	// to that. Note this does not create a local branch tracking the
+	// remote, so it is a detached head.
+	Expect(working.Reset(&git.ResetOptions{
+		Commit: remoteHead.Hash(),
+	})).To(Succeed())
 }
 
 func compareRepoWithExpected(repoURL, branch, fixture string, changeFixture func(tmp string)) {
