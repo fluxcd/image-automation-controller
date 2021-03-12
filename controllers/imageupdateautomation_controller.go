@@ -176,6 +176,14 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		return failWithError(err)
 	}
 
+	// When there's a push spec, the pushed-to branch is where commits
+	// shall be made
+	if auto.Spec.Push != nil {
+		if err := switchBranch(repo, auto.Spec.Push.Branch); err != nil {
+			return failWithError(err)
+		}
+	}
+
 	log.V(debug).Info("cloned git repository", "gitrepository", originName, "branch", auto.Spec.Checkout.Branch, "working", tmp)
 
 	switch {
@@ -221,15 +229,19 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			return failWithError(err)
 		}
 	} else {
-		if err := push(ctx, tmp, repo, auto.Spec.Checkout.Branch, access, origin.Spec.GitImplementation); err != nil {
+		pushBranch := auto.Spec.Checkout.Branch
+		if auto.Spec.Push != nil {
+			pushBranch = auto.Spec.Push.Branch
+		}
+		if err := push(ctx, tmp, repo, pushBranch, access, origin.Spec.GitImplementation); err != nil {
 			return failWithError(err)
 		}
 
-		r.event(ctx, auto, events.EventSeverityInfo, "committed and pushed change "+rev)
-		log.Info("pushed commit to origin", "revision", rev)
+		r.event(ctx, auto, events.EventSeverityInfo, "committed and pushed change "+rev+" to "+pushBranch)
+		log.Info("pushed commit to origin", "revision", rev, "branch", pushBranch)
 		auto.Status.LastPushCommit = rev
 		auto.Status.LastPushTime = &metav1.Time{Time: now}
-		statusMessage = "committed and pushed " + rev
+		statusMessage = "committed and pushed " + rev + " to " + pushBranch
 	}
 
 	// Getting to here is a successful run.
@@ -356,6 +368,45 @@ func cloneInto(ctx context.Context, access repoAccess, branch, path, impl string
 	}
 
 	return gogit.PlainOpen(path)
+}
+
+// switchBranch switches the repo from the current branch to the
+// branch given. If the branch does not exist, it is created using the
+// head as the starting point.
+func switchBranch(repo *gogit.Repository, pushBranch string) error {
+	remoteBranch := plumbing.NewRemoteReferenceName(originRemote, pushBranch)
+	localBranch := plumbing.NewBranchReferenceName(pushBranch)
+
+	// is the remote branch already present?
+	branchHead, err := repo.Reference(remoteBranch, false)
+	switch {
+	case err == plumbing.ErrReferenceNotFound:
+		// make a new branch, starting at HEAD
+		head, err := repo.Head()
+		if err != nil {
+			return err
+		}
+		branchRef := plumbing.NewHashReference(localBranch, head.Hash())
+		if err = repo.Storer.SetReference(branchRef); err != nil {
+			return err
+		}
+	case err != nil:
+		return err
+	default:
+		// make a local branch that references the remote branch
+		branchRef := plumbing.NewHashReference(localBranch, branchHead.Hash())
+		if err = repo.Storer.SetReference(branchRef); err != nil {
+			return err
+		}
+	}
+
+	tree, err := repo.Worktree()
+	if err != nil {
+		return err
+	}
+	return tree.Checkout(&gogit.CheckoutOptions{
+		Branch: localBranch,
+	})
 }
 
 var errNoChanges error = errors.New("no changes made to working directory")
