@@ -12,7 +12,7 @@ require (
 	github.com/fluxcd/image-reflector-controller/api v0.7.0
 	github.com/fluxcd/pkg/apis/meta v0.8.0
 	github.com/fluxcd/pkg/gittestserver v0.2.1
-	github.com/fluxcd/pkg/runtime v0.8.3
+	github.com/fluxcd/pkg/runtime v0.8.4
 	github.com/fluxcd/pkg/ssh v0.0.5
 	github.com/fluxcd/source-controller v0.9.0
 	// If you bump this, change SOURCE_VER in the Makefile to match
@@ -30,8 +30,8 @@ require (
 	k8s.io/api v0.20.2
 	k8s.io/apimachinery v0.20.2
 	k8s.io/client-go v0.20.2
-	sigs.k8s.io/controller-runtime v0.8.2
-	sigs.k8s.io/kustomize/kyaml v0.10.9
+	sigs.k8s.io/controller-runtime v0.8.3
+	sigs.k8s.io/kustomize/kyaml v0.10.15
 )
 
 // side-effect of depending on source-controller
