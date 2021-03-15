@@ -27,9 +27,15 @@ type ImageUpdateAutomationSpec struct {
 	// value.
 	// +kubebuilder:default={"strategy":"Setters"}
 	Update *UpdateStrategy `json:"update,omitempty"`
-	// Commit specifies how to commit to the git repo
+	// Commit specifies how to commit to the git repository.
 	// +required
 	Commit CommitSpec `json:"commit"`
+
+	// Push specifies how and where to push commits made by the
+	// automation. If missing, commits are pushed (back) to
+	// `.spec.checkout.branch`.
+	// +optional
+	Push *PushSpec `json:"push,omitempty"`
 
 	// Suspend tells the controller to not run this automation, until
 	// it is unset (or set to false). Defaults to false.
@@ -38,7 +44,7 @@ type ImageUpdateAutomationSpec struct {
 }
 ```
 
-See the sections below, regarding `checkout`, `update`, and `commit`.
+See the sections below regarding `checkout`, `update`, `commit`, and `push`.
 
 The required `interval` field gives a period for automation runs, in [duration notation][durations];
 e.g., `"5m"`.
@@ -67,8 +73,8 @@ with write access; e.g., if using a GitHub deploy key, "Allow write access" shou
 creating it. Only the `url`, `secretRef` and `gitImplementation` (see just below) fields of the
 `GitRepository` are used.
 
-The `branch` field names the branch in the git repository to check out; this will also be the branch
-the controller pushes commits to.
+The `branch` field names the branch in the git repository to check out. When the `push` field is not
+present (see [below](#push)), this will also be the branch pushed back to the origin repository.
 
 **Git implementation**
 
@@ -254,6 +260,44 @@ spec:
       {{ range .Updated.Images -}}
       - {{.}}
       {{ end -}}
+```
+
+## Push
+
+The optional `push` field defines how commits are pushed to the origin.
+
+```go
+// PushSpec specifies how and where to push commits.
+type PushSpec struct {
+	// Branch specifies that commits should be pushed to the branch
+	// named. The branch is created using `.spec.checkout.branch` as the
+	// starting point, if it doesn't already exist.
+	// +required
+	Branch string `json:"branch"`
+}
+```
+
+If `push` is not present, commits are made on the same branch as `.spec.checkout.branch` and pushed
+to the same branch at the origin.
+
+When `push` is present, the `.spec.push.branch` field specifies a branch to push to at the
+origin. The branch will be created locally if it does not already exist, starting from
+`.spec.checkout.branch`. If it does already exist, updates will be calculated on top of any commits
+already on the branch.
+
+In the following snippet, updates will be pushed as commits to the branch `auto`, and when that
+branch does not exist at the origin, it will be created locally starting from the branch `main` and
+pushed:
+
+```yaml
+spec:
+  # ... commit, update, etc.
+  checkout:
+    gitRepositoryRef:
+      name: app-repo
+    branch: main
+  push:
+    branch: auto
 ```
 
 ## Status
