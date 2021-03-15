@@ -277,12 +277,28 @@ type PushSpec struct {
 }
 ```
 
-If `push` is not present, commits are made on the same branch as `.checkout.branch` and pushed to
-the same branch at the origin.
+If `push` is not present, commits are made on the same branch as `.spec.checkout.branch` and pushed
+to the same branch at the origin.
 
-When `push` is present, the `push.branch` field specifies a branch to push to at the origin. The
-branch will be created locally if it does not already exist, starting from `.checkout.branch`. If it
-does already exist, updates will be calculated on top of any commits already on the branch.
+When `push` is present, the `.spec.push.branch` field specifies a branch to push to at the
+origin. The branch will be created locally if it does not already exist, starting from
+`.spec.checkout.branch`. If it does already exist, updates will be calculated on top of any commits
+already on the branch.
+
+In the following snippet, updates will be pushed as commits to the branch `auto`, and when that
+branch does not exist at the origin, it will be created locally starting from the branch `main` and
+pushed:
+
+```yaml
+spec:
+  # ... commit, update, etc.
+  checkout:
+    gitRepositoryRef:
+      name: app-repo
+    branch: main
+  push:
+    branch: auto
+```
 
 ## Status
 
