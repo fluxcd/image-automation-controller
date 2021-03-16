@@ -88,8 +88,8 @@ into which will be interpolated the details of the change made.</p>
 <td>
 <code>gitRepositoryRef</code><br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
-Kubernetes core/v1.LocalObjectReference
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#LocalObjectReference">
+github.com/fluxcd/pkg/apis/meta.LocalObjectReference
 </a>
 </em>
 </td>
@@ -106,7 +106,9 @@ string
 </em>
 </td>
 <td>
-<p>Branch gives the branch to clone from the git repository.</p>
+<p>Branch gives the branch to clone from the git repository. If
+<code>.spec.push</code> is not supplied, commits will also be pushed to
+this branch.</p>
 </td>
 </tr>
 </tbody>
@@ -206,7 +208,23 @@ CommitSpec
 </em>
 </td>
 <td>
-<p>Commit specifies how to commit to the git repo</p>
+<p>Commit specifies how to commit to the git repository.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>push</code><br>
+<em>
+<a href="#image.toolkit.fluxcd.io/v1alpha1.PushSpec">
+PushSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Push specifies how and where to push commits made by the
+automation. If missing, commits are pushed (back) to
+<code>.spec.checkout.branch</code>.</p>
 </td>
 </tr>
 <tr>
@@ -311,7 +329,23 @@ CommitSpec
 </em>
 </td>
 <td>
-<p>Commit specifies how to commit to the git repo</p>
+<p>Commit specifies how to commit to the git repository.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>push</code><br>
+<em>
+<a href="#image.toolkit.fluxcd.io/v1alpha1.PushSpec">
+PushSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Push specifies how and where to push commits made by the
+automation. If missing, commits are pushed (back) to
+<code>.spec.checkout.branch</code>.</p>
 </td>
 </tr>
 <tr>
@@ -434,6 +468,40 @@ github.com/fluxcd/pkg/apis/meta.ReconcileRequestStatus
 </table>
 </div>
 </div>
+<h3 id="image.toolkit.fluxcd.io/v1alpha1.PushSpec">PushSpec
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#image.toolkit.fluxcd.io/v1alpha1.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec</a>)
+</p>
+<p>PushSpec specifies how and where to push commits.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>branch</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Branch specifies that commits should be pushed to the branch
+named. The branch is created using <code>.spec.checkout.branch</code> as the
+starting point, if it doesn&rsquo;t already exist.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <h3 id="image.toolkit.fluxcd.io/v1alpha1.UpdateStrategy">UpdateStrategy
 </h3>
 <p>
@@ -464,6 +532,20 @@ UpdateStrategyName
 </td>
 <td>
 <p>Strategy names the strategy to be used.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>path</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Path to the directory containing the manifests to be updated.
+Defaults to &lsquo;None&rsquo;, which translates to the root path
+of the GitRepositoryRef.</p>
 </td>
 </tr>
 </tbody>

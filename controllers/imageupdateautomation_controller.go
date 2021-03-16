@@ -30,6 +30,7 @@ import (
 	gogit "github.com/go-git/go-git/v5"
 	libgit2 "github.com/libgit2/git2go/v31"
 
+	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-logr/logr"
@@ -196,7 +197,16 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			return failWithError(err)
 		}
 
-		if result, err := updateAccordingToSetters(ctx, tmp, policies.Items); err != nil {
+		manifestsPath := tmp
+		if auto.Spec.Update.Path != "" {
+			if p, err := securejoin.SecureJoin(tmp, auto.Spec.Update.Path); err != nil {
+				return failWithError(err)
+			} else {
+				manifestsPath = p
+			}
+		}
+
+		if result, err := updateAccordingToSetters(ctx, manifestsPath, policies.Items); err != nil {
 			return failWithError(err)
 		} else {
 			templateValues.Updated = result
