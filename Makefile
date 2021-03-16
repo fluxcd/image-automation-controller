@@ -9,7 +9,7 @@ SOURCE_VER ?= v0.9.1
 
 # Version of the image-reflector-controller from which to get the ImagePolicy CRD.
 # Change this if you bump the image-reflector-controller/api version in go.mod.
-REFLECTOR_VER ?= v0.7.0
+REFLECTOR_VER ?= v0.7.1
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -23,17 +23,17 @@ TEST_CRDS:=controllers/testdata/crds
 all: manager
 
 # Running the tests requires the source.toolkit.fluxcd.io CRDs
-test_deps: ${TEST_CRDS}/imagepolicies.yaml ${TEST_CRDS}/gitrepositories.yaml
+test_deps: ${TEST_CRDS}/imagepolicies_${REFLECTOR_VER}.yaml ${TEST_CRDS}/gitrepositories_${SOURCE_VER}.yaml
 
 clean_test_deps:
 	rm -r ${TEST_CRDS}
 
-${TEST_CRDS}/gitrepositories.yaml:
+${TEST_CRDS}/gitrepositories_${SOURCE_VER}.yaml:
 	mkdir -p ${TEST_CRDS}
 	curl -s --fail https://raw.githubusercontent.com/fluxcd/source-controller/${SOURCE_VER}/config/crd/bases/source.toolkit.fluxcd.io_gitrepositories.yaml \
 		-o ${TEST_CRDS}/gitrepositories_${SOURCE_VER}.yaml
 
-${TEST_CRDS}/imagepolicies.yaml:
+${TEST_CRDS}/imagepolicies_${REFLECTOR_VER}.yaml:
 	mkdir -p ${TEST_CRDS}
 	curl -s --fail https://raw.githubusercontent.com/fluxcd/image-reflector-controller/${REFLECTOR_VER}/config/crd/bases/image.toolkit.fluxcd.io_imagepolicies.yaml \
 		-o ${TEST_CRDS}/imagepolicies_${REFLECTOR_VER}.yaml
