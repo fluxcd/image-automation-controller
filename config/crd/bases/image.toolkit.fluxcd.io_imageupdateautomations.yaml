@@ -111,6 +111,11 @@ spec:
                   files in the repository. This can be left empty, to use the default
                   value.
                 properties:
+                  path:
+                    description: Path to the directory containing the manifests to
+                      be updated. Defaults to 'None', which translates to the root
+                      path of the GitRepositoryRef.
+                    type: string
                   strategy:
                     default: Setters
                     description: Strategy names the strategy to be used.

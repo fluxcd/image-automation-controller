@@ -30,15 +30,18 @@ type ImageUpdateAutomationSpec struct {
 	// ready to make changes.
 	// +required
 	Checkout GitCheckoutSpec `json:"checkout"`
+
 	// Interval gives an lower bound for how often the automation
 	// run should be attempted.
 	// +required
 	Interval metav1.Duration `json:"interval"`
+
 	// Update gives the specification for how to update the files in
 	// the repository. This can be left empty, to use the default
 	// value.
 	// +kubebuilder:default={"strategy":"Setters"}
 	Update *UpdateStrategy `json:"update,omitempty"`
+
 	// Commit specifies how to commit to the git repository.
 	// +required
 	Commit CommitSpec `json:"commit"`
@@ -87,6 +90,12 @@ type UpdateStrategy struct {
 	// +required
 	// +kubebuilder:default=Setters
 	Strategy UpdateStrategyName `json:"strategy"`
+
+	// Path to the directory containing the manifests to be updated.
+	// Defaults to 'None', which translates to the root path
+	// of the GitRepositoryRef.
+	// +optional
+	Path string `json:"path,omitempty"`
 }
 
 // CommitSpec specifies how to commit changes to the git repository

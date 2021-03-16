@@ -108,6 +108,11 @@ type UpdateStrategy struct {
 	// Strategy names the strategy to be used.
 	// +required
 	Strategy UpdateStrategyName `json:"strategy"`
+	// Path to the directory containing the manifests to be updated.
+	// Defaults to 'None', which translates to the root path
+	// of the GitRepositoryRef.
+	// +optional
+	Path string `json:"path,omitempty"`
 }
 ```
 

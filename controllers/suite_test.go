@@ -90,6 +90,7 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(imageAutoReconciler.SetupWithManager(k8sManager)).To(Succeed())
 
 	go func() {
+		defer GinkgoRecover()
 		err = k8sManager.Start(ctrl.SetupSignalHandler())
 		Expect(err).ToNot(HaveOccurred())
 	}()
