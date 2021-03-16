@@ -5,7 +5,11 @@ CRD_OPTIONS ?= crd:crdVersions=v1
 
 # Version of the source-controller from which to get the GitRepository CRD.
 # Change this if you bump the source-controller/api version in go.mod.
-SOURCE_VER ?= v0.9.0
+SOURCE_VER ?= v0.9.1
+
+# Version of the image-reflector-controller from which to get the ImagePolicy CRD.
+# Change this if you bump the image-reflector-controller/api version in go.mod.
+REFLECTOR_VER ?= v0.7.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -27,15 +31,15 @@ clean_test_deps:
 ${TEST_CRDS}/gitrepositories.yaml:
 	mkdir -p ${TEST_CRDS}
 	curl -s --fail https://raw.githubusercontent.com/fluxcd/source-controller/${SOURCE_VER}/config/crd/bases/source.toolkit.fluxcd.io_gitrepositories.yaml \
-		-o ${TEST_CRDS}/gitrepositories.yaml
+		-o ${TEST_CRDS}/gitrepositories_${SOURCE_VER}.yaml
 
 ${TEST_CRDS}/imagepolicies.yaml:
 	mkdir -p ${TEST_CRDS}
-	curl -s --fail https://raw.githubusercontent.com/fluxcd/image-reflector-controller/main/config/crd/bases/image.toolkit.fluxcd.io_imagepolicies.yaml \
-		-o ${TEST_CRDS}/imagepolicies.yaml
+	curl -s --fail https://raw.githubusercontent.com/fluxcd/image-reflector-controller/${REFLECTOR_VER}/config/crd/bases/image.toolkit.fluxcd.io_imagepolicies.yaml \
+		-o ${TEST_CRDS}/imagepolicies_${REFLECTOR_VER}.yaml
 
 # Run tests
-test: test_deps generate fmt vet manifests
+test: test_deps generate fmt vet manifests api-docs
 	go test ./... -coverprofile cover.out
 	cd api; go test ./... -coverprofile cover.out
 
