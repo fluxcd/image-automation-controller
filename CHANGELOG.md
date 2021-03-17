@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.7.0
+
+**Release date:** 2021-03-17
+
+This prerelease comes with support for restricting the
+image updates to a path relative to the Git repository root
+with `.spec.update.path`.
+
+The controller can push changes to a different branch
+than the one used for cloning when configured with `.spec.push.branch`.
+
+The commit message template supports listing the 
+images that were updated along with the resource kind and name e.g.:
+
+```yaml
+spec:
+  commit:
+    messsageTemplate: |
+      Automated image update
+      
+      Automation name: {{ .AutomationObject }}
+      
+      Files:
+      {{ range $filename, $_ := .Updated.Files -}}
+      - {{ $filename }}
+      {{ end -}}
+      
+      Objects:
+      {{ range $resource, $_ := .Updated.Objects -}}
+      - {{ $resource.Kind }} {{ $resource.Name }}
+      {{ end -}}
+      
+      Images:
+      {{ range .Updated.Images -}}
+      - {{.}}
+      {{ end -}}
+```
+
+Features:
+* Allow specifying the path for manifests updates
+  [#126](https://github.com/fluxcd/image-automation-controller/pull/126)
+* Push to branch
+  [#121](https://github.com/fluxcd/image-automation-controller/pull/121)
+* Supply update result value to the commit message template
+  [#119](https://github.com/fluxcd/image-automation-controller/pull/119)
+
+Improvements:
+* Update runtime dependencies
+  [#124](https://github.com/fluxcd/image-automation-controller/pull/124)
+
 ## 0.6.1
 
 **Release date:** 2021-02-25
