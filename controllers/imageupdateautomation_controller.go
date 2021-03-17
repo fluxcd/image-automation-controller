@@ -100,6 +100,9 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	// record suspension metrics
+	defer r.recordSuspension(ctx, auto)
+
 	if auto.Spec.Suspend {
 		log.Info("ImageUpdateAutomation is suspended, skipping automation run")
 		return ctrl.Result{}, nil
@@ -598,4 +601,23 @@ func (r *ImageUpdateAutomationReconciler) recordReadinessMetric(ctx context.Cont
 // the given image policies as kyaml setters.
 func updateAccordingToSetters(ctx context.Context, path string, policies []imagev1_reflect.ImagePolicy) (update.Result, error) {
 	return update.UpdateWithSetters(path, path, policies)
+}
+
+func (r *ImageUpdateAutomationReconciler) recordSuspension(ctx context.Context, auto imagev1.ImageUpdateAutomation) {
+	if r.MetricsRecorder == nil {
+		return
+	}
+	log := logr.FromContext(ctx)
+
+	objRef, err := reference.GetReference(r.Scheme, &auto)
+	if err != nil {
+		log.Error(err, "unable to record suspended metric")
+		return
+	}
+
+	if !auto.DeletionTimestamp.IsZero() {
+		r.MetricsRecorder.RecordSuspend(*objRef, false)
+	} else {
+		r.MetricsRecorder.RecordSuspend(*objRef, auto.Spec.Suspend)
+	}
 }
