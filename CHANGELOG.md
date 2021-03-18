@@ -17,7 +17,7 @@ images that were updated along with the resource kind and name e.g.:
 ```yaml
 spec:
   commit:
-    messsageTemplate: |
+    messageTemplate: |
       Automated image update
       
       Automation name: {{ .AutomationObject }}
