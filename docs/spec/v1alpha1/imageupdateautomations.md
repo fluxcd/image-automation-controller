@@ -161,7 +161,7 @@ want to put tokens in to control how CI reacts to commits made by automation. Fo
 ```yaml
 spec:
   commit:
-    messsageTemplate: |
+    messageTemplate: |
       Automated image update by Flux
       
       [ci skip]
@@ -246,7 +246,7 @@ an example of using the fields and methods in a template:
 ```yaml
 spec:
   commit:
-    messsageTemplate: |
+    messageTemplate: |
       Automated image update
       
       Automation name: {{ .AutomationObject }}
