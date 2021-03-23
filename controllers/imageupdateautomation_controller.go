@@ -127,7 +127,8 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	// annotation if it's there
 	if token, ok := meta.ReconcileAnnotationValue(auto.GetAnnotations()); ok {
 		auto.Status.SetLastHandledReconcileRequest(token)
-		if err := r.Status().Update(ctx, &auto); err != nil {
+
+		if err := r.patchStatus(ctx, req, auto.Status); err != nil {
 			return ctrl.Result{Requeue: true}, err
 		}
 	}
@@ -136,7 +137,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	failWithError := func(err error) (ctrl.Result, error) {
 		r.event(ctx, auto, events.EventSeverityError, err.Error())
 		imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, meta.ReconciliationFailedReason, err.Error())
-		if err := r.Status().Update(ctx, &auto); err != nil {
+		if err := r.patchStatus(ctx, req, auto.Status); err != nil {
 			log.Error(err, "failed to reconcile")
 		}
 		return ctrl.Result{Requeue: true}, err
@@ -152,7 +153,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		if client.IgnoreNotFound(err) == nil {
 			imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, imagev1.GitNotAvailableReason, "referenced git repository is missing")
 			log.Error(err, "referenced git repository does not exist")
-			if err := r.Status().Update(ctx, &auto); err != nil {
+			if err := r.patchStatus(ctx, req, auto.Status); err != nil {
 				return ctrl.Result{Requeue: true}, err
 			}
 			return ctrl.Result{}, nil // and assume we'll hear about it when it arrives
@@ -219,8 +220,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		// no sense rescheduling until this resource changes
 		r.event(ctx, auto, events.EventSeverityInfo, "no known update strategy in spec, failing trivially")
 		imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, imagev1.NoStrategyReason, "no known update strategy is given for object")
-		err := r.Status().Update(ctx, &auto)
-		return ctrl.Result{}, err
+		return ctrl.Result{}, r.patchStatus(ctx, req, auto.Status)
 	}
 
 	log.V(debug).Info("ran updates to working dir", "working", tmp)
@@ -260,7 +260,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	// Getting to here is a successful run.
 	auto.Status.LastAutomationRunTime = &metav1.Time{Time: now}
 	imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionTrue, meta.ReconciliationSucceededReason, statusMessage)
-	if err = r.Status().Update(ctx, &auto); err != nil {
+	if err := r.patchStatus(ctx, req, auto.Status); err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
 
@@ -289,6 +289,21 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) err
 		WithEventFilter(predicate.Or(predicate.GenerationChangedPredicate{}, predicates.ReconcileRequestedPredicate{})).
 		Watches(&source.Kind{Type: &sourcev1.GitRepository{}}, handler.EnqueueRequestsFromMapFunc(r.automationsForGitRepo)).
 		Complete(r)
+}
+
+func (r *ImageUpdateAutomationReconciler) patchStatus(ctx context.Context,
+	req ctrl.Request,
+	newStatus imagev1.ImageUpdateAutomationStatus) error {
+
+	var auto imagev1.ImageUpdateAutomation
+	if err := r.Get(ctx, req.NamespacedName, &auto); err != nil {
+		return err
+	}
+
+	patch := client.MergeFrom(auto.DeepCopy())
+	auto.Status = newStatus
+
+	return r.Status().Patch(ctx, &auto, patch)
 }
 
 // intervalOrDefault gives the interval specified, or if missing, the default
