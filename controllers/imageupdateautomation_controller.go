@@ -502,9 +502,9 @@ func (r *ImageUpdateAutomationReconciler) getSigningEntity(ctx context.Context, 
 	}
 
 	// get data from secret
-	data, ok := secret.Data["value"]
+	data, ok := secret.Data["git.asc"]
 	if !ok {
-		return nil, fmt.Errorf("signing key secret '%s' does not contain a 'value' key", secretName)
+		return nil, fmt.Errorf("signing key secret '%s' does not contain a 'git.asc' key", secretName)
 	}
 
 	// read entity from secret value

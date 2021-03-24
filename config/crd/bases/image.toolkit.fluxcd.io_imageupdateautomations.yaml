@@ -86,9 +86,9 @@ spec:
                     properties:
                       secretRef:
                         description: SecretRef holds the name to a secret that contains
-                          a 'value' key with the ASCII Armored file (.asc) containing
-                          the GPG signing keypair as the value. It must be in the
-                          same namespace as the ImageUpdateAutomation.
+                          a 'git.asc' key corresponding to the ASCII Armored file
+                          containing the GPG signing keypair as the value. It must
+                          be in the same namespace as the ImageUpdateAutomation.
                         properties:
                           name:
                             description: Name of the referent

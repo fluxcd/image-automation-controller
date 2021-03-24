@@ -147,8 +147,8 @@ type ImageUpdateAutomationStatus struct {
 
 // SigningKey references a Kubernetes secret that contains a GPG keypair
 type SigningKey struct {
-	// SecretRef holds the name to a secret that contains a 'value' key
-	// with the ASCII Armored file (.asc) containing the GPG signing
+	// SecretRef holds the name to a secret that contains a 'git.asc' key
+	// corresponding to the ASCII Armored file containing the GPG signing
 	// keypair as the value. It must be in the same namespace as the
 	// ImageUpdateAutomation.
 	// +required

@@ -522,7 +522,7 @@ starting point, if it doesn&rsquo;t already exist.</p>
 (<em>Appears on:</em>
 <a href="#image.toolkit.fluxcd.io/v1alpha1.CommitSpec">CommitSpec</a>)
 </p>
-<p>SigningKey references a Kubernetes secret that contains a GPG file</p>
+<p>SigningKey references a Kubernetes secret that contains a GPG keypair</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -543,7 +543,10 @@ github.com/fluxcd/pkg/apis/meta.LocalObjectReference
 </em>
 </td>
 <td>
-<p>SecretRef holds the name to a secret that contains a &lsquo;value&rsquo; key with the GPG file as the value. It must be in the same namespace as the ImageUpdateAutomation.</p>
+<p>SecretRef holds the name to a secret that contains a &lsquo;git.asc&rsquo; key
+corresponding to the ASCII Armored file containing the GPG signing
+keypair as the value. It must be in the same namespace as the
+ImageUpdateAutomation.</p>
 </td>
 </tr>
 </tbody>
