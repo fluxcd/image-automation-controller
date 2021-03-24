@@ -106,6 +106,9 @@ type CommitSpec struct {
 	// AuthorEmail gives the email to provide when making a commit
 	// +required
 	AuthorEmail string `json:"authorEmail"`
+	// SigningKey provides the option to sign commits with a GPG key
+	// +optional
+	SigningKey *SigningKey `json:"signingKey,omitempty"`
 	// MessageTemplate provides a template for the commit message,
 	// into which will be interpolated the details of the change made.
 	// +optional
@@ -140,6 +143,16 @@ type ImageUpdateAutomationStatus struct {
 	// +optional
 	Conditions                  []metav1.Condition `json:"conditions,omitempty"`
 	meta.ReconcileRequestStatus `json:",inline"`
+}
+
+// SigningKey references a Kubernetes secret that contains a GPG keypair
+type SigningKey struct {
+	// SecretRef holds the name to a secret that contains a 'value' key
+	// with the ASCII Armored file (.asc) containing the GPG signing
+	// keypair as the value. It must be in the same namespace as the
+	// ImageUpdateAutomation.
+	// +required
+	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
 }
 
 const (

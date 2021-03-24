@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"golang.org/x/crypto/openpgp"
+	"golang.org/x/crypto/openpgp/armor"
 	"io/ioutil"
 	"math/rand"
 	"net/url"
@@ -385,6 +387,161 @@ Images:
 			Expect(err).ToNot(HaveOccurred())
 			Expect(commit.Message).To(Not(ContainSubstring("update-no")))
 			Expect(commit.Message).To(ContainSubstring("update-yes"))
+		})
+	})
+
+	Context("commit signing", func() {
+
+		var localRepo *git.Repository
+
+		// generate keypair for signing
+		pgpEntity, err := openpgp.NewEntity("", "", "", nil)
+		Expect(err).ToNot(HaveOccurred())
+
+		BeforeEach(func() {
+			Expect(initGitRepo(gitServer, "testdata/appconfig", branch, repositoryPath)).To(Succeed())
+			repoURL := gitServer.HTTPAddressWithCredentials() + repositoryPath
+			var err error
+			localRepo, err = git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
+				URL:           repoURL,
+				RemoteName:    "origin",
+				ReferenceName: plumbing.NewBranchReferenceName(branch),
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			gitRepoKey := types.NamespacedName{
+				Name:      "image-auto-" + randStringRunes(5),
+				Namespace: namespace.Name,
+			}
+			gitRepo := &sourcev1.GitRepository{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      gitRepoKey.Name,
+					Namespace: namespace.Name,
+				},
+				Spec: sourcev1.GitRepositorySpec{
+					URL:      repoURL,
+					Interval: metav1.Duration{Duration: time.Minute},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), gitRepo)).To(Succeed())
+			policyKey := types.NamespacedName{
+				Name:      "policy-" + randStringRunes(5),
+				Namespace: namespace.Name,
+			}
+			// NB not testing the image reflector controller; this
+			// will make a "fully formed" ImagePolicy object.
+			policy := &imagev1_reflect.ImagePolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      policyKey.Name,
+					Namespace: policyKey.Namespace,
+				},
+				Spec: imagev1_reflect.ImagePolicySpec{
+					ImageRepositoryRef: meta.LocalObjectReference{
+						Name: "not-expected-to-exist",
+					},
+					Policy: imagev1_reflect.ImagePolicyChoice{
+						SemVer: &imagev1_reflect.SemVerPolicy{
+							Range: "1.x",
+						},
+					},
+				},
+				Status: imagev1_reflect.ImagePolicyStatus{
+					LatestImage: "helloworld:v1.0.0",
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), policy)).To(Succeed())
+			Expect(k8sClient.Status().Update(context.Background(), policy)).To(Succeed())
+
+			// Insert a setter reference into the deployment file,
+			// before creating the automation object itself.
+			commitInRepo(repoURL, branch, "Install setter marker", func(tmp string) {
+				replaceMarker(tmp, policyKey)
+			})
+
+			// pull the head commit we just pushed, so it's not
+			// considered a new commit when checking for a commit
+			// made by automation.
+			waitForNewHead(localRepo, branch)
+
+			// now create the automation object, and let it (one
+			// hopes!) make a commit itself.
+			updateKey := types.NamespacedName{
+				Namespace: namespace.Name,
+				Name:      "update-test",
+			}
+			updateBySetters := &imagev1.ImageUpdateAutomation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      updateKey.Name,
+					Namespace: updateKey.Namespace,
+				},
+				Spec: imagev1.ImageUpdateAutomationSpec{
+					Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
+					Checkout: imagev1.GitCheckoutSpec{
+						GitRepositoryRef: meta.LocalObjectReference{
+							Name: gitRepoKey.Name,
+						},
+						Branch: branch,
+					},
+					Update: &imagev1.UpdateStrategy{
+						Strategy: imagev1.UpdateStrategySetters,
+					},
+					Commit: imagev1.CommitSpec{
+						SigningKey: &imagev1.SigningKey{},
+					},
+				},
+			}
+
+			// configure OpenPGP armor encoder
+			b := bytes.NewBuffer(nil)
+			w, err := armor.Encode(b, openpgp.PrivateKeyType, nil)
+			Expect(err).ToNot(HaveOccurred())
+
+			// serialize private key
+			err = pgpEntity.SerializePrivate(w, nil)
+			Expect(err).ToNot(HaveOccurred())
+			err = w.Close()
+			Expect(err).ToNot(HaveOccurred())
+
+			// create the secret containing signing key
+			sec := &corev1.Secret{
+				Data: map[string][]byte{
+					"value": b.Bytes(),
+				},
+			}
+			sec.Name = "signing-key-secret-" + randStringRunes(5)
+			sec.Namespace = namespace.Name
+			Expect(k8sClient.Create(context.Background(), sec)).To(Succeed())
+			updateBySetters.Spec.Commit.SigningKey.SecretRef = &meta.LocalObjectReference{Name: sec.Name}
+
+			Expect(k8sClient.Create(context.Background(), updateBySetters)).To(Succeed())
+			// wait for a new commit to be made by the controller
+			waitForNewHead(localRepo, branch)
+		})
+
+		AfterEach(func() {
+			Expect(k8sClient.Delete(context.Background(), namespace)).To(Succeed())
+		})
+
+		It("signs the commit with the generated GPG key", func() {
+			head, _ := localRepo.Head()
+			commit, err := localRepo.CommitObject(head.Hash())
+			Expect(err).ToNot(HaveOccurred())
+
+			// configure OpenPGP armor encoder
+			b := bytes.NewBuffer(nil)
+			w, err := armor.Encode(b, openpgp.PublicKeyType, nil)
+			Expect(err).ToNot(HaveOccurred())
+
+			// serialize public key
+			err = pgpEntity.Serialize(w)
+			Expect(err).ToNot(HaveOccurred())
+			err = w.Close()
+			Expect(err).ToNot(HaveOccurred())
+
+			// verify commit
+			ent, err := commit.Verify(b.String())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(ent.PrimaryKey.Fingerprint).To(Equal(pgpEntity.PrimaryKey.Fingerprint))
 		})
 	})
 

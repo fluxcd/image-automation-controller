@@ -17,9 +17,11 @@ limitations under the License.
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"golang.org/x/crypto/openpgp"
 	"io/ioutil"
 	"math"
 	"os"
@@ -227,10 +229,15 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	var statusMessage string
 
+	var signingEntity *openpgp.Entity
+	if auto.Spec.Commit.SigningKey != nil {
+		signingEntity, err = r.getSigningEntity(ctx, auto)
+	}
+
 	// The status message depends on what happens next. Since there's
 	// more than one way to succeed, there's some if..else below, and
 	// early returns only on failure.
-	if rev, err := commitAll(ctx, repo, &auto.Spec.Commit, templateValues); err != nil {
+	if rev, err := commitAll(repo, &auto.Spec.Commit, templateValues, signingEntity); err != nil {
 		if err == errNoChanges {
 			r.event(ctx, auto, events.EventSeverityInfo, "no updates made")
 			log.V(debug).Info("no changes made in working directory; no commit")
@@ -439,7 +446,7 @@ func switchBranch(repo *gogit.Repository, pushBranch string) error {
 
 var errNoChanges error = errors.New("no changes made to working directory")
 
-func commitAll(ctx context.Context, repo *gogit.Repository, commit *imagev1.CommitSpec, values TemplateData) (string, error) {
+func commitAll(repo *gogit.Repository, commit *imagev1.CommitSpec, values TemplateData, ent *openpgp.Entity) (string, error) {
 	working, err := repo.Worktree()
 	if err != nil {
 		return "", err
@@ -473,11 +480,42 @@ func commitAll(ctx context.Context, repo *gogit.Repository, commit *imagev1.Comm
 			Email: commit.AuthorEmail,
 			When:  time.Now(),
 		},
+		SignKey: ent,
 	}); err != nil {
 		return "", err
 	}
 
 	return rev.String(), nil
+}
+
+// getSigningEntity retrieves an OpenPGP entity referenced by the
+// provided imagev1.ImageUpdateAutomation for git commit signing
+func (r *ImageUpdateAutomationReconciler) getSigningEntity(ctx context.Context, auto imagev1.ImageUpdateAutomation) (*openpgp.Entity, error) {
+	// get kubernetes secret
+	secretName := types.NamespacedName{
+		Namespace: auto.GetNamespace(),
+		Name:      auto.Spec.Commit.SigningKey.SecretRef.Name,
+	}
+	var secret corev1.Secret
+	if err := r.Get(ctx, secretName, &secret); err != nil {
+		return nil, fmt.Errorf("could not find signing key secret '%s': %w", secretName, err)
+	}
+
+	// get data from secret
+	data, ok := secret.Data["value"]
+	if !ok {
+		return nil, fmt.Errorf("signing key secret '%s' does not contain a 'value' key", secretName)
+	}
+
+	// read entity from secret value
+	entities, err := openpgp.ReadArmoredKeyRing(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("could not read signing key from secret '%s': %w", secretName, err)
+	}
+	if len(entities) > 1 {
+		return nil, fmt.Errorf("multiple entities read from secret '%s', could not determine which signing key to use", secretName)
+	}
+	return entities[0], nil
 }
 
 // push pushes the branch given to the origin using the git library
