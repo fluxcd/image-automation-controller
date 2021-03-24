@@ -505,7 +505,7 @@ Images:
 			// create the secret containing signing key
 			sec := &corev1.Secret{
 				Data: map[string][]byte{
-					"value": b.Bytes(),
+					"git.asc": b.Bytes(),
 				},
 			}
 			sec.Name = "signing-key-secret-" + randStringRunes(5)
