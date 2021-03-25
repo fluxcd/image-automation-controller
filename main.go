@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
 	"os"
 
 	flag "github.com/spf13/pflag"
@@ -29,6 +30,7 @@ import (
 	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
 	"github.com/fluxcd/pkg/runtime/client"
 	"github.com/fluxcd/pkg/runtime/events"
+	"github.com/fluxcd/pkg/runtime/leaderelection"
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/pprof"
@@ -58,27 +60,23 @@ func init() {
 
 func main() {
 	var (
-		metricsAddr          string
-		eventsAddr           string
-		healthAddr           string
-		enableLeaderElection bool
-		clientOptions        client.Options
-		logOptions           logger.Options
-		watchAllNamespaces   bool
+		metricsAddr           string
+		eventsAddr            string
+		healthAddr            string
+		clientOptions         client.Options
+		logOptions            logger.Options
+		leaderElectionOptions leaderelection.Options
+		watchAllNamespaces    bool
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&eventsAddr, "events-addr", "", "The address of the events receiver.")
 	flag.StringVar(&healthAddr, "health-addr", ":9440", "The address the health endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&watchAllNamespaces, "watch-all-namespaces", true,
 		"Watch for custom resources in all namespaces, if set to false it will only watch the runtime namespace.")
-	flag.Bool("log-json", false, "Set logging to JSON format.")
-	flag.CommandLine.MarkDeprecated("log-json", "Please use --log-encoding=json instead.")
 	clientOptions.BindFlags(flag.CommandLine)
 	logOptions.BindFlags(flag.CommandLine)
+	leaderElectionOptions.BindFlags(flag.CommandLine)
 	flag.Parse()
 
 	log := logger.NewLogger(logOptions)
@@ -104,13 +102,17 @@ func main() {
 
 	restConfig := client.GetConfigOrDie(clientOptions)
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		HealthProbeBindAddress: healthAddr,
-		Port:                   9443,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "79628f79.fluxcd.io",
-		Namespace:              watchNamespace,
+		Scheme:                        scheme,
+		MetricsBindAddress:            metricsAddr,
+		HealthProbeBindAddress:        healthAddr,
+		Port:                          9443,
+		LeaderElection:                leaderElectionOptions.Enable,
+		LeaderElectionReleaseOnCancel: leaderElectionOptions.ReleaseOnCancel,
+		LeaseDuration:                 &leaderElectionOptions.LeaseDuration,
+		RenewDeadline:                 &leaderElectionOptions.RenewDeadline,
+		RetryPeriod:                   &leaderElectionOptions.RetryPeriod,
+		LeaderElectionID:              fmt.Sprintf("%s-leader-election", controllerName),
+		Namespace:                     watchNamespace,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
