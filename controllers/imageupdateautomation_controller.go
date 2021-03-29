@@ -271,8 +271,8 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	// more than one way to succeed, there's some if..else below, and
 	// early returns only on failure.
 	author := &object.Signature{
-		Name:  gitSpec.Commit.AuthorName,
-		Email: gitSpec.Commit.AuthorEmail,
+		Name:  gitSpec.Commit.Author.Name,
+		Email: gitSpec.Commit.Author.Email,
 		When:  time.Now(),
 	}
 	if rev, err := commitChangedManifests(repo, tmp, signingEntity, author, messageBuf.String()); err != nil {

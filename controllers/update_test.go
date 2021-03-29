@@ -114,7 +114,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		Expect(initGitRepo(gitServer, "testdata/appconfig", branch, repositoryPath)).To(Succeed())
 	})
 
-	Context("commit message template", func() {
+	Context("commit spec", func() {
 
 		var (
 			localRepo     *git.Repository
@@ -122,6 +122,8 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		)
 
 		const (
+			authorName     = "Flux B Ot"
+			authorEmail    = "fluxbot@example.com"
 			commitTemplate = `Commit summary
 
 Automation: {{ .AutomationObject }}
@@ -245,6 +247,10 @@ Images:
 						},
 						Commit: imagev1.CommitSpec{
 							MessageTemplate: commitTemplate,
+							Author: imagev1.CommitUser{
+								Name:  authorName,
+								Email: authorEmail,
+							},
 						},
 					},
 					Update: &imagev1.UpdateStrategy{
@@ -266,6 +272,15 @@ Images:
 			commit, err := localRepo.CommitObject(head.Hash())
 			Expect(err).ToNot(HaveOccurred())
 			Expect(commit.Message).To(Equal(commitMessage))
+		})
+
+		It("has the commit author as given", func() {
+			head, _ := localRepo.Head()
+			commit, err := localRepo.CommitObject(head.Hash())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(commit.Author).NotTo(BeNil())
+			Expect(commit.Author.Name).To(Equal(authorName))
+			Expect(commit.Author.Email).To(Equal(authorEmail))
 		})
 	})
 
@@ -373,6 +388,9 @@ Images:
 							Branch: branch,
 						},
 						Commit: imagev1.CommitSpec{
+							Author: imagev1.CommitUser{
+								Email: "fluxbot@example.com",
+							},
 							MessageTemplate: commitTemplate,
 						},
 					},
@@ -714,6 +732,9 @@ Images:
 									Branch: branch,
 								},
 								Commit: imagev1.CommitSpec{
+									Author: imagev1.CommitUser{
+										Email: "fluxbot@example.com",
+									},
 									MessageTemplate: commitMessage,
 								},
 								Push: &imagev1.PushSpec{
@@ -803,6 +824,9 @@ Images:
 									Branch: branch,
 								},
 								Commit: imagev1.CommitSpec{
+									Author: imagev1.CommitUser{
+										Email: "fluxbot@example.com",
+									},
 									MessageTemplate: commitMessage,
 								},
 							},
@@ -919,6 +943,9 @@ Images:
 						},
 						// leave Update field out
 						Commit: imagev1.CommitSpec{
+							Author: imagev1.CommitUser{
+								Email: "fluxbot@example.com",
+							},
 							MessageTemplate: "nothing",
 						},
 					},

@@ -292,14 +292,21 @@ spec:
                   commit:
                     description: Commit specifies how to commit to the git repository.
                     properties:
-                      authorEmail:
-                        description: AuthorEmail gives the email to provide when making
-                          a commit
-                        type: string
-                      authorName:
-                        description: AuthorName gives the name to provide when making
-                          a commit
-                        type: string
+                      author:
+                        description: Author gives the email and optionally the name
+                          to use as the author of commits.
+                        properties:
+                          email:
+                            description: Email gives the email to provide when making
+                              a commit.
+                            type: string
+                          name:
+                            description: Name gives the name to provide when making
+                              a commit.
+                            type: string
+                        required:
+                        - email
+                        type: object
                       messageTemplate:
                         description: MessageTemplate provides a template for the commit
                           message, into which will be interpolated the details of
@@ -323,8 +330,7 @@ spec:
                             type: object
                         type: object
                     required:
-                    - authorEmail
-                    - authorName
+                    - author
                     type: object
                   push:
                     description: Push specifies how and where to push commits made

@@ -47,12 +47,10 @@ type GitCheckoutSpec struct {
 
 // CommitSpec specifies how to commit changes to the git repository
 type CommitSpec struct {
-	// AuthorName gives the name to provide when making a commit
+	// Author gives the email and optionally the name to use as the
+	// author of commits.
 	// +required
-	AuthorName string `json:"authorName"`
-	// AuthorEmail gives the email to provide when making a commit
-	// +required
-	AuthorEmail string `json:"authorEmail"`
+	Author CommitUser `json:"author"`
 	// SigningKey provides the option to sign commits with a GPG key
 	// +optional
 	SigningKey *SigningKey `json:"signingKey,omitempty"`
@@ -60,6 +58,15 @@ type CommitSpec struct {
 	// into which will be interpolated the details of the change made.
 	// +optional
 	MessageTemplate string `json:"messageTemplate,omitempty"`
+}
+
+type CommitUser struct {
+	// Name gives the name to provide when making a commit.
+	// +optional
+	Name string `json:"name,omitempty"`
+	// Email gives the email to provide when making a commit.
+	// +required
+	Email string `json:"email"`
 }
 
 // SigningKey references a Kubernetes secret that contains a GPG keypair
