@@ -38,6 +38,7 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
 	imagev1alpha1_auto "github.com/fluxcd/image-automation-controller/api/v1alpha1"
+	//	imagev1alpha2 "github.com/fluxcd/image-automation-controller/api/v1alpha2"
 	"github.com/fluxcd/image-automation-controller/controllers"
 	// +kubebuilder:scaffold:imports
 )
@@ -55,6 +56,7 @@ func init() {
 	_ = imagev1alpha1_auto.AddToScheme(scheme)
 	_ = imagev1alpha1_reflect.AddToScheme(scheme)
 	_ = sourcev1.AddToScheme(scheme)
+	//	utilruntime.Must(imagev1alpha2.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

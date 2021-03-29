@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1alpha2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,48 +26,15 @@ const ImageUpdateAutomationKind = "ImageUpdateAutomation"
 
 // ImageUpdateAutomationSpec defines the desired state of ImageUpdateAutomation
 type ImageUpdateAutomationSpec struct {
-	// Checkout gives the parameters for cloning the git repository,
-	// ready to make changes.
+	// SourceRef refers to the resource giving access details
+	// to a git repository.
 	// +required
-	Checkout GitCheckoutSpec `json:"checkout"`
-
-	// Interval gives an lower bound for how often the automation
-	// run should be attempted.
-	// +required
-	Interval metav1.Duration `json:"interval"`
-
-	// Update gives the specification for how to update the files in
-	// the repository. This can be left empty, to use the default
-	// value.
-	// +kubebuilder:default={"strategy":"Setters"}
-	Update *UpdateStrategy `json:"update,omitempty"`
-
-	// Commit specifies how to commit to the git repository.
-	// +required
-	Commit CommitSpec `json:"commit"`
-
-	// Push specifies how and where to push commits made by the
-	// automation. If missing, commits are pushed (back) to
-	// `.spec.checkout.branch`.
+	SourceRef SourceReference `json:"sourceRef"`
+	// GitSpec contains all the git-specific definitions. This is
+	// technically optional, but in practice mandatory until there are
+	// other kinds of source allowed.
 	// +optional
-	Push *PushSpec `json:"push,omitempty"`
-
-	// Suspend tells the controller to not run this automation, until
-	// it is unset (or set to false). Defaults to false.
-	// +optional
-	Suspend bool `json:"suspend,omitempty"`
-}
-
-type GitCheckoutSpec struct {
-	// GitRepositoryRef refers to the resource giving access details
-	// to a git repository to update files in.
-	// +required
-	GitRepositoryRef meta.LocalObjectReference `json:"gitRepositoryRef"`
-	// Branch gives the branch to clone from the git repository. If
-	// `.spec.push` is not supplied, commits will also be pushed to
-	// this branch.
-	// +required
-	Branch string `json:"branch"`
+	GitSpec *GitSpec `json:"git,omitempty"`
 }
 
 // UpdateStrategyName is the type for names that go in
@@ -98,32 +65,6 @@ type UpdateStrategy struct {
 	Path string `json:"path,omitempty"`
 }
 
-// CommitSpec specifies how to commit changes to the git repository
-type CommitSpec struct {
-	// AuthorName gives the name to provide when making a commit
-	// +required
-	AuthorName string `json:"authorName"`
-	// AuthorEmail gives the email to provide when making a commit
-	// +required
-	AuthorEmail string `json:"authorEmail"`
-	// SigningKey provides the option to sign commits with a GPG key
-	// +optional
-	SigningKey *SigningKey `json:"signingKey,omitempty"`
-	// MessageTemplate provides a template for the commit message,
-	// into which will be interpolated the details of the change made.
-	// +optional
-	MessageTemplate string `json:"messageTemplate,omitempty"`
-}
-
-// PushSpec specifies how and where to push commits.
-type PushSpec struct {
-	// Branch specifies that commits should be pushed to the branch
-	// named. The branch is created using `.spec.checkout.branch` as the
-	// starting point, if it doesn't already exist.
-	// +required
-	Branch string `json:"branch"`
-}
-
 // ImageUpdateAutomationStatus defines the observed state of ImageUpdateAutomation
 type ImageUpdateAutomationStatus struct {
 	// LastAutomationRunTime records the last time the controller ran
@@ -145,16 +86,6 @@ type ImageUpdateAutomationStatus struct {
 	meta.ReconcileRequestStatus `json:",inline"`
 }
 
-// SigningKey references a Kubernetes secret that contains a GPG keypair
-type SigningKey struct {
-	// SecretRef holds the name to a secret that contains a 'git.asc' key
-	// corresponding to the ASCII Armored file containing the GPG signing
-	// keypair as the value. It must be in the same namespace as the
-	// ImageUpdateAutomation.
-	// +required
-	SecretRef meta.LocalObjectReference `json:"secretRef,omitempty"`
-}
-
 const (
 	// GitNotAvailableReason is used for ConditionReady when the
 	// automation run cannot proceed because the git repository is
@@ -172,10 +103,8 @@ func SetImageUpdateAutomationReadiness(auto *ImageUpdateAutomation, status metav
 	meta.SetResourceCondition(auto, meta.ReadyCondition, status, reason, message)
 }
 
-// +kubebuilder:storageversion
-// +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Last run",type=string,JSONPath=`.status.lastAutomationRunTime`
+//+kubebuilder:object:root=true
+//+kubebuilder:subresource:status
 
 // ImageUpdateAutomation is the Schema for the imageupdateautomations API
 type ImageUpdateAutomation struct {
@@ -190,7 +119,7 @@ func (auto *ImageUpdateAutomation) GetStatusConditions() *[]metav1.Condition {
 	return &auto.Status.Conditions
 }
 
-// +kubebuilder:object:root=true
+//+kubebuilder:object:root=true
 
 // ImageUpdateAutomationList contains a list of ImageUpdateAutomation
 type ImageUpdateAutomationList struct {
