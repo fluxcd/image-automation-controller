@@ -72,6 +72,8 @@ const defaultMessageTemplate = `Update from image update automation`
 const repoRefKey = ".spec.gitRepository"
 const imagePolicyKey = ".spec.update.imagePolicy"
 
+const signingSecretKey = "git.asc"
+
 // TemplateData is the type of the value given to the commit message
 // template.
 type TemplateData struct {
@@ -502,7 +504,7 @@ func (r *ImageUpdateAutomationReconciler) getSigningEntity(ctx context.Context, 
 	}
 
 	// get data from secret
-	data, ok := secret.Data["git.asc"]
+	data, ok := secret.Data[signingSecretKey]
 	if !ok {
 		return nil, fmt.Errorf("signing key secret '%s' does not contain a 'git.asc' key", secretName)
 	}

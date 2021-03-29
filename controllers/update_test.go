@@ -463,6 +463,27 @@ Images:
 			// made by automation.
 			waitForNewHead(localRepo, branch)
 
+			// configure OpenPGP armor encoder
+			b := bytes.NewBuffer(nil)
+			w, err := armor.Encode(b, openpgp.PrivateKeyType, nil)
+			Expect(err).ToNot(HaveOccurred())
+
+			// serialize private key
+			err = pgpEntity.SerializePrivate(w, nil)
+			Expect(err).ToNot(HaveOccurred())
+			err = w.Close()
+			Expect(err).ToNot(HaveOccurred())
+
+			// create the secret containing signing key
+			sec := &corev1.Secret{
+				Data: map[string][]byte{
+					"git.asc": b.Bytes(),
+				},
+			}
+			sec.Name = "signing-key-secret-" + randStringRunes(5)
+			sec.Namespace = namespace.Name
+			Expect(k8sClient.Create(context.Background(), sec)).To(Succeed())
+
 			// now create the automation object, and let it (one
 			// hopes!) make a commit itself.
 			updateKey := types.NamespacedName{
@@ -486,32 +507,12 @@ Images:
 						Strategy: imagev1.UpdateStrategySetters,
 					},
 					Commit: imagev1.CommitSpec{
-						SigningKey: &imagev1.SigningKey{},
+						SigningKey: &imagev1.SigningKey{
+							SecretRef: meta.LocalObjectReference{Name: sec.Name},
+						},
 					},
 				},
 			}
-
-			// configure OpenPGP armor encoder
-			b := bytes.NewBuffer(nil)
-			w, err := armor.Encode(b, openpgp.PrivateKeyType, nil)
-			Expect(err).ToNot(HaveOccurred())
-
-			// serialize private key
-			err = pgpEntity.SerializePrivate(w, nil)
-			Expect(err).ToNot(HaveOccurred())
-			err = w.Close()
-			Expect(err).ToNot(HaveOccurred())
-
-			// create the secret containing signing key
-			sec := &corev1.Secret{
-				Data: map[string][]byte{
-					"git.asc": b.Bytes(),
-				},
-			}
-			sec.Name = "signing-key-secret-" + randStringRunes(5)
-			sec.Namespace = namespace.Name
-			Expect(k8sClient.Create(context.Background(), sec)).To(Succeed())
-			updateBySetters.Spec.Commit.SigningKey.SecretRef = &meta.LocalObjectReference{Name: sec.Name}
 
 			Expect(k8sClient.Create(context.Background(), updateBySetters)).To(Succeed())
 			// wait for a new commit to be made by the controller

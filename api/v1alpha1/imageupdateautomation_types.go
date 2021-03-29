@@ -152,7 +152,7 @@ type SigningKey struct {
 	// keypair as the value. It must be in the same namespace as the
 	// ImageUpdateAutomation.
 	// +required
-	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
+	SecretRef meta.LocalObjectReference `json:"secretRef,omitempty"`
 }
 
 const (
