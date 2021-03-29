@@ -25,6 +25,7 @@ type SourceReference struct {
 
 	// Kind of the referent
 	// +kubebuilder:validation:Enum=GitRepository
+	// +kubebuilder:default=GitRepository
 	// +required
 	Kind string `json:"kind"`
 

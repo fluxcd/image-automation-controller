@@ -172,7 +172,6 @@ func SetImageUpdateAutomationReadiness(auto *ImageUpdateAutomation, status metav
 	meta.SetResourceCondition(auto, meta.ReadyCondition, status, reason, message)
 }
 
-// +kubebuilder:storageversion
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Last run",type=string,JSONPath=`.status.lastAutomationRunTime`

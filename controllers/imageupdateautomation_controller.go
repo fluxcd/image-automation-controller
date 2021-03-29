@@ -62,7 +62,7 @@ import (
 	git "github.com/fluxcd/source-controller/pkg/git"
 	gitstrat "github.com/fluxcd/source-controller/pkg/git/strategy"
 
-	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha1"
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha2"
 	"github.com/fluxcd/image-automation-controller/pkg/update"
 )
 
@@ -150,9 +150,19 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	// get the git repository object so it can be checked out
+
+	// only GitRepository objects are supported for now
+	if kind := auto.Spec.SourceRef.Kind; kind != sourcev1.GitRepositoryKind {
+		return failWithError(fmt.Errorf("source kind %q not supported", kind))
+	}
+	gitSpec := auto.Spec.GitSpec
+	if gitSpec == nil {
+		return failWithError(fmt.Errorf("source kind %s neccessitates field .spec.git", sourcev1.GitRepositoryKind))
+	}
+
 	var origin sourcev1.GitRepository
 	originName := types.NamespacedName{
-		Name:      auto.Spec.Checkout.GitRepositoryRef.Name,
+		Name:      auto.Spec.SourceRef.Name,
 		Namespace: auto.GetNamespace(),
 	}
 	if err := r.Get(ctx, originName, &origin); err != nil {
@@ -183,14 +193,15 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	var repo *gogit.Repository
-	if repo, err = cloneInto(ctx, access, auto.Spec.Checkout.Branch, tmp, origin.Spec.GitImplementation); err != nil {
+	if repo, err = cloneInto(ctx, access, gitSpec.Checkout.Branch, tmp, origin.Spec.GitImplementation); err != nil {
 		return failWithError(err)
 	}
 
 	// When there's a push spec, the pushed-to branch is where commits
 	// shall be made
-	if auto.Spec.Push != nil {
-		pushBranch := auto.Spec.Push.Branch
+
+	if gitSpec.Push != nil {
+		pushBranch := gitSpec.Push.Branch
 		if err := fetch(ctx, tmp, repo, pushBranch, access, origin.Spec.GitImplementation); err != nil && err != errRemoteBranchMissing {
 			return failWithError(err)
 		}
@@ -199,7 +210,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		}
 	}
 
-	log.V(debug).Info("cloned git repository", "gitrepository", originName, "branch", auto.Spec.Checkout.Branch, "working", tmp)
+	log.V(debug).Info("cloned git repository", "gitrepository", originName, "branch", gitSpec.Checkout.Branch, "working", tmp)
 
 	manifestsPath := tmp
 	if auto.Spec.Update.Path != "" {
@@ -238,12 +249,12 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	var statusMessage string
 
 	var signingEntity *openpgp.Entity
-	if auto.Spec.Commit.SigningKey != nil {
+	if gitSpec.Commit.SigningKey != nil {
 		signingEntity, err = r.getSigningEntity(ctx, auto)
 	}
 
 	// construct the commit message from template and values
-	msgTmpl := auto.Spec.Commit.MessageTemplate
+	msgTmpl := gitSpec.Commit.MessageTemplate
 	if msgTmpl == "" {
 		msgTmpl = defaultMessageTemplate
 	}
@@ -260,8 +271,8 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	// more than one way to succeed, there's some if..else below, and
 	// early returns only on failure.
 	author := &object.Signature{
-		Name:  auto.Spec.Commit.AuthorName,
-		Email: auto.Spec.Commit.AuthorEmail,
+		Name:  gitSpec.Commit.AuthorName,
+		Email: gitSpec.Commit.AuthorEmail,
 		When:  time.Now(),
 	}
 	if rev, err := commitChangedManifests(repo, tmp, signingEntity, author, messageBuf.String()); err != nil {
@@ -276,9 +287,9 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			return failWithError(err)
 		}
 	} else {
-		pushBranch := auto.Spec.Checkout.Branch
-		if auto.Spec.Push != nil {
-			pushBranch = auto.Spec.Push.Branch
+		pushBranch := gitSpec.Checkout.Branch
+		if gitSpec.Push != nil {
+			pushBranch = gitSpec.Push.Branch
 		}
 		if err := push(ctx, tmp, repo, pushBranch, access, origin.Spec.GitImplementation); err != nil {
 			return failWithError(err)
@@ -312,7 +323,7 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) err
 	// Index the git repository object that each I-U-A refers to
 	if err := mgr.GetFieldIndexer().IndexField(ctx, &imagev1.ImageUpdateAutomation{}, repoRefKey, func(obj client.Object) []string {
 		updater := obj.(*imagev1.ImageUpdateAutomation)
-		ref := updater.Spec.Checkout.GitRepositoryRef
+		ref := updater.Spec.SourceRef
 		return []string{ref.Name}
 	}); err != nil {
 		return err
@@ -500,8 +511,8 @@ func commitChangedManifests(repo *gogit.Repository, absRepoPath string, ent *ope
 	working, err := repo.Worktree()
 	if err != nil {
 		return "", err
-	}
 
+	}
 	status, err := working.Status()
 	if err != nil {
 		return "", err
@@ -551,7 +562,7 @@ func (r *ImageUpdateAutomationReconciler) getSigningEntity(ctx context.Context, 
 	// get kubernetes secret
 	secretName := types.NamespacedName{
 		Namespace: auto.GetNamespace(),
-		Name:      auto.Spec.Commit.SigningKey.SecretRef.Name,
+		Name:      auto.Spec.GitSpec.Commit.SigningKey.SecretRef.Name,
 	}
 	var secret corev1.Secret
 	if err := r.Get(ctx, secretName, &secret); err != nil {

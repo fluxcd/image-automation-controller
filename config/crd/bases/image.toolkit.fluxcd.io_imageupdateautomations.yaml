@@ -244,10 +244,14 @@ spec:
             type: object
         type: object
     served: true
-    storage: true
+    storage: false
     subresources:
       status: {}
-  - name: v1alpha2
+  - additionalPrinterColumns:
+    - jsonPath: .status.lastAutomationRunTime
+      name: Last run
+      type: string
+    name: v1alpha2
     schema:
       openAPIV3Schema:
         description: ImageUpdateAutomation is the Schema for the imageupdateautomations
@@ -301,6 +305,23 @@ spec:
                           message, into which will be interpolated the details of
                           the change made.
                         type: string
+                      signingKey:
+                        description: SigningKey provides the option to sign commits
+                          with a GPG key
+                        properties:
+                          secretRef:
+                            description: SecretRef holds the name to a secret that
+                              contains a 'git.asc' key corresponding to the ASCII
+                              Armored file containing the GPG signing keypair as the
+                              value. It must be in the same namespace as the ImageUpdateAutomation.
+                            properties:
+                              name:
+                                description: Name of the referent
+                                type: string
+                            required:
+                            - name
+                            type: object
+                        type: object
                     required:
                     - authorEmail
                     - authorName
@@ -322,6 +343,10 @@ spec:
                 - checkout
                 - commit
                 type: object
+              interval:
+                description: Interval gives an lower bound for how often the automation
+                  run should be attempted.
+                type: string
               sourceRef:
                 description: SourceRef refers to the resource giving access details
                   to a git repository.
@@ -330,6 +355,7 @@ spec:
                     description: API version of the referent
                     type: string
                   kind:
+                    default: GitRepository
                     description: Kind of the referent
                     enum:
                     - GitRepository
@@ -341,7 +367,33 @@ spec:
                 - kind
                 - name
                 type: object
+              suspend:
+                description: Suspend tells the controller to not run this automation,
+                  until it is unset (or set to false). Defaults to false.
+                type: boolean
+              update:
+                default:
+                  strategy: Setters
+                description: Update gives the specification for how to update the
+                  files in the repository. This can be left empty, to use the default
+                  value.
+                properties:
+                  path:
+                    description: Path to the directory containing the manifests to
+                      be updated. Defaults to 'None', which translates to the root
+                      path of the GitRepositoryRef.
+                    type: string
+                  strategy:
+                    default: Setters
+                    description: Strategy names the strategy to be used.
+                    enum:
+                    - Setters
+                    type: string
+                required:
+                - strategy
+                type: object
             required:
+            - interval
             - sourceRef
             type: object
           status:
@@ -441,7 +493,7 @@ spec:
             type: object
         type: object
     served: true
-    storage: false
+    storage: true
     subresources:
       status: {}
 status:

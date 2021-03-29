@@ -22,12 +22,13 @@ import (
 
 	flag "github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
-	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
+	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
 	"github.com/fluxcd/pkg/runtime/client"
 	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/leaderelection"
@@ -37,8 +38,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/probes"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
-	imagev1alpha1_auto "github.com/fluxcd/image-automation-controller/api/v1alpha1"
-	//	imagev1alpha2 "github.com/fluxcd/image-automation-controller/api/v1alpha2"
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha2"
 	"github.com/fluxcd/image-automation-controller/controllers"
 	// +kubebuilder:scaffold:imports
 )
@@ -51,12 +51,10 @@ var (
 )
 
 func init() {
-	_ = clientgoscheme.AddToScheme(scheme)
-
-	_ = imagev1alpha1_auto.AddToScheme(scheme)
-	_ = imagev1alpha1_reflect.AddToScheme(scheme)
-	_ = sourcev1.AddToScheme(scheme)
-	//	utilruntime.Must(imagev1alpha2.AddToScheme(scheme))
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(imagev1_reflect.AddToScheme(scheme))
+	utilruntime.Must(sourcev1.AddToScheme(scheme))
+	utilruntime.Must(imagev1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

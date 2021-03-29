@@ -35,6 +35,22 @@ type ImageUpdateAutomationSpec struct {
 	// other kinds of source allowed.
 	// +optional
 	GitSpec *GitSpec `json:"git,omitempty"`
+
+	// Interval gives an lower bound for how often the automation
+	// run should be attempted.
+	// +required
+	Interval metav1.Duration `json:"interval"`
+
+	// Update gives the specification for how to update the files in
+	// the repository. This can be left empty, to use the default
+	// value.
+	// +kubebuilder:default={"strategy":"Setters"}
+	Update *UpdateStrategy `json:"update,omitempty"`
+
+	// Suspend tells the controller to not run this automation, until
+	// it is unset (or set to false). Defaults to false.
+	// +optional
+	Suspend bool `json:"suspend,omitempty"`
 }
 
 // UpdateStrategyName is the type for names that go in
@@ -103,8 +119,10 @@ func SetImageUpdateAutomationReadiness(auto *ImageUpdateAutomation, status metav
 	meta.SetResourceCondition(auto, meta.ReadyCondition, status, reason, message)
 }
 
+//+kubebuilder:storageversion
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Last run",type=string,JSONPath=`.status.lastAutomationRunTime`
 
 // ImageUpdateAutomation is the Schema for the imageupdateautomations API
 type ImageUpdateAutomation struct {

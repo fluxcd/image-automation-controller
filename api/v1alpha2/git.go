@@ -16,6 +16,10 @@ limitations under the License.
 
 package v1alpha2
 
+import (
+	"github.com/fluxcd/pkg/apis/meta"
+)
+
 type GitSpec struct {
 	// Checkout gives the parameters for cloning the git repository,
 	// ready to make changes.
