@@ -80,6 +80,23 @@ spec:
                       message, into which will be interpolated the details of the
                       change made.
                     type: string
+                  signingKey:
+                    description: SigningKey provides the option to sign commits with
+                      a GPG key
+                    properties:
+                      secretRef:
+                        description: SecretRef holds the name to a secret that contains
+                          a 'git.asc' key corresponding to the ASCII Armored file
+                          containing the GPG signing keypair as the value. It must
+                          be in the same namespace as the ImageUpdateAutomation.
+                        properties:
+                          name:
+                            description: Name of the referent
+                            type: string
+                        required:
+                        - name
+                        type: object
+                    type: object
                 required:
                 - authorEmail
                 - authorName

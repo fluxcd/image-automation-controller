@@ -53,6 +53,20 @@ string
 </tr>
 <tr>
 <td>
+<code>signingKey</code><br>
+<em>
+<a href="#image.toolkit.fluxcd.io/v1alpha1.SigningKey">
+SigningKey
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SigningKey provides the option to sign commits with a GPG key</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>messageTemplate</code><br>
 <em>
 string
@@ -496,6 +510,43 @@ string
 <p>Branch specifies that commits should be pushed to the branch
 named. The branch is created using <code>.spec.checkout.branch</code> as the
 starting point, if it doesn&rsquo;t already exist.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="image.toolkit.fluxcd.io/v1alpha1.SigningKey">SigningKey
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#image.toolkit.fluxcd.io/v1alpha1.CommitSpec">CommitSpec</a>)
+</p>
+<p>SigningKey references a Kubernetes secret that contains a GPG keypair</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>secretRef</code><br>
+<em>
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#LocalObjectReference">
+github.com/fluxcd/pkg/apis/meta.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<p>SecretRef holds the name to a secret that contains a &lsquo;git.asc&rsquo; key
+corresponding to the ASCII Armored file containing the GPG signing
+keypair as the value. It must be in the same namespace as the
+ImageUpdateAutomation.</p>
 </td>
 </tr>
 </tbody>
