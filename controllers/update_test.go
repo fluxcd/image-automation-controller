@@ -392,11 +392,10 @@ Images:
 
 	Context("commit signing", func() {
 
-		var localRepo *git.Repository
-
-		// generate keypair for signing
-		pgpEntity, err := openpgp.NewEntity("", "", "", nil)
-		Expect(err).ToNot(HaveOccurred())
+		var (
+			localRepo *git.Repository
+			pgpEntity *openpgp.Entity
+		)
 
 		BeforeEach(func() {
 			Expect(initGitRepo(gitServer, "testdata/appconfig", branch, repositoryPath)).To(Succeed())
@@ -462,6 +461,10 @@ Images:
 			// considered a new commit when checking for a commit
 			// made by automation.
 			waitForNewHead(localRepo, branch)
+
+			// generate keypair for signing
+			pgpEntity, err = openpgp.NewEntity("", "", "", nil)
+			Expect(err).ToNot(HaveOccurred())
 
 			// configure OpenPGP armor encoder
 			b := bytes.NewBuffer(nil)
