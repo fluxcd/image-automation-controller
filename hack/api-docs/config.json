@@ -22,13 +22,18 @@
     {
       "typeMatchPrefix": "^github.com/fluxcd/pkg/apis/meta",
       "docsURLTemplate": "https://godoc.org/github.com/fluxcd/pkg/apis/meta#{{ .TypeIdentifier }}"
+    },
+    {
+      "typeMatchPrefix": "^github.com/fluxcd/source-controller/api/v1beta1",
+      "docsURLTemplate": "https://godoc.org/github.com/fluxcd/source-controller/api/v1beta1#{{ .TypeIdentifier }}"
     }
   ],
   "typeDisplayNamePrefixOverrides": {
     "k8s.io/api/": "Kubernetes ",
     "k8s.io/apimachinery/pkg/apis/": "Kubernetes ",
     "github.com/fluxcd/pkg/runtime/": "Runtime ",
-    "github.com/fluxcd/pkg/apis/meta/": "Meta "
+    "github.com/fluxcd/pkg/apis/meta/": "Meta ",
+    "github.com/fluxcd/source-controller/api": "Source "
   },
   "markdownDisabled": false
 }
