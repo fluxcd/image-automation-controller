@@ -242,8 +242,10 @@ Images:
 						Name: gitRepoKey.Name,
 					},
 					GitSpec: &imagev1.GitSpec{
-						Checkout: imagev1.GitCheckoutSpec{
-							Branch: branch,
+						Checkout: &imagev1.GitCheckoutSpec{
+							Reference: sourcev1.GitRepositoryRef{
+								Branch: branch,
+							},
 						},
 						Commit: imagev1.CommitSpec{
 							MessageTemplate: commitTemplate,
@@ -384,8 +386,10 @@ Images:
 						Name: gitRepoKey.Name,
 					},
 					GitSpec: &imagev1.GitSpec{
-						Checkout: imagev1.GitCheckoutSpec{
-							Branch: branch,
+						Checkout: &imagev1.GitCheckoutSpec{
+							Reference: sourcev1.GitRepositoryRef{
+								Branch: branch,
+							},
 						},
 						Commit: imagev1.CommitSpec{
 							Author: imagev1.CommitUser{
@@ -529,8 +533,10 @@ Images:
 					},
 					Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
 					GitSpec: &imagev1.GitSpec{
-						Checkout: imagev1.GitCheckoutSpec{
-							Branch: branch,
+						Checkout: &imagev1.GitCheckoutSpec{
+							Reference: sourcev1.GitRepositoryRef{
+								Branch: branch,
+							},
 						},
 						Commit: imagev1.CommitSpec{
 							SigningKey: &imagev1.SigningKey{
@@ -728,8 +734,10 @@ Images:
 							},
 							Interval: metav1.Duration{Duration: 2 * time.Hour},
 							GitSpec: &imagev1.GitSpec{
-								Checkout: imagev1.GitCheckoutSpec{
-									Branch: branch,
+								Checkout: &imagev1.GitCheckoutSpec{
+									Reference: sourcev1.GitRepositoryRef{
+										Branch: branch,
+									},
 								},
 								Commit: imagev1.CommitSpec{
 									Author: imagev1.CommitUser{
@@ -820,8 +828,10 @@ Images:
 								Strategy: imagev1.UpdateStrategySetters,
 							},
 							GitSpec: &imagev1.GitSpec{
-								Checkout: imagev1.GitCheckoutSpec{
-									Branch: branch,
+								Checkout: &imagev1.GitCheckoutSpec{
+									Reference: sourcev1.GitRepositoryRef{
+										Branch: branch,
+									},
 								},
 								Commit: imagev1.CommitSpec{
 									Author: imagev1.CommitUser{
@@ -938,8 +948,10 @@ Images:
 					},
 					Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
 					GitSpec: &imagev1.GitSpec{
-						Checkout: imagev1.GitCheckoutSpec{
-							Branch: branch,
+						Checkout: &imagev1.GitCheckoutSpec{
+							Reference: sourcev1.GitRepositoryRef{
+								Branch: branch,
+							},
 						},
 						// leave Update field out
 						Commit: imagev1.CommitSpec{

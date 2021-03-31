@@ -18,13 +18,15 @@ package v1alpha2
 
 import (
 	"github.com/fluxcd/pkg/apis/meta"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 )
 
 type GitSpec struct {
 	// Checkout gives the parameters for cloning the git repository,
-	// ready to make changes.
-	// +required
-	Checkout GitCheckoutSpec `json:"checkout"`
+	// ready to make changes. If not present, the `spec.ref` field from the
+	// referenced `GitRepository` or its default will be used.
+	// +optional
+	Checkout *GitCheckoutSpec `json:"checkout,omitempty"`
 
 	// Commit specifies how to commit to the git repository.
 	// +required
@@ -32,17 +34,16 @@ type GitSpec struct {
 
 	// Push specifies how and where to push commits made by the
 	// automation. If missing, commits are pushed (back) to
-	// `.spec.checkout.branch`.
+	// `.spec.checkout.branch` or its default.
 	// +optional
 	Push *PushSpec `json:"push,omitempty"`
 }
 
 type GitCheckoutSpec struct {
-	// Ref gives the branch to clone from the git repository. If
-	// `.spec.push` is not supplied, commits will also be pushed to
-	// this branch.
+	// Reference gives a branch, tag or commit to clone from the Git
+	// repository.
 	// +required
-	Branch string `json:"branch"`
+	Reference sourcev1.GitRepositoryRef `json:"ref"`
 }
 
 // CommitSpec specifies how to commit changes to the git repository

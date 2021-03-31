@@ -279,15 +279,33 @@ spec:
                 properties:
                   checkout:
                     description: Checkout gives the parameters for cloning the git
-                      repository, ready to make changes.
+                      repository, ready to make changes. If not present, the `spec.ref`
+                      field from the referenced `GitRepository` or its default will
+                      be used.
                     properties:
-                      branch:
-                        description: Ref gives the branch to clone from the git repository.
-                          If `.spec.push` is not supplied, commits will also be pushed
-                          to this branch.
-                        type: string
+                      ref:
+                        description: Reference gives a branch, tag or commit to clone
+                          from the Git repository.
+                        properties:
+                          branch:
+                            default: master
+                            description: The Git branch to checkout, defaults to master.
+                            type: string
+                          commit:
+                            description: The Git commit SHA to checkout, if specified
+                              Tag filters will be ignored.
+                            type: string
+                          semver:
+                            description: The Git tag semver expression, takes precedence
+                              over Tag.
+                            type: string
+                          tag:
+                            description: The Git tag to checkout, takes precedence
+                              over Branch.
+                            type: string
+                        type: object
                     required:
-                    - branch
+                    - ref
                     type: object
                   commit:
                     description: Commit specifies how to commit to the git repository.
@@ -335,7 +353,7 @@ spec:
                   push:
                     description: Push specifies how and where to push commits made
                       by the automation. If missing, commits are pushed (back) to
-                      `.spec.checkout.branch`.
+                      `.spec.checkout.branch` or its default.
                     properties:
                       branch:
                         description: Branch specifies that commits should be pushed
@@ -346,7 +364,6 @@ spec:
                     - branch
                     type: object
                 required:
-                - checkout
                 - commit
                 type: object
               interval:

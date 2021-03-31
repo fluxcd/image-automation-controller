@@ -179,6 +179,27 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	log.V(debug).Info("found git repository", "gitrepository", originName)
 
+	// validate the git spec and default any values needed later, before proceeding
+	var ref *sourcev1.GitRepositoryRef
+	if gitSpec.Checkout != nil {
+		ref = &gitSpec.Checkout.Reference
+	} else if r := origin.Spec.Reference; r != nil {
+		ref = r
+	} // else remain as `nil`, which is an acceptable value for cloneInto, later.
+
+	var pushBranch string
+	if gitSpec.Push != nil {
+		pushBranch = gitSpec.Push.Branch
+	} else {
+		// Here's where it gets constrained. If there's no push branch
+		// given, then the checkout ref must include a branch, and
+		// that can be used.
+		if ref.Branch == "" {
+			failWithError(fmt.Errorf("Push branch not given explicitly, and cannot be inferred from .spec.git.checkout.ref or GitRepository .spec.ref"))
+		}
+		pushBranch = ref.Branch
+	}
+
 	tmp, err := ioutil.TempDir("", fmt.Sprintf("%s-%s", originName.Namespace, originName.Name))
 	if err != nil {
 		return failWithError(err)
@@ -193,7 +214,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	var repo *gogit.Repository
-	if repo, err = cloneInto(ctx, access, gitSpec.Checkout.Branch, tmp, origin.Spec.GitImplementation); err != nil {
+	if repo, err = cloneInto(ctx, access, ref, tmp, origin.Spec.GitImplementation); err != nil {
 		return failWithError(err)
 	}
 
@@ -201,7 +222,6 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	// shall be made
 
 	if gitSpec.Push != nil {
-		pushBranch := gitSpec.Push.Branch
 		if err := fetch(ctx, tmp, repo, pushBranch, access, origin.Spec.GitImplementation); err != nil && err != errRemoteBranchMissing {
 			return failWithError(err)
 		}
@@ -210,7 +230,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		}
 	}
 
-	log.V(debug).Info("cloned git repository", "gitrepository", originName, "branch", gitSpec.Checkout.Branch, "working", tmp)
+	log.V(debug).Info("cloned git repository", "gitrepository", originName, "ref", ref, "working", tmp)
 
 	manifestsPath := tmp
 	if auto.Spec.Update.Path != "" {
@@ -287,10 +307,6 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			return failWithError(err)
 		}
 	} else {
-		pushBranch := gitSpec.Checkout.Branch
-		if gitSpec.Push != nil {
-			pushBranch = gitSpec.Push.Branch
-		}
 		if err := push(ctx, tmp, repo, pushBranch, access, origin.Spec.GitImplementation); err != nil {
 			return failWithError(err)
 		}
@@ -451,14 +467,12 @@ func (r repoAccess) remoteCallbacks() libgit2.RemoteCallbacks {
 	}
 }
 
-// cloneInto clones the upstream repository at the `branch` given,
-// using the git library indicated by `impl`. It returns a
-// `*gogit.Repository` regardless of the git library, since that is
-// used for committing changes.
-func cloneInto(ctx context.Context, access repoAccess, branch, path, impl string) (*gogit.Repository, error) {
-	checkoutStrat, err := gitstrat.CheckoutStrategyForRef(&sourcev1.GitRepositoryRef{
-		Branch: branch,
-	}, impl)
+// cloneInto clones the upstream repository at the `ref` given (which
+// can be `nil`), using the git library indicated by `impl`. It
+// returns a `*gogit.Repository` regardless of the git library, since
+// that is used for committing changes.
+func cloneInto(ctx context.Context, access repoAccess, ref *sourcev1.GitRepositoryRef, path, impl string) (*gogit.Repository, error) {
+	checkoutStrat, err := gitstrat.CheckoutStrategyForRef(ref, impl)
 	if err == nil {
 		_, _, err = checkoutStrat.Checkout(ctx, path, access.url, access.auth)
 	}
