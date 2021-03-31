@@ -13,9 +13,9 @@ require (
 	github.com/fluxcd/pkg/gittestserver v0.2.1
 	github.com/fluxcd/pkg/runtime v0.10.1
 	github.com/fluxcd/pkg/ssh v0.0.5
-	github.com/fluxcd/source-controller v0.9.1
 	// If you bump this, change SOURCE_VER in the Makefile to match
-	github.com/fluxcd/source-controller/api v0.9.1
+	github.com/fluxcd/source-controller v0.10.0
+	github.com/fluxcd/source-controller/api v0.10.0
 	github.com/go-git/go-billy/v5 v5.0.0
 	github.com/go-git/go-git/v5 v5.2.0
 	github.com/go-logr/logr v0.3.0
@@ -31,7 +31,7 @@ require (
 	k8s.io/apimachinery v0.20.2
 	k8s.io/client-go v0.20.2
 	sigs.k8s.io/controller-runtime v0.8.3
-	sigs.k8s.io/kustomize/kyaml v0.10.15
+	sigs.k8s.io/kustomize/kyaml v0.10.16
 )
 
 // Force downgrade to version used by kyaml.

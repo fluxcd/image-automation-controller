@@ -317,7 +317,6 @@ github.com/fluxcd/pkg/gitutil v0.0.1 h1:uCEa2hDUS3y5OJ2jQ/2XNziotZTvZ4s56njMkxEf
 github.com/fluxcd/pkg/gitutil v0.0.1/go.mod h1:6WkZyuVXODa6PR2UppepCGQyKuQ9eOsL3dd+89hE24s=
 github.com/fluxcd/pkg/helmtestserver v0.1.0/go.mod h1:3L+tbPn74PsHwHsyhbfk/kZAosrwMFTTA92XEFiwVAE=
 github.com/fluxcd/pkg/lockedfile v0.0.5/go.mod h1:uAtPUBId6a2RqO84MTH5HKGX0SbM1kNW3Wr/FhYyDVA=
-github.com/fluxcd/pkg/runtime v0.8.4/go.mod h1:JD0eZIn5xkTeHHQUWXSqJPIh/ecO0d0qrUKbSVHnpnw=
 github.com/fluxcd/pkg/runtime v0.10.1 h1:NV0pe6lFzodKBIz0dT3xkoR0wJnTCicXwM/v/d5T0+Y=
 github.com/fluxcd/pkg/runtime v0.10.1/go.mod h1:JD0eZIn5xkTeHHQUWXSqJPIh/ecO0d0qrUKbSVHnpnw=
 github.com/fluxcd/pkg/ssh v0.0.5 h1:rnbFZ7voy2JBlUfMbfyqArX2FYaLNpDhccGFC3qW83A=
@@ -326,10 +325,10 @@ github.com/fluxcd/pkg/testserver v0.0.2/go.mod h1:pgUZTh9aQ44FSTQo+5NFlh7YMbUfdz
 github.com/fluxcd/pkg/untar v0.0.5/go.mod h1:O6V9+rtl8c1mHBafgqFlJN6zkF1HS5SSYn7RpQJ/nfw=
 github.com/fluxcd/pkg/version v0.0.1 h1:/8asQoDXSThz3csiwi4Qo8Zb6blAxLXbtxNgeMJ9bCg=
 github.com/fluxcd/pkg/version v0.0.1/go.mod h1:WAF4FEEA9xyhngF8TDxg3UPu5fA1qhEYV8Pmi2Il01Q=
-github.com/fluxcd/source-controller v0.9.1 h1:Ft/1j17zggv2N7r0YDxKfcE51NLv6YdlIxlgU1WFyBk=
-github.com/fluxcd/source-controller v0.9.1/go.mod h1:BdIglmScRNpmBb19Jtc5s5BWb4/dIYTovSB4QiE6DSo=
-github.com/fluxcd/source-controller/api v0.9.1 h1:kaL+tBflccsuj3NDESPPQyKXlZXlAgyNoT2nYY02JAE=
-github.com/fluxcd/source-controller/api v0.9.1/go.mod h1:Vuw+7UqEUUOdkKBfTUPHwaQgbn6LL2FwqPDx2UAk7NE=
+github.com/fluxcd/source-controller v0.10.0 h1:8H3ENGKZJGp9DCvWXPvaJdZjfkywPWvpYe0sX+u8ZFY=
+github.com/fluxcd/source-controller v0.10.0/go.mod h1:vLGgNEfu08KRpsxhuau2vtfZpBXyKqHxq8d34TiCAZk=
+github.com/fluxcd/source-controller/api v0.10.0 h1:Mu4cAXtZ7yq/rIrab81q1jbbhWwUxxAZ2R5bZ1m8AxE=
+github.com/fluxcd/source-controller/api v0.10.0/go.mod h1:Vuw+7UqEUUOdkKBfTUPHwaQgbn6LL2FwqPDx2UAk7NE=
 github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568 h1:BHsljHzVlRcyQhjrss6TZTdY2VfCqZPbv5k3iBFa2ZQ=
 github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568/go.mod h1:xEzjJPgXI435gkrCt3MPfRiAkVrwSbHsst4LCFVfpJc=
 github.com/form3tech-oss/jwt-go v3.2.2+incompatible/go.mod h1:pbq4aXjuKjdthFRnoDwaVPLA+WlJuPGy+QneDUgJi2k=
@@ -1620,8 +1619,8 @@ sigs.k8s.io/controller-runtime v0.8.3 h1:GMHvzjTmaWHQB8HadW+dIvBoJuLvZObYJ5YoZru
 sigs.k8s.io/controller-runtime v0.8.3/go.mod h1:U/l+DUopBc1ecfRZ5aviA9JDmGFQKvLf5YkZNx2e0sU=
 sigs.k8s.io/kustomize v2.0.3+incompatible h1:JUufWFNlI44MdtnjUqVnvh29rR37PQFzPbLXqhyOyX0=
 sigs.k8s.io/kustomize v2.0.3+incompatible/go.mod h1:MkjgH3RdOWrievjo6c9T245dYlB5QeXV4WCbnt/PEpU=
-sigs.k8s.io/kustomize/kyaml v0.10.15 h1:dSLgG78KyaxN4HylPXdK+7zB3k7sW6q3IcCmcfKA+aI=
-sigs.k8s.io/kustomize/kyaml v0.10.15/go.mod h1:mlQFagmkm1P+W4lZJbJ/yaxMd8PqMRSC4cPcfUVt5Hg=
+sigs.k8s.io/kustomize/kyaml v0.10.16 h1:4rn0PTEK4STOA5kbpz72oGskjpKYlmwru4YRgVQFv+c=
+sigs.k8s.io/kustomize/kyaml v0.10.16/go.mod h1:mlQFagmkm1P+W4lZJbJ/yaxMd8PqMRSC4cPcfUVt5Hg=
 sigs.k8s.io/structured-merge-diff v0.0.0-20190525122527-15d366b2352e/go.mod h1:wWxsB5ozmmv/SG7nM11ayaAW51xMvak/t1r0CSlcokI=
 sigs.k8s.io/structured-merge-diff v1.0.1-0.20191108220359-b1b620dd3f06 h1:zD2IemQ4LmOcAumeiyDWXKUI2SO0NYDe3H6QGvPOVgU=
 sigs.k8s.io/structured-merge-diff v1.0.1-0.20191108220359-b1b620dd3f06/go.mod h1:/ULNhyfzRopfcjskuui0cTITekDduZ7ycKN3oUT9R18=
