@@ -44,6 +44,7 @@ import (
 	kuberecorder "k8s.io/client-go/tools/record"
 	"k8s.io/client-go/tools/reference"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -70,7 +71,6 @@ const originRemote = "origin"
 const defaultMessageTemplate = `Update from image update automation`
 
 const repoRefKey = ".spec.gitRepository"
-const imagePolicyKey = ".spec.update.imagePolicy"
 
 const signingSecretKey = "git.asc"
 
@@ -294,9 +294,10 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) err
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&imagev1.ImageUpdateAutomation{}).
-		WithEventFilter(predicate.Or(predicate.GenerationChangedPredicate{}, predicates.ReconcileRequestedPredicate{})).
+		For(&imagev1.ImageUpdateAutomation{}, builder.WithPredicates(
+			predicate.Or(predicate.GenerationChangedPredicate{}, predicates.ReconcileRequestedPredicate{}))).
 		Watches(&source.Kind{Type: &sourcev1.GitRepository{}}, handler.EnqueueRequestsFromMapFunc(r.automationsForGitRepo)).
+		Watches(&source.Kind{Type: &imagev1_reflect.ImagePolicy{}}, handler.EnqueueRequestsFromMapFunc(r.automationsForImagePolicy)).
 		Complete(r)
 }
 
@@ -348,6 +349,25 @@ func (r *ImageUpdateAutomationReconciler) automationsForGitRepo(obj client.Objec
 		reqs[i].NamespacedName.Name = autoList.Items[i].GetName()
 		reqs[i].NamespacedName.Namespace = autoList.Items[i].GetNamespace()
 	}
+	return reqs
+}
+
+// automationsForImagePolicy fetches all the automation objects that
+// might depend on a image policy object. Since the link is via
+// markers in the git repo, _any_ automation object in the same
+// namespace could be affected.
+func (r *ImageUpdateAutomationReconciler) automationsForImagePolicy(obj client.Object) []reconcile.Request {
+	ctx := context.Background()
+	var autoList imagev1.ImageUpdateAutomationList
+	if err := r.List(ctx, &autoList, client.InNamespace(obj.GetNamespace())); err != nil {
+		return nil
+	}
+	reqs := make([]reconcile.Request, len(autoList.Items), len(autoList.Items))
+	for i := range autoList.Items {
+		reqs[i].NamespacedName.Name = autoList.Items[i].GetName()
+		reqs[i].NamespacedName.Namespace = autoList.Items[i].GetNamespace()
+	}
+	println("[DEBUG] enqueuing autos for image policy", obj.GetName(), obj.GetNamespace(), len(reqs))
 	return reqs
 }
 
