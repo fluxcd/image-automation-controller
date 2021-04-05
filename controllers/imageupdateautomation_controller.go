@@ -33,6 +33,7 @@ import (
 	libgit2 "github.com/libgit2/git2go/v31"
 
 	securejoin "github.com/cyphar/filepath-securejoin"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-logr/logr"
@@ -44,6 +45,7 @@ import (
 	kuberecorder "k8s.io/client-go/tools/record"
 	"k8s.io/client-go/tools/reference"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -70,7 +72,6 @@ const originRemote = "origin"
 const defaultMessageTemplate = `Update from image update automation`
 
 const repoRefKey = ".spec.gitRepository"
-const imagePolicyKey = ".spec.update.imagePolicy"
 
 const signingSecretKey = "git.asc"
 
@@ -188,7 +189,11 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	// When there's a push spec, the pushed-to branch is where commits
 	// shall be made
 	if auto.Spec.Push != nil {
-		if err := switchBranch(repo, auto.Spec.Push.Branch); err != nil {
+		pushBranch := auto.Spec.Push.Branch
+		if err := fetch(ctx, tmp, repo, pushBranch, access, origin.Spec.GitImplementation); err != nil && err != errRemoteBranchMissing {
+			return failWithError(err)
+		}
+		if err = switchBranch(repo, pushBranch); err != nil {
 			return failWithError(err)
 		}
 	}
@@ -294,9 +299,10 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager) err
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&imagev1.ImageUpdateAutomation{}).
-		WithEventFilter(predicate.Or(predicate.GenerationChangedPredicate{}, predicates.ReconcileRequestedPredicate{})).
+		For(&imagev1.ImageUpdateAutomation{}, builder.WithPredicates(
+			predicate.Or(predicate.GenerationChangedPredicate{}, predicates.ReconcileRequestedPredicate{}))).
 		Watches(&source.Kind{Type: &sourcev1.GitRepository{}}, handler.EnqueueRequestsFromMapFunc(r.automationsForGitRepo)).
+		Watches(&source.Kind{Type: &imagev1_reflect.ImagePolicy{}}, handler.EnqueueRequestsFromMapFunc(r.automationsForImagePolicy)).
 		Complete(r)
 }
 
@@ -351,6 +357,24 @@ func (r *ImageUpdateAutomationReconciler) automationsForGitRepo(obj client.Objec
 	return reqs
 }
 
+// automationsForImagePolicy fetches all the automation objects that
+// might depend on a image policy object. Since the link is via
+// markers in the git repo, _any_ automation object in the same
+// namespace could be affected.
+func (r *ImageUpdateAutomationReconciler) automationsForImagePolicy(obj client.Object) []reconcile.Request {
+	ctx := context.Background()
+	var autoList imagev1.ImageUpdateAutomationList
+	if err := r.List(ctx, &autoList, client.InNamespace(obj.GetNamespace())); err != nil {
+		return nil
+	}
+	reqs := make([]reconcile.Request, len(autoList.Items), len(autoList.Items))
+	for i := range autoList.Items {
+		reqs[i].NamespacedName.Name = autoList.Items[i].GetName()
+		reqs[i].NamespacedName.Namespace = autoList.Items[i].GetNamespace()
+	}
+	return reqs
+}
+
 // --- git ops
 
 type repoAccess struct {
@@ -389,6 +413,13 @@ func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, rep
 	return access, nil
 }
 
+func (r repoAccess) remoteCallbacks() libgit2.RemoteCallbacks {
+	return libgit2.RemoteCallbacks{
+		CertificateCheckCallback: r.auth.CertCallback,
+		CredentialsCallback:      r.auth.CredCallback,
+	}
+}
+
 // cloneInto clones the upstream repository at the `branch` given,
 // using the git library indicated by `impl`. It returns a
 // `*gogit.Repository` regardless of the git library, since that is
@@ -411,11 +442,10 @@ func cloneInto(ctx context.Context, access repoAccess, branch, path, impl string
 // branch given. If the branch does not exist, it is created using the
 // head as the starting point.
 func switchBranch(repo *gogit.Repository, pushBranch string) error {
-	remoteBranch := plumbing.NewRemoteReferenceName(originRemote, pushBranch)
 	localBranch := plumbing.NewBranchReferenceName(pushBranch)
 
-	// is the remote branch already present?
-	branchHead, err := repo.Reference(remoteBranch, false)
+	// is the branch already present?
+	_, err := repo.Reference(localBranch, false)
 	switch {
 	case err == plumbing.ErrReferenceNotFound:
 		// make a new branch, starting at HEAD
@@ -430,17 +460,15 @@ func switchBranch(repo *gogit.Repository, pushBranch string) error {
 	case err != nil:
 		return err
 	default:
-		// make a local branch that references the remote branch
-		branchRef := plumbing.NewHashReference(localBranch, branchHead.Hash())
-		if err = repo.Storer.SetReference(branchRef); err != nil {
-			return err
-		}
+		// local branch found, great
+		break
 	}
 
 	tree, err := repo.Worktree()
 	if err != nil {
 		return err
 	}
+
 	return tree.Checkout(&gogit.CheckoutOptions{
 		Branch: localBranch,
 	})
@@ -520,6 +548,62 @@ func (r *ImageUpdateAutomationReconciler) getSigningEntity(ctx context.Context, 
 	return entities[0], nil
 }
 
+var errRemoteBranchMissing = errors.New("remote branch missing")
+
+// fetch gets the remote branch given and updates the local branch
+// head of the same name, so it can be switched to. If the fetch
+// completes, it returns nil; if the remote branch is missing, it
+// returns errRemoteBranchMissing (this is to work in sympathy with
+// `switchBranch`, which will create the branch if it doesn't
+// exist). For any other problem it will return the error.
+func fetch(ctx context.Context, path string, repo *gogit.Repository, branch string, access repoAccess, impl string) error {
+	refspec := fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch)
+	switch impl {
+	case sourcev1.LibGit2Implementation:
+		lg2repo, err := libgit2.OpenRepository(path)
+		if err != nil {
+			return err
+		}
+		return fetchLibgit2(lg2repo, refspec, access)
+	case sourcev1.GoGitImplementation:
+		return fetchGoGit(ctx, repo, refspec, access)
+	default:
+		return fmt.Errorf("unknown git implementation %q", impl)
+	}
+}
+
+func fetchLibgit2(repo *libgit2.Repository, refspec string, access repoAccess) error {
+	origin, err := repo.Remotes.Lookup(originRemote)
+	if err != nil {
+		return err
+	}
+	err = origin.Fetch(
+		[]string{refspec},
+		&libgit2.FetchOptions{
+			RemoteCallbacks: access.remoteCallbacks(),
+		}, "",
+	)
+	if err != nil && libgit2.IsErrorCode(err, libgit2.ErrorCodeNotFound) {
+		return errRemoteBranchMissing
+	}
+	return err
+}
+
+func fetchGoGit(ctx context.Context, repo *gogit.Repository, refspec string, access repoAccess) error {
+	err := repo.FetchContext(ctx, &gogit.FetchOptions{
+		RemoteName: originRemote,
+		RefSpecs:   []config.RefSpec{config.RefSpec(refspec)},
+		Auth:       access.auth.AuthMethod,
+	})
+	if err == gogit.NoErrAlreadyUpToDate {
+		return nil
+	}
+	if _, ok := err.(gogit.NoMatchingRefSpecError); ok {
+		return errRemoteBranchMissing
+	}
+	return err
+}
+
 // push pushes the branch given to the origin using the git library
 // indicated by `impl`. It's passed both the path to the repo and a
 // gogit.Repository value, since the latter may as well be used if the
@@ -533,15 +617,18 @@ func push(ctx context.Context, path string, repo *gogit.Repository, branch strin
 		}
 		return pushLibgit2(lg2repo, access, branch)
 	case sourcev1.GoGitImplementation:
-		return pushGoGit(ctx, repo, access)
+		return pushGoGit(ctx, repo, access, branch)
 	default:
 		return fmt.Errorf("unknown git implementation %q", impl)
 	}
 }
 
-func pushGoGit(ctx context.Context, repo *gogit.Repository, access repoAccess) error {
+func pushGoGit(ctx context.Context, repo *gogit.Repository, access repoAccess, branch string) error {
+	refspec := config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch))
 	err := repo.PushContext(ctx, &gogit.PushOptions{
-		Auth: access.auth.AuthMethod,
+		RemoteName: originRemote,
+		Auth:       access.auth.AuthMethod,
+		RefSpecs:   []config.RefSpec{refspec},
 	})
 	return gogitPushError(err)
 }
@@ -570,10 +657,7 @@ func pushLibgit2(repo *libgit2.Repository, access repoAccess, branch string) err
 		return err
 	}
 	err = origin.Push([]string{fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch)}, &libgit2.PushOptions{
-		RemoteCallbacks: libgit2.RemoteCallbacks{
-			CertificateCheckCallback: access.auth.CertCallback,
-			CredentialsCallback:      access.auth.CredCallback,
-		},
+		RemoteCallbacks: access.remoteCallbacks(),
 	})
 	return libgit2PushError(err)
 }

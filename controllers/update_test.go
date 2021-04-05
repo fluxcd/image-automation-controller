@@ -564,7 +564,6 @@ Images:
 			)
 
 			const latestImage = "helloworld:1.0.1"
-			const evenLatestImage = "helloworld:1.2.0"
 
 			BeforeEach(func() {
 				cloneLocalRepoURL = gitServer.HTTPAddressWithCredentials() + repositoryPath
@@ -724,6 +723,22 @@ Images:
 					commit, err := localRepo.CommitObject(head.Hash())
 					Expect(err).ToNot(HaveOccurred())
 					Expect(commit.Message).To(Equal(commitMessage))
+				})
+
+				It("pushes another commit to the existing push branch", func() {
+					// observe the first commit
+					waitForNewHead(localRepo, pushBranch)
+					head, err := localRepo.Reference(plumbing.NewRemoteReferenceName(originRemote, pushBranch), true)
+					headHash := head.String()
+					Expect(err).NotTo(HaveOccurred())
+
+					// update the policy and expect another commit in the push branch
+					policy.Status.LatestImage = "helloworld:v1.3.0"
+					Expect(k8sClient.Status().Update(context.TODO(), policy)).To(Succeed())
+					waitForNewHead(localRepo, pushBranch)
+					head, err = localRepo.Reference(plumbing.NewRemoteReferenceName(originRemote, pushBranch), true)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(head.String()).NotTo(Equal(headHash))
 				})
 
 				AfterEach(func() {
