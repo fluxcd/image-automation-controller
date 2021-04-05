@@ -88,11 +88,39 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 	// would be interpreted as part of the $ref path.
 
 	var settersSchema spec.Schema
-	var setters []*setters2.Set
-	setterToImage := make(map[string]imageRef)
 
 	// collect setter defs and setters by going through all the image
 	// policies available.
+	result := Result{
+		Files: make(map[string]FileResult),
+	}
+	callbacks := make(map[string]func(string, *yaml.RNode))
+	makeCallback := func(ref imageRef) func(string, *yaml.RNode) {
+		return func(file string, node *yaml.RNode) {
+			meta, err := node.GetMeta()
+			if err != nil {
+				return
+			}
+			oid := ObjectIdentifier{meta.GetIdentifier()}
+
+			fileres, ok := result.Files[file]
+			if !ok {
+				fileres = FileResult{
+					Objects: make(map[ObjectIdentifier][]ImageRef),
+				}
+				result.Files[file] = fileres
+			}
+			objres, ok := fileres.Objects[oid]
+			for _, n := range objres {
+				if n == ref {
+					return
+				}
+			}
+			objres = append(objres, ref)
+			fileres.Objects[oid] = objres
+		}
+	}
+
 	defs := map[string]spec.Schema{}
 	for _, policy := range policies {
 		if policy.Status.LatestImage == "" {
@@ -117,42 +145,31 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 			},
 		}
 
+		record := makeCallback(ref)
+
 		tag := ref.Identifier()
 		// annoyingly, neither the library imported above, nor an
-		// alternative, I found will yield the original image name;
+		// alternative I found, will yield the original image name;
 		// this is an easy way to get it
 		name := image[:len(tag)+1]
 
 		imageSetter := fmt.Sprintf("%s:%s", policy.GetNamespace(), policy.GetName())
 		defs[fieldmeta.SetterDefinitionPrefix+imageSetter] = setterSchema(imageSetter, policy.Status.LatestImage)
-		setterToImage[imageSetter] = ref
-		setters = append(setters, &setters2.Set{
-			Name:          imageSetter,
-			SettersSchema: &settersSchema,
-		})
+		callbacks[imageSetter] = record
 
 		tagSetter := imageSetter + ":tag"
-
 		defs[fieldmeta.SetterDefinitionPrefix+tagSetter] = setterSchema(tagSetter, tag)
-		setterToImage[tagSetter] = ref
-		setters = append(setters, &setters2.Set{
-			Name:          tagSetter,
-			SettersSchema: &settersSchema,
-		})
+		callbacks[tagSetter] = record
 
 		// Context().Name() gives the image repository _as supplied_
 		nameSetter := imageSetter + ":name"
-		setterToImage[nameSetter] = ref
 		defs[fieldmeta.SetterDefinitionPrefix+nameSetter] = setterSchema(nameSetter, name)
-		setters = append(setters, &setters2.Set{
-			Name:          nameSetter,
-			SettersSchema: &settersSchema,
-		})
+		callbacks[nameSetter] = record
 	}
 
 	settersSchema.Definitions = defs
-	setAll := &setAllRecorder{
-		setters: setters,
+	set := &SetAllAndRecord{
+		SettersSchema: &settersSchema,
 	}
 
 	// get ready with the reader and writer
@@ -168,7 +185,13 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 		Inputs:  []kio.Reader{reader},
 		Outputs: []kio.Writer{writer},
 		Filters: []kio.Filter{
-			setAll,
+			setAll(set, func(file, setterName string, node *yaml.RNode) {
+				callback, ok := callbacks[setterName]
+				if !ok {
+					return
+				}
+				callback(file, node)
+			}),
 		},
 	}
 
@@ -177,94 +200,49 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 	if err != nil {
 		return Result{}, err
 	}
-	return setAll.getResult(setterToImage), nil
+	return result, nil
 }
 
-type update struct {
-	file, name string
-	object     *yaml.RNode
-}
-
-type setAllRecorder struct {
-	setters []*setters2.Set
-	updates []update
-}
-
-func (s *setAllRecorder) getResult(nameToImage map[string]imageRef) Result {
-	result := Result{
-		Files: make(map[string]FileResult),
-	}
-updates:
-	for _, update := range s.updates {
-		file, ok := result.Files[update.file]
-		if !ok {
-			file = FileResult{
-				Objects: make(map[ObjectIdentifier][]ImageRef),
-			}
-			result.Files[update.file] = file
-		}
-		objects := file.Objects
-
-		meta, err := update.object.GetMeta()
-		if err != nil {
-			continue updates
-		}
-		id := ObjectIdentifier{meta.GetIdentifier()}
-
-		ref, ok := nameToImage[update.name]
-		if !ok { // this means an update was made that wasn't recorded as being an image
-			continue updates
-		}
-		// if the name and tag of an image are both used, we don't need to record it twice
-		for _, n := range objects[id] {
-			if n == ref {
-				continue updates
-			}
-		}
-		objects[id] = append(objects[id], ref)
-	}
-	return result
-}
-
-// Filter is an implementation of kio.Filter which records each use of
-// a setter at each object in each file, and only includes the files
-// that were updated in the output nodes. The implementation is
-// adapted from
-// https://github.com/kubernetes-sigs/kustomize/blob/kyaml/v0.10.13/kyaml/setters2/set.go#L503
-func (s *setAllRecorder) Filter(nodes []*yaml.RNode) ([]*yaml.RNode, error) {
-	filesToUpdate := sets.String{}
-	for i := range nodes {
-		for _, setter := range s.setters {
-			preCount := setter.Count
-			_, err := setter.Filter(nodes[i])
-			if err != nil {
-				return nil, err
-			}
-			if setter.Count > preCount {
+// setAll returns a kio.Filter using the supplied SetAllAndRecord
+// (dealing with individual nodes), amd calling the given callback
+// whenever a field value is changed, and returning only nodes from
+// files with changed nodes. This is based on
+// [`SetAll`](https://github.com/kubernetes-sigs/kustomize/blob/kyaml/v0.10.16/kyaml/setters2/set.go#L503
+// from kyaml/kio.
+func setAll(filter *SetAllAndRecord, callback func(file, setterName string, node *yaml.RNode)) kio.Filter {
+	return kio.FilterFunc(
+		func(nodes []*yaml.RNode) ([]*yaml.RNode, error) {
+			filesToUpdate := sets.String{}
+			for i := range nodes {
 				path, _, err := kioutil.GetFileAnnotations(nodes[i])
 				if err != nil {
 					return nil, err
 				}
-				filesToUpdate.Insert(path)
-				s.updates = append(s.updates, update{
-					file:   path,
-					name:   setter.Name,
-					object: nodes[i],
-				})
+
+				filter.Record = func(setter, oldValue, newValue string) {
+					if newValue != oldValue {
+						callback(path, setter, nodes[i])
+						filesToUpdate.Insert(path)
+					}
+				}
+				_, err = filter.Filter(nodes[i])
+				if err != nil {
+					return nil, err
+				}
 			}
-		}
-	}
-	var nodesInUpdatedFiles []*yaml.RNode
-	for i := range nodes {
-		path, _, err := kioutil.GetFileAnnotations(nodes[i])
-		if err != nil {
-			return nil, err
-		}
-		if filesToUpdate.Has(path) {
-			nodesInUpdatedFiles = append(nodesInUpdatedFiles, nodes[i])
-		}
-	}
-	return nodesInUpdatedFiles, nil
+
+			var nodesInUpdatedFiles []*yaml.RNode
+			for i := range nodes {
+				path, _, err := kioutil.GetFileAnnotations(nodes[i])
+				if err != nil {
+					return nil, err
+				}
+				if filesToUpdate.Has(path) {
+					nodesInUpdatedFiles = append(nodesInUpdatedFiles, nodes[i])
+				}
+			}
+			return nodesInUpdatedFiles, nil
+		})
 }
 
 func setterSchema(name, value string) spec.Schema {
