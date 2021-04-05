@@ -38,6 +38,30 @@ func TestUpdate(t *testing.T) {
 }
 
 var _ = Describe("Update image via kyaml setters2", func() {
+
+	var (
+		policies = []imagev1alpha1_reflect.ImagePolicy{
+			imagev1alpha1_reflect.ImagePolicy{
+				ObjectMeta: metav1.ObjectMeta{ // name matches marker used in testdata/setters/{original,expected}
+					Namespace: "automation-ns",
+					Name:      "policy",
+				},
+				Status: imagev1alpha1_reflect.ImagePolicyStatus{
+					LatestImage: "updated:v1.0.1",
+				},
+			},
+			imagev1alpha1_reflect.ImagePolicy{
+				ObjectMeta: metav1.ObjectMeta{ // name matches marker used in testdata/setters/{original,expected}
+					Namespace: "automation-ns",
+					Name:      "unchanged",
+				},
+				Status: imagev1alpha1_reflect.ImagePolicyStatus{
+					LatestImage: "image:v1.0.0",
+				},
+			},
+		}
+	)
+
 	It("updates the image marked with the image policy (setter) ref", func() {
 		tmp, err := ioutil.TempDir("", "gotest")
 		Expect(err).ToNot(HaveOccurred())
@@ -53,6 +77,15 @@ var _ = Describe("Update image via kyaml setters2", func() {
 					LatestImage: "updated:v1.0.1",
 				},
 			},
+			imagev1alpha1_reflect.ImagePolicy{
+				ObjectMeta: metav1.ObjectMeta{ // name matches marker used in testdata/setters/{original,expected}
+					Namespace: "automation-ns",
+					Name:      "unchanged",
+				},
+				Status: imagev1alpha1_reflect.ImagePolicyStatus{
+					LatestImage: "image:v1.0.0",
+				},
+			},
 		}
 
 		_, err = UpdateWithSetters("testdata/setters/original", tmp, policies)
@@ -64,18 +97,6 @@ var _ = Describe("Update image via kyaml setters2", func() {
 		tmp, err := ioutil.TempDir("", "gotest")
 		Expect(err).ToNot(HaveOccurred())
 		defer os.RemoveAll(tmp)
-
-		policies := []imagev1alpha1_reflect.ImagePolicy{
-			imagev1alpha1_reflect.ImagePolicy{
-				ObjectMeta: metav1.ObjectMeta{ // name matches marker used in testdata/setters/{original,expected}
-					Namespace: "automation-ns",
-					Name:      "policy",
-				},
-				Status: imagev1alpha1_reflect.ImagePolicyStatus{
-					LatestImage: "updated:v1.0.1",
-				},
-			},
-		}
 
 		result, err := UpdateWithSetters("testdata/setters/original", tmp, policies)
 		Expect(err).ToNot(HaveOccurred())
