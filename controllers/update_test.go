@@ -214,7 +214,7 @@ Images:
 			// Insert a setter reference into the deployment file,
 			// before creating the automation object itself.
 			commitInRepo(repoURL, branch, "Install setter marker", func(tmp string) {
-				replaceMarker(tmp, policyKey)
+				Expect(replaceMarker(tmp, policyKey)).To(Succeed())
 			})
 
 			// pull the head commit we just pushed, so it's not
@@ -333,10 +333,10 @@ Images:
 			// Insert a setter reference into the deployment file,
 			// before creating the automation object itself.
 			commitInRepo(repoURL, branch, "Install setter marker", func(tmp string) {
-				replaceMarker(path.Join(tmp, "yes"), policyKey)
+				Expect(replaceMarker(path.Join(tmp, "yes"), policyKey)).To(Succeed())
 			})
 			commitInRepo(repoURL, branch, "Install setter marker", func(tmp string) {
-				replaceMarker(path.Join(tmp, "no"), policyKey)
+				Expect(replaceMarker(path.Join(tmp, "no"), policyKey)).To(Succeed())
 			})
 
 			// pull the head commit we just pushed, so it's not
@@ -454,7 +454,7 @@ Images:
 			// Insert a setter reference into the deployment file,
 			// before creating the automation object itself.
 			commitInRepo(repoURL, branch, "Install setter marker", func(tmp string) {
-				replaceMarker(tmp, policyKey)
+				Expect(replaceMarker(tmp, policyKey)).To(Succeed())
 			})
 
 			// pull the head commit we just pushed, so it's not
@@ -684,7 +684,7 @@ Images:
 
 				BeforeEach(func() {
 					commitInRepo(cloneLocalRepoURL, branch, "Install setter marker", func(tmp string) {
-						replaceMarker(tmp, policyKey)
+						Expect(replaceMarker(tmp, policyKey)).To(Succeed())
 					})
 					waitForNewHead(localRepo, branch)
 
@@ -758,7 +758,7 @@ Images:
 					// Insert a setter reference into the deployment file,
 					// before creating the automation object itself.
 					commitInRepo(cloneLocalRepoURL, branch, "Install setter marker", func(tmp string) {
-						replaceMarker(tmp, policyKey)
+						Expect(replaceMarker(tmp, policyKey)).To(Succeed())
 					})
 
 					// pull the head commit we just pushed, so it's not
@@ -815,7 +815,7 @@ Images:
 					Expect(newObj.Status.LastPushTime).ToNot(BeNil())
 
 					compareRepoWithExpected(cloneLocalRepoURL, branch, "testdata/appconfig-setters-expected", func(tmp string) {
-						replaceMarker(tmp, policyKey)
+						Expect(replaceMarker(tmp, policyKey)).To(Succeed())
 					})
 				})
 
@@ -928,14 +928,18 @@ func expectCommittedAndPushed(conditions []metav1.Condition) {
 	Expect(rc.Message).To(ContainSubstring("committed and pushed"))
 }
 
-func replaceMarker(path string, policyKey types.NamespacedName) {
-	// NB this requires knowledge of what's in the git
-	// repo, so a little brittle
+func replaceMarker(path string, policyKey types.NamespacedName) error {
+	// NB this requires knowledge of what's in the git repo, so a little brittle
 	deployment := filepath.Join(path, "deploy.yaml")
 	filebytes, err := ioutil.ReadFile(deployment)
-	Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return err
+	}
 	newfilebytes := bytes.ReplaceAll(filebytes, []byte("SETTER_SITE"), []byte(setterRef(policyKey)))
-	Expect(ioutil.WriteFile(deployment, newfilebytes, os.FileMode(0666))).To(Succeed())
+	if err = ioutil.WriteFile(deployment, newfilebytes, os.FileMode(0666)); err != nil {
+		return err
+	}
+	return nil
 }
 
 func setterRef(name types.NamespacedName) string {
@@ -1040,28 +1044,8 @@ func initGitRepo(gitServer *gittestserver.GitServer, fixture, branch, repository
 		return err
 	}
 
-	if err = filepath.Walk(fixture, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			return fs.MkdirAll(fs.Join(path[len(fixture):]), info.Mode())
-		}
-
-		fileBytes, err := ioutil.ReadFile(path)
-		if err != nil {
-			return err
-		}
-
-		ff, err := fs.Create(path[len(fixture):])
-		if err != nil {
-			return err
-		}
-		defer ff.Close()
-
-		_, err = ff.Write(fileBytes)
-		return err
-	}); err != nil {
+	err = populateRepoFromFixture(repo, fixture)
+	if err != nil {
 		return err
 	}
 
@@ -1069,22 +1053,6 @@ func initGitRepo(gitServer *gittestserver.GitServer, fixture, branch, repository
 	if err != nil {
 		return err
 	}
-
-	_, err = working.Add(".")
-	if err != nil {
-		return err
-	}
-
-	if _, err = working.Commit("Initial revision from "+fixture, &git.CommitOptions{
-		Author: &object.Signature{
-			Name:  "Testbot",
-			Email: "test@example.com",
-			When:  time.Now(),
-		},
-	}); err != nil {
-		return err
-	}
-
 	if err = working.Checkout(&git.CheckoutOptions{
 		Branch: plumbing.NewBranchReferenceName(branch),
 		Create: true,

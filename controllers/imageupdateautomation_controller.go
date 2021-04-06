@@ -25,6 +25,7 @@ import (
 	"io/ioutil"
 	"math"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 	"time"
@@ -200,6 +201,15 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	log.V(debug).Info("cloned git repository", "gitrepository", originName, "branch", auto.Spec.Checkout.Branch, "working", tmp)
 
+	manifestsPath := tmp
+	if auto.Spec.Update.Path != "" {
+		if p, err := securejoin.SecureJoin(tmp, auto.Spec.Update.Path); err != nil {
+			return failWithError(err)
+		} else {
+			manifestsPath = p
+		}
+	}
+
 	switch {
 	case auto.Spec.Update != nil && auto.Spec.Update.Strategy == imagev1.UpdateStrategySetters:
 		// For setters we first want to compile a list of _all_ the
@@ -208,15 +218,6 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		var policies imagev1_reflect.ImagePolicyList
 		if err := r.List(ctx, &policies, &client.ListOptions{Namespace: req.NamespacedName.Namespace}); err != nil {
 			return failWithError(err)
-		}
-
-		manifestsPath := tmp
-		if auto.Spec.Update.Path != "" {
-			if p, err := securejoin.SecureJoin(tmp, auto.Spec.Update.Path); err != nil {
-				return failWithError(err)
-			} else {
-				manifestsPath = p
-			}
 		}
 
 		if result, err := updateAccordingToSetters(ctx, manifestsPath, policies.Items); err != nil {
@@ -241,10 +242,29 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		signingEntity, err = r.getSigningEntity(ctx, auto)
 	}
 
+	// construct the commit message from template and values
+	msgTmpl := auto.Spec.Commit.MessageTemplate
+	if msgTmpl == "" {
+		msgTmpl = defaultMessageTemplate
+	}
+	tmpl, err := template.New("commit message").Parse(msgTmpl)
+	if err != nil {
+		return failWithError(fmt.Errorf("unable to create commit message template from spec: %w", err))
+	}
+	messageBuf := &strings.Builder{}
+	if err := tmpl.Execute(messageBuf, templateValues); err != nil {
+		return failWithError(fmt.Errorf("failed to run template from spec: %w", err))
+	}
+
 	// The status message depends on what happens next. Since there's
 	// more than one way to succeed, there's some if..else below, and
 	// early returns only on failure.
-	if rev, err := commitAll(repo, &auto.Spec.Commit, templateValues, signingEntity); err != nil {
+	author := &object.Signature{
+		Name:  auto.Spec.Commit.AuthorName,
+		Email: auto.Spec.Commit.AuthorEmail,
+		When:  time.Now(),
+	}
+	if rev, err := commitChangedManifests(repo, tmp, signingEntity, author, messageBuf.String()); err != nil {
 		if err == errNoChanges {
 			r.event(ctx, auto, events.EventSeverityInfo, "no updates made")
 			log.V(debug).Info("no changes made in working directory; no commit")
@@ -476,7 +496,7 @@ func switchBranch(repo *gogit.Repository, pushBranch string) error {
 
 var errNoChanges error = errors.New("no changes made to working directory")
 
-func commitAll(repo *gogit.Repository, commit *imagev1.CommitSpec, values TemplateData, ent *openpgp.Entity) (string, error) {
+func commitChangedManifests(repo *gogit.Repository, absRepoPath string, ent *openpgp.Entity, author *object.Signature, message string) (string, error) {
 	working, err := repo.Worktree()
 	if err != nil {
 		return "", err
@@ -485,31 +505,38 @@ func commitAll(repo *gogit.Repository, commit *imagev1.CommitSpec, values Templa
 	status, err := working.Status()
 	if err != nil {
 		return "", err
-	} else if status.IsClean() {
+	}
+
+	// go-git has [a bug](https://github.com/go-git/go-git/issues/253)
+	// whereby it thinks broken symlinks to absolute paths are
+	// modified. There's no circumstance in which we want to commit a
+	// change to a broken symlink: so, detect and skip those.
+	var changed bool
+	for file, _ := range status {
+		abspath := filepath.Join(absRepoPath, file)
+		info, err := os.Lstat(abspath)
+		if err != nil {
+			return "", fmt.Errorf("checking if %s is a symlink: %w", file, err)
+		}
+		if info.Mode()&os.ModeSymlink > 0 {
+			// symlinks are OK; broken symlinks are probably a result
+			// of the bug mentioned above, but not of interest in any
+			// case.
+			if _, err := os.Stat(abspath); os.IsNotExist(err) {
+				continue
+			}
+		}
+		working.Add(file)
+		changed = true
+	}
+
+	if !changed {
 		return "", errNoChanges
 	}
 
-	msgTmpl := commit.MessageTemplate
-	if msgTmpl == "" {
-		msgTmpl = defaultMessageTemplate
-	}
-	tmpl, err := template.New("commit message").Parse(msgTmpl)
-	if err != nil {
-		return "", err
-	}
-	buf := &strings.Builder{}
-	if err := tmpl.Execute(buf, values); err != nil {
-		return "", err
-	}
-
 	var rev plumbing.Hash
-	if rev, err = working.Commit(buf.String(), &gogit.CommitOptions{
-		All: true,
-		Author: &object.Signature{
-			Name:  commit.AuthorName,
-			Email: commit.AuthorEmail,
-			When:  time.Now(),
-		},
+	if rev, err = working.Commit(message, &gogit.CommitOptions{
+		Author:  author,
 		SignKey: ent,
 	}); err != nil {
 		return "", err
