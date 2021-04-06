@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.8.0
+
+**Release date:** 2021-04-06
+
+This prerelease adds support for signing commits with GPG.
+
+This prerelease comes with a breaking change to the leader election ID
+from `e189b2df.fluxcd.io` to `image-reflector-controller-leader-election`
+to be more descriptive. This change should not have an impact on most
+installations, as the default replica count is `1`. If you are running
+a setup with multiple replicas, it is however advised to scale down
+before upgrading.
+
+The controller exposes a gauge metric to track the suspended status
+of `ImageUpdateAutomation` objects: `gotk_suspend_status{kind,name,namespace}`.
+
+Features:
+* Enable GPG Signing of Commits
+  [#136](https://github.com/fluxcd/image-automation-controller/pull/136)
+
+Improvements:
+* Record suspension metrics
+  [#129](https://github.com/fluxcd/image-automation-controller/pull/129)
+* Update ImageUpdateAutomation Status with Patch
+  [#132](https://github.com/fluxcd/image-automation-controller/pull/132)
+* Set leader election deadline to 30s
+  [#137](https://github.com/fluxcd/image-automation-controller/pull/137)
+* Update kyaml to v0.10.16
+  [#141](https://github.com/fluxcd/image-automation-controller/pull/141)
+
+Fixes:
+* Ensure that an unchanged image is not in update result
+  [#144](https://github.com/fluxcd/image-automation-controller/pull/144)
+* Fix problem with pushing further commits to a "push branch"
+  [#143](https://github.com/fluxcd/image-automation-controller/pull/143)
+* Ignore broken symlinks and outside path, in commit
+  [#142](https://github.com/fluxcd/image-automation-controller/pull/142)
+
 ## 0.7.0
 
 **Release date:** 2021-03-17

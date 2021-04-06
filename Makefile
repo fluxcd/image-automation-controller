@@ -9,7 +9,7 @@ SOURCE_VER ?= v0.10.0
 
 # Version of the image-reflector-controller from which to get the ImagePolicy CRD.
 # Change this if you bump the image-reflector-controller/api version in go.mod.
-REFLECTOR_VER ?= v0.7.1
+REFLECTOR_VER ?= v0.8.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
