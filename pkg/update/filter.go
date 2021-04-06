@@ -28,11 +28,11 @@ import (
 // [kyaml](https://github.com/kubernetes-sigs/kustomize/blob/kyaml/v0.10.16/kyaml/setters2/set.go),
 // with the following changes:
 //
-// - it records each field it sets
+// - it calls its callback for each field it sets
 //
-// - it will implicitly set all fields referring to a setter in the
-// schema -- this is a flag in the kyaml implementation, but the only
-// desired mode of operation here
+// - it will set all fields referring to a setter present in the
+// schema -- this is behind a flag in the kyaml implementation, but
+// the only desired mode of operation here
 //
 // - substitutions are not supported -- they are not used for image
 // updates
@@ -45,12 +45,12 @@ import (
 // - only per-field schema references (those in a comment in the YAML)
 // are considered -- these are the only ones relevant to image updates
 
-type SetAllAndRecord struct {
+type SetAllCallback struct {
 	SettersSchema *spec.Schema
-	Record        func(setter, oldValue, newValue string)
+	Callback      func(setter, oldValue, newValue string)
 }
 
-func (s *SetAllAndRecord) Filter(object *yaml.RNode) (*yaml.RNode, error) {
+func (s *SetAllCallback) Filter(object *yaml.RNode) (*yaml.RNode, error) {
 	return object, accept(s, object, "", s.SettersSchema)
 }
 
@@ -104,7 +104,7 @@ func accept(v visitor, object *yaml.RNode, p string, settersSchema *spec.Schema)
 }
 
 // set applies the value from ext to field
-func (s *SetAllAndRecord) set(field *yaml.RNode, ext *setters2.CliExtension, sch *spec.Schema) (bool, error) {
+func (s *SetAllCallback) set(field *yaml.RNode, ext *setters2.CliExtension, sch *spec.Schema) (bool, error) {
 	// check full setter
 	if ext.Setter == nil {
 		return false, nil
@@ -113,11 +113,10 @@ func (s *SetAllAndRecord) set(field *yaml.RNode, ext *setters2.CliExtension, sch
 	// this has a full setter, set its value
 	old := field.YNode().Value
 	field.YNode().Value = ext.Setter.Value
-	s.Record(ext.Setter.Name, old, ext.Setter.Value)
+	s.Callback(ext.Setter.Name, old, ext.Setter.Value)
 
 	// format the node so it is quoted if it is a string. If there is
-	// type information on the setter schema, we use it. Otherwise we
-	// fall back to the field schema if it exists.
+	// type information on the setter schema, we use it.
 	if len(sch.Type) > 0 {
 		yaml.FormatNonStringStyle(field.YNode(), *sch)
 	}
@@ -125,7 +124,7 @@ func (s *SetAllAndRecord) set(field *yaml.RNode, ext *setters2.CliExtension, sch
 }
 
 // visitScalar
-func (s *SetAllAndRecord) visitScalar(object *yaml.RNode, p string, fieldSchema *openapi.ResourceSchema) error {
+func (s *SetAllCallback) visitScalar(object *yaml.RNode, p string, fieldSchema *openapi.ResourceSchema) error {
 	if fieldSchema == nil {
 		return nil
 	}
@@ -139,7 +138,6 @@ func (s *SetAllAndRecord) visitScalar(object *yaml.RNode, p string, fieldSchema 
 	}
 
 	// perform a direct set of the field if it matches
-	// %%% FIXME record it!
 	_, err = s.set(object, ext, fieldSchema.Schema)
 	return err
 }
