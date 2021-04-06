@@ -306,8 +306,8 @@ github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d/go.mod h1:ZZM
 github.com/fatih/camelcase v1.0.0/go.mod h1:yN2Sb0lFhZJUdVvtELVWefmrXpuZESvPmqwoZc+/fpc=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/fatih/color v1.9.0/go.mod h1:eQcE1qtQxscV5RaZvpXrrb8Drkc3/DdQ+uUYCNjL+zU=
-github.com/fluxcd/image-reflector-controller/api v0.7.1 h1:Cng36D1J25WYZ0ZB6dwzDtGR9MIyIcSUMYxHpb0IYXA=
-github.com/fluxcd/image-reflector-controller/api v0.7.1/go.mod h1:J18L71jiHYrAu2dg0tgOkOjP+GtQldC1oslhTeX0jqc=
+github.com/fluxcd/image-reflector-controller/api v0.8.0 h1:6dTIcyJFApmcmT4HbitWBFvh6ne8jpp8QQseH9Q5hv0=
+github.com/fluxcd/image-reflector-controller/api v0.8.0/go.mod h1:J18L71jiHYrAu2dg0tgOkOjP+GtQldC1oslhTeX0jqc=
 github.com/fluxcd/pkg/apis/meta v0.8.0 h1:wqWpUsxhKHB1ZztcvOz+vnyhdKW9cWmjFp8Vci/XOdk=
 github.com/fluxcd/pkg/apis/meta v0.8.0/go.mod h1:yHuY8kyGHYz22I0jQzqMMGCcHViuzC/WPdo9Gisk8Po=
 github.com/fluxcd/pkg/gittestserver v0.1.0/go.mod h1:HWZaoib03fQeSsauCAN2iAFdr6bnjKQ+CFxMFD2mwDY=
@@ -1617,7 +1617,6 @@ sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.9/go.mod h1:dzAXnQb
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.14/go.mod h1:LEScyzhFmoF5pso/YSeBstl57mOzx9xlU9n85RGrDQg=
 sigs.k8s.io/controller-runtime v0.8.3 h1:GMHvzjTmaWHQB8HadW+dIvBoJuLvZObYJ5YoZruPRao=
 sigs.k8s.io/controller-runtime v0.8.3/go.mod h1:U/l+DUopBc1ecfRZ5aviA9JDmGFQKvLf5YkZNx2e0sU=
-sigs.k8s.io/kustomize v1.0.11 h1:Yb+6DDt9+aR2AvQApvUaKS/ugteeG4MPyoFeUHiPOjk=
 sigs.k8s.io/kustomize v2.0.3+incompatible h1:JUufWFNlI44MdtnjUqVnvh29rR37PQFzPbLXqhyOyX0=
 sigs.k8s.io/kustomize v2.0.3+incompatible/go.mod h1:MkjgH3RdOWrievjo6c9T245dYlB5QeXV4WCbnt/PEpU=
 sigs.k8s.io/kustomize/kyaml v0.10.16 h1:4rn0PTEK4STOA5kbpz72oGskjpKYlmwru4YRgVQFv+c=

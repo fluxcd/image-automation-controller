@@ -18,15 +18,18 @@ type ImageUpdateAutomationSpec struct {
 	// ready to make changes.
 	// +required
 	Checkout GitCheckoutSpec `json:"checkout"`
+	
 	// Interval gives an lower bound for how often the automation
 	// run should be attempted.
 	// +required
 	Interval metav1.Duration `json:"interval"`
+	
 	// Update gives the specification for how to update the files in
 	// the repository. This can be left empty, to use the default
 	// value.
 	// +kubebuilder:default={"strategy":"Setters"}
 	Update *UpdateStrategy `json:"update,omitempty"`
+	
 	// Commit specifies how to commit to the git repository.
 	// +required
 	Commit CommitSpec `json:"commit"`
@@ -132,13 +135,19 @@ type CommitSpec struct {
 	// AuthorName gives the name to provide when making a commit
 	// +required
 	AuthorName string `json:"authorName"`
+	
 	// AuthorEmail gives the email to provide when making a commit
 	// +required
 	AuthorEmail string `json:"authorEmail"`
+	
 	// MessageTemplate provides a template for the commit message,
 	// into which will be interpolated the details of the change made.
 	// +optional
 	MessageTemplate string `json:"messageTemplate,omitempty"`
+	
+	// SigningKey provides the option to sign commits with a GPG key
+	// +optional
+	SigningKey *SigningKey `json:"signingKey,omitempty"`
 }
 ```
 
@@ -166,6 +175,23 @@ spec:
       
       [ci skip]
 ```
+
+The `signingKey` field holds the reference to a secret that contains a `git.asc`
+key corresponding to the ASCII Armored file containing the GPG signing keypair as the value.
+For example,
+
+```yaml
+spec:
+  commit:
+    authorName: Fluxbot
+    authorEmail: flux@example.com
+    signingKey:
+      secretRef:
+        name: gpg-private-key
+```
+
+will result in commits with the author `Fluxbot <flux@example.com>` signed with the GPG key
+present in the `gpg-private-key` secret.
 
 ### Commit template data
 
