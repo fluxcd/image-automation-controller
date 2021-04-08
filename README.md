@@ -1,5 +1,7 @@
 # Image automation controller
 
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/4789/badge)](https://bestpractices.coreinfrastructure.org/projects/4789)
+
 This controller automates updates to YAML when new container images
 are available.
 
