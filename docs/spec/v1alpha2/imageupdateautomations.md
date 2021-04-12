@@ -9,6 +9,8 @@ the automation process checks the image policy named, and updates the field valu
 image selected by the policy. The marker format is shown in the [image automation
 guide][image-auto-guide].
 
+To see what has changed between the API version v1alpha1 and this version v1alpha2, read [the section on migration](#migrating-from-v1alpha1) at the bottom.
+
 ## Specification
 
 ```go
@@ -68,8 +70,8 @@ type SourceReference struct {
 
 To be able to commit changes back, the referenced `GitRepository` object must refer to credentials
 with write access; e.g., if using a GitHub deploy key, "Allow write access" should be checked when
-creating it. Only the `url`, `secretRef` and `gitImplementation` (see just below) fields of the
-`GitRepository` are used.
+creating it. Only the `url`, `ref`, `secretRef` and `gitImplementation` (see just below) fields of
+the `GitRepository` are used.
 
 The `gitImplementation` field in the referenced `GitRepository` object controls which git library is
 used. This will matter if you run on Azure, and possibly otherwise -- see [the source controller
@@ -192,11 +194,12 @@ want to put tokens in to control how CI reacts to commits made by automation. Fo
 
 ```yaml
 spec:
-  commit:
-    messageTemplate: |
-      Automated image update by Flux
-      
-      [ci skip]
+  git:
+    commit:
+      messageTemplate: |
+        Automated image update by Flux
+        
+        [ci skip]
 ```
 
 The following section describes what data is available to use in the template.
@@ -416,6 +419,178 @@ repository, and the `lastPushTime` gives the time that push occurred.
 There is one condition maintained by the controller, which is the usual `ReadyCondition`
 condition. This will be recorded as `True` when automation has run without errors, whether or not it
 resulted in a commit.
+
+## Migrating from `v1alpha1`
+
+For the most part, `v1alpha2` rearranges the API types to provide for future extension. Here are the
+differences, and where each `v1alpha1` field goes. A full example appears after the table.
+
+### Moves and changes
+
+| v1alpha1 field | change in v1alpha2 |
++----------------+--------------------+
+| .spec.checkout | moved to `.spec.git.checkout`, and optional |
+|                | `gitRepositoryRef` is now `.spec.sourceRef` |
+|                | `branch` is now `ref`, and optional         |
+| .spec.commit   | moved to `.spec.git.commit` |
+|                | `authorName` and `authorEmail` now `author.name` and `author.email` |
+| .spec.push     | moved to `.spec.git.push` |
+
+### Example of rewriting a v1alpha1 object to v1alpha2
+
+This example shows the steps to rewrite a v1alpha1 ImageUpdateAutomation YAML to be a v1alpha2 YAML.
+
+This is the v1alpha1 original:
+
+```yaml
+apiVersion: image.toolkit.fluxcd.io/v1alpha1
+kind: ImageUpdateAutomation
+spec:
+  checkout:
+    gitRepositoryRef:
+      name: auto-repo
+    branch: main
+  interval: 5m
+  # omit suspend, which has not changed
+  update:
+    strategy: Setters
+    path: ./app
+  commit:
+    authorName: fluxbot
+    authorEmail: fluxbot@example.com
+    messageTemplate: |
+      An automated update from FluxBot
+      [ci skip]
+    signingKey:
+      secretRef:
+        name: git-pgp
+  push:
+    branch: auto
+```
+
+**Change the API version**
+
+The API version is now `image.toolkit.fluxcd.io/v1alpha2`:
+
+```yaml
+apiVersion: image.toolkit.fluxcd.io/v1alpha1
+
+# becomes
+
+apiVersion: image.toolkit.fluxcd.io/v1alpha2
+```
+
+**Move and adapt `.spec.checkout.gitRepositoryRef` to `.spec.sourceRef` and `.spec.git.checkout`**
+
+The reference to a `GitRepository` object has moved to the field `sourceRef`. The `checkout` field
+moves under the `git` key, with the branch to checkout in a structure under `ref`.
+
+```yaml
+spec:
+  checkout:
+    gitRepositoryRef:
+      name: auto-repo
+    branch:
+      main
+
+# becomes
+
+spec:
+  sourceRef:
+    kind: GitRepository # the default, but good practice to be explicit here
+    name: auto-repo
+  git:
+    checkout:
+      ref:
+        branch: main
+```
+
+Note that `.spec.git.checkout` is now optional. If not supplied, the `.spec.ref` field from the
+`GitRepository` object is used as the checkout for updates.
+
+**Move and adapt `.spec.commit` to `spec.git.commit`**
+
+The `commit` field also moves under the `git` key, and the author is a structure rather than two
+fields.
+
+```yaml
+spec:
+  commit:
+    authorName: fluxbot
+    authorEmail: fluxbot@example.com
+    messageTemplate: |
+      An automated update from FluxBot
+      [ci skip]
+    signingKey:
+      secretRef:
+        name: git-pgp
+
+# becomes
+
+spec:
+  git:
+    commit:
+      author:
+        name: fluxbot
+        email: fluxbot@example.com
+      messageTemplate: |
+        An automated update from FluxBot
+        [ci skip]
+      signingKey:
+        secretRef:
+          name: git-pgp
+```
+
+**Move `.spec.push` to `.spec.git.push`**
+
+The field `push` moves under the `git` key.
+
+```yaml
+spec:
+  push:
+    branch: auto
+
+# becomes
+
+spec:
+  git:
+    push:
+      branch: auto
+```
+
+**Overall result**
+
+The final YAML looks like this:
+
+```yaml
+apiVersion: image.toolkit.fluxcd.io/v1alpha2
+kind: ImageUpdateAutomation
+spec:
+  sourceRef: # moved from `.spec.checkout`
+    kind: GitRepository
+    name: auto-repo
+  interval: 5m
+  # omit suspend, which has not changed
+  update:
+    strategy: Setters
+    path: ./app
+  git:
+    checkout: # moved under `git`, loses `gitRepositoryRef`
+      ref:
+        branch: main # moved into `ref` struct
+    commit: # moved under `git`
+      author:
+        name: fluxbot  # moved from `authorName`
+        email: fluxbot@example.com # moved from `authorEmail`
+      messageTemplate: |
+        An automated update from FluxBot
+        [ci skip]
+      signingKey:
+        secretRef:
+          name: git-pgp
+    push: # moved under `git`
+      branch: auto
+```
 
 [image-auto-guide]: https://toolkit.fluxcd.io/guides/image-update/#configure-image-update-for-custom-resources
 [git-repo-ref]: https://toolkit.fluxcd.io/components/source/gitrepositories/#specification
