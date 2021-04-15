@@ -275,10 +275,12 @@ Images:
 - {{ $resource.Name }}
 {{ end -}}
 `
+		var repoURL string
+		var gitRepoKey types.NamespacedName
 
 		BeforeEach(func() {
 			Expect(initGitRepo(gitServer, "testdata/pathconfig", branch, repositoryPath)).To(Succeed())
-			repoURL := gitServer.HTTPAddressWithCredentials() + repositoryPath
+			repoURL = gitServer.HTTPAddressWithCredentials() + repositoryPath
 			var err error
 			localRepo, err = git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
 				URL:           repoURL,
@@ -287,7 +289,7 @@ Images:
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			gitRepoKey := types.NamespacedName{
+			gitRepoKey = types.NamespacedName{
 				Name:      "image-auto-" + randStringRunes(5),
 				Namespace: namespace.Name,
 			}
@@ -302,6 +304,13 @@ Images:
 				},
 			}
 			Expect(k8sClient.Create(context.Background(), gitRepo)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			Expect(k8sClient.Delete(context.Background(), namespace)).To(Succeed())
+		})
+
+		It("updates only the deployment in the specified path", func() {
 			policyKey := types.NamespacedName{
 				Name:      "policy-" + randStringRunes(5),
 				Namespace: namespace.Name,
@@ -375,13 +384,93 @@ Images:
 			Expect(k8sClient.Create(context.Background(), updateBySetters)).To(Succeed())
 			// wait for a new commit to be made by the controller
 			waitForNewHead(localRepo, branch)
+
+			head, _ := localRepo.Head()
+			commit, err := localRepo.CommitObject(head.Hash())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(commit.Message).To(Not(ContainSubstring("update-no")))
+			Expect(commit.Message).To(ContainSubstring("update-yes"))
 		})
 
-		AfterEach(func() {
-			Expect(k8sClient.Delete(context.Background(), namespace)).To(Succeed())
-		})
+		It("accepts image policies from other namespaces", func() {
+			other_namespace := &corev1.Namespace{}
+			other_namespace.Name = "image-auto-test-" + randStringRunes(5)
+			Expect(k8sClient.Create(context.Background(), other_namespace)).To(Succeed())
 
-		It("updates only the deployment in the specified path", func() {
+			policyKey := types.NamespacedName{
+				Name:      "policy-" + randStringRunes(5),
+				Namespace: other_namespace.Name,
+			}
+			// NB not testing the image reflector controller; this
+			// will make a "fully formed" ImagePolicy object.
+			policy := &imagev1_reflect.ImagePolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      policyKey.Name,
+					Namespace: policyKey.Namespace,
+				},
+				Spec: imagev1_reflect.ImagePolicySpec{
+					ImageRepositoryRef: meta.LocalObjectReference{
+						Name: "not-expected-to-exist",
+					},
+					Policy: imagev1_reflect.ImagePolicyChoice{
+						SemVer: &imagev1_reflect.SemVerPolicy{
+							Range: "1.x",
+						},
+					},
+				},
+				Status: imagev1_reflect.ImagePolicyStatus{
+					LatestImage: "helloworld:v1.0.0",
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), policy)).To(Succeed())
+			Expect(k8sClient.Status().Update(context.Background(), policy)).To(Succeed())
+
+			// Insert a setter reference into the deployment file,
+			// before creating the automation object itself.
+			commitInRepo(repoURL, branch, "Install setter marker", func(tmp string) {
+				Expect(replaceMarker(path.Join(tmp, "yes"), policyKey)).To(Succeed())
+			})
+			commitInRepo(repoURL, branch, "Install setter marker", func(tmp string) {
+				Expect(replaceMarker(path.Join(tmp, "no"), policyKey)).To(Succeed())
+			})
+
+			// pull the head commit we just pushed, so it's not
+			// considered a new commit when checking for a commit
+			// made by automation.
+			waitForNewHead(localRepo, branch)
+
+			// now create the automation object, and let it (one
+			// hopes!) make a commit itself.
+			updateKey := types.NamespacedName{
+				Namespace: namespace.Name,
+				Name:      "update-test",
+			}
+			updateBySetters := &imagev1.ImageUpdateAutomation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      updateKey.Name,
+					Namespace: updateKey.Namespace,
+				},
+				Spec: imagev1.ImageUpdateAutomationSpec{
+					Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
+					Checkout: imagev1.GitCheckoutSpec{
+						GitRepositoryRef: meta.LocalObjectReference{
+							Name: gitRepoKey.Name,
+						},
+						Branch: branch,
+					},
+					Update: &imagev1.UpdateStrategy{
+						Strategy: imagev1.UpdateStrategySetters,
+						Path:     "./yes",
+					},
+					Commit: imagev1.CommitSpec{
+						MessageTemplate: commitTemplate,
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), updateBySetters)).To(Succeed())
+			// wait for a new commit to be made by the controller
+			waitForNewHead(localRepo, branch)
+
 			head, _ := localRepo.Head()
 			commit, err := localRepo.CommitObject(head.Hash())
 			Expect(err).ToNot(HaveOccurred())

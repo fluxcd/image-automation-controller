@@ -213,10 +213,10 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	switch {
 	case auto.Spec.Update != nil && auto.Spec.Update.Strategy == imagev1.UpdateStrategySetters:
 		// For setters we first want to compile a list of _all_ the
-		// policies in the same namespace (maybe in the future this
+		// policies in all namespaces (maybe in the future this
 		// could be filtered by the automation object).
 		var policies imagev1_reflect.ImagePolicyList
-		if err := r.List(ctx, &policies, &client.ListOptions{Namespace: req.NamespacedName.Namespace}); err != nil {
+		if err := r.List(ctx, &policies, &client.ListOptions{}); err != nil {
 			return failWithError(err)
 		}
 
