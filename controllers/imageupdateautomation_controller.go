@@ -433,7 +433,7 @@ func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, rep
 	var access repoAccess
 	access.auth = &git.Auth{}
 	access.url = repository.Spec.URL
-	authStrat, err := gitstrat.AuthSecretStrategyForURL(access.url, repository.Spec.GitImplementation)
+	authStrat, err := gitstrat.AuthSecretStrategyForURL(access.url, git.CheckoutOptions{GitImplementation: repository.Spec.GitImplementation})
 	if err != nil {
 		return access, err
 	}
@@ -472,7 +472,7 @@ func (r repoAccess) remoteCallbacks() libgit2.RemoteCallbacks {
 // returns a `*gogit.Repository` regardless of the git library, since
 // that is used for committing changes.
 func cloneInto(ctx context.Context, access repoAccess, ref *sourcev1.GitRepositoryRef, path, impl string) (*gogit.Repository, error) {
-	checkoutStrat, err := gitstrat.CheckoutStrategyForRef(ref, impl)
+	checkoutStrat, err := gitstrat.CheckoutStrategyForRef(ref, git.CheckoutOptions{GitImplementation: impl})
 	if err == nil {
 		_, _, err = checkoutStrat.Checkout(ctx, path, access.url, access.auth)
 	}

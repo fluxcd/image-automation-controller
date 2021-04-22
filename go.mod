@@ -14,11 +14,11 @@ require (
 	github.com/fluxcd/pkg/runtime v0.11.0
 	github.com/fluxcd/pkg/ssh v0.0.5
 	// If you bump this, change SOURCE_VER in the Makefile to match
-	github.com/fluxcd/source-controller v0.10.0
-	github.com/fluxcd/source-controller/api v0.10.0
-	github.com/go-git/go-billy/v5 v5.0.0
-	github.com/go-git/go-git/v5 v5.2.0
-	github.com/go-logr/logr v0.3.0
+	github.com/fluxcd/source-controller v0.12.0
+	github.com/fluxcd/source-controller/api v0.12.0
+	github.com/go-git/go-billy/v5 v5.1.0
+	github.com/go-git/go-git/v5 v5.3.0
+	github.com/go-logr/logr v0.4.0
 	github.com/go-openapi/spec v0.19.5
 	github.com/google/go-containerregistry v0.1.1
 	github.com/libgit2/git2go/v31 v31.4.7
@@ -26,7 +26,7 @@ require (
 	github.com/onsi/gomega v1.10.2
 	github.com/otiai10/copy v1.2.0
 	github.com/spf13/pflag v1.0.5
-	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
+	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
 	k8s.io/api v0.20.4
 	k8s.io/apimachinery v0.20.4
 	k8s.io/client-go v0.20.4
