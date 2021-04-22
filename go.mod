@@ -8,10 +8,10 @@ require (
 	github.com/cyphar/filepath-securejoin v0.2.2
 	github.com/fluxcd/image-automation-controller/api v0.8.0
 	// If you bump this, change REFLECTOR_VER in the Makefile to match
-	github.com/fluxcd/image-reflector-controller/api v0.8.0
-	github.com/fluxcd/pkg/apis/meta v0.8.0
+	github.com/fluxcd/image-reflector-controller/api v0.9.0
+	github.com/fluxcd/pkg/apis/meta v0.9.0
 	github.com/fluxcd/pkg/gittestserver v0.2.1
-	github.com/fluxcd/pkg/runtime v0.10.1
+	github.com/fluxcd/pkg/runtime v0.11.0
 	github.com/fluxcd/pkg/ssh v0.0.5
 	// If you bump this, change SOURCE_VER in the Makefile to match
 	github.com/fluxcd/source-controller v0.10.0
@@ -27,9 +27,9 @@ require (
 	github.com/otiai10/copy v1.2.0
 	github.com/spf13/pflag v1.0.5
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
-	k8s.io/api v0.20.2
-	k8s.io/apimachinery v0.20.2
-	k8s.io/client-go v0.20.2
+	k8s.io/api v0.20.4
+	k8s.io/apimachinery v0.20.4
+	k8s.io/client-go v0.20.4
 	sigs.k8s.io/controller-runtime v0.8.3
 	sigs.k8s.io/kustomize/kyaml v0.10.16
 )

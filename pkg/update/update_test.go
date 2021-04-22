@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 
 	"github.com/fluxcd/image-automation-controller/pkg/test"
-	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
+	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha2"
 )
 
 func TestUpdate(t *testing.T) {
