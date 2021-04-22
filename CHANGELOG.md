@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.9.0
+
+**Release date:** 2021-04-22
+
+This prerelease deprecates the `v1alpha1` API declarations in favor
+of the new `v1alpha2` API. The steps required to rewrite your
+`v1alpha1` objects to `v1alpha2` [have been documented in the `v1alpha2`
+spec](https://github.com/fluxcd/image-automation-controller/blob/api/v0.9.0/docs/spec/v1alpha2/imageupdateautomations.md#example-of-rewriting-a-v1alpha1-object-to-v1alpha2).
+
+Improvements:
+* Add v1alpha2 API version
+  [#139](https://github.com/fluxcd/image-automation-controller/pull/139)
+* Move to ImagePolicy v1alpha2
+  [#153](https://github.com/fluxcd/image-automation-controller/pull/153)
+* Update source-controller/api to v0.12.0
+  [#154](https://github.com/fluxcd/image-automation-controller/pull/154)
+
 ## 0.8.0
 
 **Release date:** 2021-04-06
