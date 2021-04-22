@@ -427,8 +427,8 @@ differences, and where each `v1alpha1` field goes. A full example appears after 
 
 ### Moves and changes
 
-| v1alpha1 field | change in v1alpha2 |
-+----------------+--------------------+
+| `v1alpha1` field | change in `v1alpha2` |
+|------------------|----------------------|
 | .spec.checkout | moved to `.spec.git.checkout`, and optional |
 |                | `gitRepositoryRef` is now `.spec.sourceRef` |
 |                | `branch` is now `ref`, and optional         |
