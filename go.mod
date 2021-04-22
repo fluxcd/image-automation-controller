@@ -6,7 +6,7 @@ replace github.com/fluxcd/image-automation-controller/api => ./api
 
 require (
 	github.com/cyphar/filepath-securejoin v0.2.2
-	github.com/fluxcd/image-automation-controller/api v0.8.0
+	github.com/fluxcd/image-automation-controller/api v0.9.0
 	// If you bump this, change REFLECTOR_VER in the Makefile to match
 	github.com/fluxcd/image-reflector-controller/api v0.9.0
 	github.com/fluxcd/pkg/apis/meta v0.9.0
