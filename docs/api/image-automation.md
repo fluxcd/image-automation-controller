@@ -2,21 +2,22 @@
 <p>Packages:</p>
 <ul class="simple">
 <li>
-<a href="#image.toolkit.fluxcd.io%2fv1alpha1">image.toolkit.fluxcd.io/v1alpha1</a>
+<a href="#image.toolkit.fluxcd.io%2fv1alpha2">image.toolkit.fluxcd.io/v1alpha2</a>
 </li>
 </ul>
-<h2 id="image.toolkit.fluxcd.io/v1alpha1">image.toolkit.fluxcd.io/v1alpha1</h2>
-<p>Package v1alpha1 contains API types for the image v1alpha1 API
+<h2 id="image.toolkit.fluxcd.io/v1alpha2">image.toolkit.fluxcd.io/v1alpha2</h2>
+<p>Package v1alpha2 contains API types for the image v1alpha2 API
 group. The types here are concerned with automated updates to git,
 based on metadata from OCI image registries gathered by the
-image-reflector-controller.</p>
+image-reflector-controller. There is some rearrangement from
+v1alpha1 to make room for future enhancements.</p>
 Resource Types:
 <ul class="simple"></ul>
-<h3 id="image.toolkit.fluxcd.io/v1alpha1.CommitSpec">CommitSpec
+<h3 id="image.toolkit.fluxcd.io/v1alpha2.CommitSpec">CommitSpec
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec</a>)
+<a href="#image.toolkit.fluxcd.io/v1alpha2.GitSpec">GitSpec</a>)
 </p>
 <p>CommitSpec specifies how to commit changes to the git repository</p>
 <div class="md-typeset__scrollwrap">
@@ -31,31 +32,23 @@ Resource Types:
 <tbody>
 <tr>
 <td>
-<code>authorName</code><br>
+<code>author</code><br>
 <em>
-string
+<a href="#image.toolkit.fluxcd.io/v1alpha2.CommitUser">
+CommitUser
+</a>
 </em>
 </td>
 <td>
-<p>AuthorName gives the name to provide when making a commit</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>authorEmail</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>AuthorEmail gives the email to provide when making a commit</p>
+<p>Author gives the email and optionally the name to use as the
+author of commits.</p>
 </td>
 </tr>
 <tr>
 <td>
 <code>signingKey</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.SigningKey">
+<a href="#image.toolkit.fluxcd.io/v1alpha2.SigningKey">
 SigningKey
 </a>
 </em>
@@ -82,11 +75,11 @@ into which will be interpolated the details of the change made.</p>
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha1.GitCheckoutSpec">GitCheckoutSpec
+<h3 id="image.toolkit.fluxcd.io/v1alpha2.CommitUser">CommitUser
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec</a>)
+<a href="#image.toolkit.fluxcd.io/v1alpha2.CommitSpec">CommitSpec</a>)
 </p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
@@ -100,36 +93,131 @@ into which will be interpolated the details of the change made.</p>
 <tbody>
 <tr>
 <td>
-<code>gitRepositoryRef</code><br>
-<em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#LocalObjectReference">
-github.com/fluxcd/pkg/apis/meta.LocalObjectReference
-</a>
-</em>
-</td>
-<td>
-<p>GitRepositoryRef refers to the resource giving access details
-to a git repository to update files in.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>branch</code><br>
+<code>name</code><br>
 <em>
 string
 </em>
 </td>
 <td>
-<p>Branch gives the branch to clone from the git repository. If
-<code>.spec.push</code> is not supplied, commits will also be pushed to
-this branch.</p>
+<em>(Optional)</em>
+<p>Name gives the name to provide when making a commit.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>email</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Email gives the email to provide when making a commit.</p>
 </td>
 </tr>
 </tbody>
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha1.ImageUpdateAutomation">ImageUpdateAutomation
+<h3 id="image.toolkit.fluxcd.io/v1alpha2.GitCheckoutSpec">GitCheckoutSpec
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#image.toolkit.fluxcd.io/v1alpha2.GitSpec">GitSpec</a>)
+</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>ref</code><br>
+<em>
+<a href="https://godoc.org/github.com/fluxcd/source-controller/api/v1beta1#GitRepositoryRef">
+Source /v1beta1.GitRepositoryRef
+</a>
+</em>
+</td>
+<td>
+<p>Reference gives a branch, tag or commit to clone from the Git
+repository.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="image.toolkit.fluxcd.io/v1alpha2.GitSpec">GitSpec
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec</a>)
+</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>checkout</code><br>
+<em>
+<a href="#image.toolkit.fluxcd.io/v1alpha2.GitCheckoutSpec">
+GitCheckoutSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Checkout gives the parameters for cloning the git repository,
+ready to make changes. If not present, the <code>spec.ref</code> field from the
+referenced <code>GitRepository</code> or its default will be used.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>commit</code><br>
+<em>
+<a href="#image.toolkit.fluxcd.io/v1alpha2.CommitSpec">
+CommitSpec
+</a>
+</em>
+</td>
+<td>
+<p>Commit specifies how to commit to the git repository.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>push</code><br>
+<em>
+<a href="#image.toolkit.fluxcd.io/v1alpha2.PushSpec">
+PushSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Push specifies how and where to push commits made by the
+automation. If missing, commits are pushed (back) to
+<code>.spec.checkout.branch</code> or its default.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomation">ImageUpdateAutomation
 </h3>
 <p>ImageUpdateAutomation is the Schema for the imageupdateautomations API</p>
 <div class="md-typeset__scrollwrap">
@@ -160,7 +248,7 @@ Refer to the Kubernetes API documentation for the fields of the
 <td>
 <code>spec</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.ImageUpdateAutomationSpec">
+<a href="#image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomationSpec">
 ImageUpdateAutomationSpec
 </a>
 </em>
@@ -171,16 +259,32 @@ ImageUpdateAutomationSpec
 <table>
 <tr>
 <td>
-<code>checkout</code><br>
+<code>sourceRef</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.GitCheckoutSpec">
-GitCheckoutSpec
+<a href="#image.toolkit.fluxcd.io/v1alpha2.SourceReference">
+SourceReference
 </a>
 </em>
 </td>
 <td>
-<p>Checkout gives the parameters for cloning the git repository,
-ready to make changes.</p>
+<p>SourceRef refers to the resource giving access details
+to a git repository.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>git</code><br>
+<em>
+<a href="#image.toolkit.fluxcd.io/v1alpha2.GitSpec">
+GitSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>GitSpec contains all the git-specific definitions. This is
+technically optional, but in practice mandatory until there are
+other kinds of source allowed.</p>
 </td>
 </tr>
 <tr>
@@ -201,7 +305,7 @@ run should be attempted.</p>
 <td>
 <code>update</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.UpdateStrategy">
+<a href="#image.toolkit.fluxcd.io/v1alpha2.UpdateStrategy">
 UpdateStrategy
 </a>
 </em>
@@ -210,35 +314,6 @@ UpdateStrategy
 <p>Update gives the specification for how to update the files in
 the repository. This can be left empty, to use the default
 value.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>commit</code><br>
-<em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.CommitSpec">
-CommitSpec
-</a>
-</em>
-</td>
-<td>
-<p>Commit specifies how to commit to the git repository.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>push</code><br>
-<em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.PushSpec">
-PushSpec
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Push specifies how and where to push commits made by the
-automation. If missing, commits are pushed (back) to
-<code>.spec.checkout.branch</code>.</p>
 </td>
 </tr>
 <tr>
@@ -261,7 +336,7 @@ it is unset (or set to false). Defaults to false.</p>
 <td>
 <code>status</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.ImageUpdateAutomationStatus">
+<a href="#image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomationStatus">
 ImageUpdateAutomationStatus
 </a>
 </em>
@@ -273,11 +348,11 @@ ImageUpdateAutomationStatus
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha1.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec
+<h3 id="image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.ImageUpdateAutomation">ImageUpdateAutomation</a>)
+<a href="#image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomation">ImageUpdateAutomation</a>)
 </p>
 <p>ImageUpdateAutomationSpec defines the desired state of ImageUpdateAutomation</p>
 <div class="md-typeset__scrollwrap">
@@ -292,16 +367,32 @@ ImageUpdateAutomationStatus
 <tbody>
 <tr>
 <td>
-<code>checkout</code><br>
+<code>sourceRef</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.GitCheckoutSpec">
-GitCheckoutSpec
+<a href="#image.toolkit.fluxcd.io/v1alpha2.SourceReference">
+SourceReference
 </a>
 </em>
 </td>
 <td>
-<p>Checkout gives the parameters for cloning the git repository,
-ready to make changes.</p>
+<p>SourceRef refers to the resource giving access details
+to a git repository.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>git</code><br>
+<em>
+<a href="#image.toolkit.fluxcd.io/v1alpha2.GitSpec">
+GitSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>GitSpec contains all the git-specific definitions. This is
+technically optional, but in practice mandatory until there are
+other kinds of source allowed.</p>
 </td>
 </tr>
 <tr>
@@ -322,7 +413,7 @@ run should be attempted.</p>
 <td>
 <code>update</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.UpdateStrategy">
+<a href="#image.toolkit.fluxcd.io/v1alpha2.UpdateStrategy">
 UpdateStrategy
 </a>
 </em>
@@ -331,35 +422,6 @@ UpdateStrategy
 <p>Update gives the specification for how to update the files in
 the repository. This can be left empty, to use the default
 value.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>commit</code><br>
-<em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.CommitSpec">
-CommitSpec
-</a>
-</em>
-</td>
-<td>
-<p>Commit specifies how to commit to the git repository.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>push</code><br>
-<em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.PushSpec">
-PushSpec
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Push specifies how and where to push commits made by the
-automation. If missing, commits are pushed (back) to
-<code>.spec.checkout.branch</code>.</p>
 </td>
 </tr>
 <tr>
@@ -379,11 +441,11 @@ it is unset (or set to false). Defaults to false.</p>
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha1.ImageUpdateAutomationStatus">ImageUpdateAutomationStatus
+<h3 id="image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomationStatus">ImageUpdateAutomationStatus
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.ImageUpdateAutomation">ImageUpdateAutomation</a>)
+<a href="#image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomation">ImageUpdateAutomation</a>)
 </p>
 <p>ImageUpdateAutomationStatus defines the observed state of ImageUpdateAutomation</p>
 <div class="md-typeset__scrollwrap">
@@ -482,11 +544,11 @@ github.com/fluxcd/pkg/apis/meta.ReconcileRequestStatus
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha1.PushSpec">PushSpec
+<h3 id="image.toolkit.fluxcd.io/v1alpha2.PushSpec">PushSpec
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec</a>)
+<a href="#image.toolkit.fluxcd.io/v1alpha2.GitSpec">GitSpec</a>)
 </p>
 <p>PushSpec specifies how and where to push commits.</p>
 <div class="md-typeset__scrollwrap">
@@ -516,11 +578,11 @@ starting point, if it doesn&rsquo;t already exist.</p>
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha1.SigningKey">SigningKey
+<h3 id="image.toolkit.fluxcd.io/v1alpha2.SigningKey">SigningKey
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.CommitSpec">CommitSpec</a>)
+<a href="#image.toolkit.fluxcd.io/v1alpha2.CommitSpec">CommitSpec</a>)
 </p>
 <p>SigningKey references a Kubernetes secret that contains a GPG keypair</p>
 <div class="md-typeset__scrollwrap">
@@ -553,11 +615,67 @@ ImageUpdateAutomation.</p>
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha1.UpdateStrategy">UpdateStrategy
+<h3 id="image.toolkit.fluxcd.io/v1alpha2.SourceReference">SourceReference
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec</a>)
+<a href="#image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec</a>)
+</p>
+<p>SourceReference contains enough information to let you locate the
+typed, referenced source object.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>apiVersion</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>API version of the referent</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>kind</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Kind of the referent</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>name</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Name of the referent</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="image.toolkit.fluxcd.io/v1alpha2.UpdateStrategy">UpdateStrategy
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec</a>)
 </p>
 <p>UpdateStrategy is a union of the various strategies for updating
 the Git repository. Parameters for each strategy (if any) can be
@@ -576,7 +694,7 @@ inlined here.</p>
 <td>
 <code>strategy</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.UpdateStrategyName">
+<a href="#image.toolkit.fluxcd.io/v1alpha2.UpdateStrategyName">
 UpdateStrategyName
 </a>
 </em>
@@ -603,11 +721,11 @@ of the GitRepositoryRef.</p>
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha1.UpdateStrategyName">UpdateStrategyName
+<h3 id="image.toolkit.fluxcd.io/v1alpha2.UpdateStrategyName">UpdateStrategyName
 (<code>string</code> alias)</h3>
 <p>
 (<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha1.UpdateStrategy">UpdateStrategy</a>)
+<a href="#image.toolkit.fluxcd.io/v1alpha2.UpdateStrategy">UpdateStrategy</a>)
 </p>
 <p>UpdateStrategyName is the type for names that go in
 .update.strategy. NB the value in the const immediately below.</p>

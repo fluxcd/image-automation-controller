@@ -33,7 +33,7 @@ import (
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha1"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
-	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha1"
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha2"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -72,10 +72,10 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(err).ToNot(HaveOccurred())
 	Expect(cfg).ToNot(BeNil())
 
-	Expect(imagev1.AddToScheme(scheme.Scheme)).To(Succeed())
 	Expect(sourcev1.AddToScheme(scheme.Scheme)).To(Succeed())
 	Expect(imagev1_reflect.AddToScheme(scheme.Scheme)).To(Succeed())
 
+	Expect(imagev1.AddToScheme(scheme.Scheme)).To(Succeed())
 	// +kubebuilder:scaffold:scheme
 
 	k8sManager, err = ctrl.NewManager(cfg, ctrl.Options{

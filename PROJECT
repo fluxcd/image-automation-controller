@@ -4,4 +4,7 @@ resources:
 - group: image
   kind: ImageUpdateAutomation
   version: v1alpha1
+- group: image
+  kind: ImageUpdateAutomation
+  version: v1alpha2
 version: "2"

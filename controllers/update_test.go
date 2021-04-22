@@ -54,7 +54,7 @@ import (
 	"github.com/fluxcd/pkg/ssh"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
-	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha1"
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha2"
 	"github.com/fluxcd/image-automation-controller/pkg/test"
 	"github.com/fluxcd/image-automation-controller/pkg/update"
 )
@@ -114,7 +114,7 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		Expect(initGitRepo(gitServer, "testdata/appconfig", branch, repositoryPath)).To(Succeed())
 	})
 
-	Context("commit message template", func() {
+	Context("commit spec", func() {
 
 		var (
 			localRepo     *git.Repository
@@ -122,6 +122,8 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		)
 
 		const (
+			authorName     = "Flux B Ot"
+			authorEmail    = "fluxbot@example.com"
 			commitTemplate = `Commit summary
 
 Automation: {{ .AutomationObject }}
@@ -235,17 +237,26 @@ Images:
 				},
 				Spec: imagev1.ImageUpdateAutomationSpec{
 					Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
-					Checkout: imagev1.GitCheckoutSpec{
-						GitRepositoryRef: meta.LocalObjectReference{
-							Name: gitRepoKey.Name,
+					SourceRef: imagev1.SourceReference{
+						Kind: "GitRepository",
+						Name: gitRepoKey.Name,
+					},
+					GitSpec: &imagev1.GitSpec{
+						Checkout: &imagev1.GitCheckoutSpec{
+							Reference: sourcev1.GitRepositoryRef{
+								Branch: branch,
+							},
 						},
-						Branch: branch,
+						Commit: imagev1.CommitSpec{
+							MessageTemplate: commitTemplate,
+							Author: imagev1.CommitUser{
+								Name:  authorName,
+								Email: authorEmail,
+							},
+						},
 					},
 					Update: &imagev1.UpdateStrategy{
 						Strategy: imagev1.UpdateStrategySetters,
-					},
-					Commit: imagev1.CommitSpec{
-						MessageTemplate: commitTemplate,
 					},
 				},
 			}
@@ -263,6 +274,15 @@ Images:
 			commit, err := localRepo.CommitObject(head.Hash())
 			Expect(err).ToNot(HaveOccurred())
 			Expect(commit.Message).To(Equal(commitMessage))
+		})
+
+		It("has the commit author as given", func() {
+			head, _ := localRepo.Head()
+			commit, err := localRepo.CommitObject(head.Hash())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(commit.Author).NotTo(BeNil())
+			Expect(commit.Author.Name).To(Equal(authorName))
+			Expect(commit.Author.Email).To(Equal(authorEmail))
 		})
 	})
 
@@ -357,18 +377,26 @@ Images:
 				},
 				Spec: imagev1.ImageUpdateAutomationSpec{
 					Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
-					Checkout: imagev1.GitCheckoutSpec{
-						GitRepositoryRef: meta.LocalObjectReference{
-							Name: gitRepoKey.Name,
-						},
-						Branch: branch,
-					},
 					Update: &imagev1.UpdateStrategy{
 						Strategy: imagev1.UpdateStrategySetters,
 						Path:     "./yes",
 					},
-					Commit: imagev1.CommitSpec{
-						MessageTemplate: commitTemplate,
+					SourceRef: imagev1.SourceReference{
+						Kind: "GitRepository",
+						Name: gitRepoKey.Name,
+					},
+					GitSpec: &imagev1.GitSpec{
+						Checkout: &imagev1.GitCheckoutSpec{
+							Reference: sourcev1.GitRepositoryRef{
+								Branch: branch,
+							},
+						},
+						Commit: imagev1.CommitSpec{
+							Author: imagev1.CommitUser{
+								Email: "fluxbot@example.com",
+							},
+							MessageTemplate: commitTemplate,
+						},
 					},
 				},
 			}
@@ -499,20 +527,25 @@ Images:
 					Namespace: updateKey.Namespace,
 				},
 				Spec: imagev1.ImageUpdateAutomationSpec{
+					SourceRef: imagev1.SourceReference{
+						Kind: "GitRepository",
+						Name: gitRepoKey.Name,
+					},
 					Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
-					Checkout: imagev1.GitCheckoutSpec{
-						GitRepositoryRef: meta.LocalObjectReference{
-							Name: gitRepoKey.Name,
+					GitSpec: &imagev1.GitSpec{
+						Checkout: &imagev1.GitCheckoutSpec{
+							Reference: sourcev1.GitRepositoryRef{
+								Branch: branch,
+							},
 						},
-						Branch: branch,
+						Commit: imagev1.CommitSpec{
+							SigningKey: &imagev1.SigningKey{
+								SecretRef: meta.LocalObjectReference{Name: sec.Name},
+							},
+						},
 					},
 					Update: &imagev1.UpdateStrategy{
 						Strategy: imagev1.UpdateStrategySetters,
-					},
-					Commit: imagev1.CommitSpec{
-						SigningKey: &imagev1.SigningKey{
-							SecretRef: meta.LocalObjectReference{Name: sec.Name},
-						},
 					},
 				},
 			}
@@ -692,21 +725,29 @@ Images:
 
 					update = &imagev1.ImageUpdateAutomation{
 						Spec: imagev1.ImageUpdateAutomationSpec{
-							Interval: metav1.Duration{Duration: 2 * time.Hour},
-							Checkout: imagev1.GitCheckoutSpec{
-								GitRepositoryRef: meta.LocalObjectReference{
-									Name: gitRepoKey.Name,
-								},
-								Branch: branch,
+							SourceRef: imagev1.SourceReference{
+								Kind: "GitRepository",
+								Name: gitRepoKey.Name,
 							},
 							Update: &imagev1.UpdateStrategy{
 								Strategy: imagev1.UpdateStrategySetters,
 							},
-							Commit: imagev1.CommitSpec{
-								MessageTemplate: commitMessage,
-							},
-							Push: &imagev1.PushSpec{
-								Branch: pushBranch,
+							Interval: metav1.Duration{Duration: 2 * time.Hour},
+							GitSpec: &imagev1.GitSpec{
+								Checkout: &imagev1.GitCheckoutSpec{
+									Reference: sourcev1.GitRepositoryRef{
+										Branch: branch,
+									},
+								},
+								Commit: imagev1.CommitSpec{
+									Author: imagev1.CommitUser{
+										Email: "fluxbot@example.com",
+									},
+									MessageTemplate: commitMessage,
+								},
+								Push: &imagev1.PushSpec{
+									Branch: pushBranch,
+								},
 							},
 						},
 					}
@@ -779,17 +820,25 @@ Images:
 						},
 						Spec: imagev1.ImageUpdateAutomationSpec{
 							Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
-							Checkout: imagev1.GitCheckoutSpec{
-								GitRepositoryRef: meta.LocalObjectReference{
-									Name: gitRepoKey.Name,
-								},
-								Branch: branch,
+							SourceRef: imagev1.SourceReference{
+								Kind: "GitRepository",
+								Name: gitRepoKey.Name,
 							},
 							Update: &imagev1.UpdateStrategy{
 								Strategy: imagev1.UpdateStrategySetters,
 							},
-							Commit: imagev1.CommitSpec{
-								MessageTemplate: commitMessage,
+							GitSpec: &imagev1.GitSpec{
+								Checkout: &imagev1.GitCheckoutSpec{
+									Reference: sourcev1.GitRepositoryRef{
+										Branch: branch,
+									},
+								},
+								Commit: imagev1.CommitSpec{
+									Author: imagev1.CommitUser{
+										Email: "fluxbot@example.com",
+									},
+									MessageTemplate: commitMessage,
+								},
 							},
 						},
 					}
@@ -822,8 +871,7 @@ Images:
 				It("stops updating when suspended", func() {
 					// suspend it, and check that reconciliation does not run
 					var updatePatch imagev1.ImageUpdateAutomation
-					updatePatch.Name = updateKey.Name
-					updatePatch.Namespace = updateKey.Namespace
+					Expect(k8sClient.Get(context.TODO(), updateKey, &updatePatch)).To(Succeed())
 					updatePatch.Spec.Suspend = true
 					Expect(k8sClient.Patch(context.Background(), &updatePatch, client.Merge)).To(Succeed())
 					// wait for the suspension to reach the cache
@@ -894,16 +942,24 @@ Images:
 					Namespace: key.Namespace,
 				},
 				Spec: imagev1.ImageUpdateAutomationSpec{
-					Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
-					Checkout: imagev1.GitCheckoutSpec{
-						GitRepositoryRef: meta.LocalObjectReference{
-							Name: "garbage",
-						},
-						Branch: branch,
+					SourceRef: imagev1.SourceReference{
+						Kind: "GitRepository",
+						Name: "garbage",
 					},
-					// leave Update field out
-					Commit: imagev1.CommitSpec{
-						MessageTemplate: "nothing",
+					Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
+					GitSpec: &imagev1.GitSpec{
+						Checkout: &imagev1.GitCheckoutSpec{
+							Reference: sourcev1.GitRepositoryRef{
+								Branch: branch,
+							},
+						},
+						// leave Update field out
+						Commit: imagev1.CommitSpec{
+							Author: imagev1.CommitUser{
+								Email: "fluxbot@example.com",
+							},
+							MessageTemplate: "nothing",
+						},
 					},
 				},
 			}
