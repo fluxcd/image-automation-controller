@@ -95,6 +95,8 @@ type ImageUpdateAutomationReconciler struct {
 // +kubebuilder:rbac:groups=image.toolkit.fluxcd.io,resources=imageupdateautomations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=image.toolkit.fluxcd.io,resources=imageupdateautomations/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=gitrepositories,verbs=get;list;watch
+// +kubebuilder:rbac:groups=image.toolkit.fluxcd.io,resources=imagepolicies,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=secrets;namespaces,verbs=get;list;watch
 
 func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logr.FromContext(ctx)
@@ -243,11 +245,8 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	switch {
 	case auto.Spec.Update != nil && auto.Spec.Update.Strategy == imagev1.UpdateStrategySetters:
-		// For setters we first want to compile a list of _all_ the
-		// policies in the same namespace (maybe in the future this
-		// could be filtered by the automation object).
-		var policies imagev1_reflect.ImagePolicyList
-		if err := r.List(ctx, &policies, &client.ListOptions{Namespace: req.NamespacedName.Namespace}); err != nil {
+		policies, err := r.listPolicies(ctx, &auto)
+		if err != nil {
 			return failWithError(err)
 		}
 
@@ -420,6 +419,39 @@ func (r *ImageUpdateAutomationReconciler) automationsForImagePolicy(obj client.O
 		reqs[i].NamespacedName.Namespace = autoList.Items[i].GetNamespace()
 	}
 	return reqs
+}
+
+// --- policies
+
+func (r *ImageUpdateAutomationReconciler) listPolicies(ctx context.Context, auto *imagev1.ImageUpdateAutomation) (*imagev1_reflect.ImagePolicyList, error) {
+	var policies imagev1_reflect.ImagePolicyList
+
+	// if no namespace selector, return all policies from the same namespace as the ImageUpdateAutomation
+	if auto.Spec.PolicyNamespaceSelector == nil {
+		if err := r.List(ctx, &policies, client.InNamespace(auto.Namespace)); err != nil {
+			return nil, err
+		}
+		return &policies, nil
+	}
+
+	// select all namespaces that match the PolicyNamespaceSelector
+	var namespaces corev1.NamespaceList
+	if err := r.List(ctx, &namespaces, client.MatchingLabels(auto.Spec.PolicyNamespaceSelector.MatchLabels)); err != nil {
+		return nil, err
+	}
+
+	// return the policies from all namespaces matching the label selector
+	for _, ns := range namespaces.Items {
+		var list imagev1_reflect.ImagePolicyList
+		if err := r.List(ctx, &list, client.InNamespace(ns.Name)); err != nil {
+			return nil, err
+		}
+		for _, pol := range list.Items {
+			policies.Items = append(policies.Items, pol)
+		}
+	}
+
+	return &policies, nil
 }
 
 // --- git ops

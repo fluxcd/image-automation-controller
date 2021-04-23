@@ -87,8 +87,12 @@ var _ = Describe("ImageUpdateAutomation", func() {
 		branch = randStringRunes(8)
 		repositoryPath = "/config-" + randStringRunes(5) + ".git"
 
-		namespace = &corev1.Namespace{}
-		namespace.Name = "image-auto-test-" + randStringRunes(5)
+		namespace = &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   "image-auto-test-" + randStringRunes(5),
+				Labels: map[string]string{"auto": "enabled"},
+			},
+		}
 		Expect(k8sClient.Create(context.Background(), namespace)).To(Succeed())
 
 		var err error
@@ -257,6 +261,9 @@ Images:
 					},
 					Update: &imagev1.UpdateStrategy{
 						Strategy: imagev1.UpdateStrategySetters,
+					},
+					PolicyNamespaceSelector: &imagev1.PolicyNamespaceSelector{
+						MatchLabels: map[string]string{"auto": "enabled"},
 					},
 				},
 			}
