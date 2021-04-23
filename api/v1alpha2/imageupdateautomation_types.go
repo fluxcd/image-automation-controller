@@ -51,6 +51,13 @@ type ImageUpdateAutomationSpec struct {
 	// it is unset (or set to false). Defaults to false.
 	// +optional
 	Suspend bool `json:"suspend,omitempty"`
+
+	// PolicyNamespaceSelector is used for selecting policies in
+	// all namespaces that match the list of labels and their values.
+	// When not specified, it defaults to selecting the policies
+	// present in the same namespace as the ImageUpdateAutomation.
+	// +optional
+	PolicyNamespaceSelector *PolicyNamespaceSelector `json:"policyNamespaceSelector,omitempty"`
 }
 
 // UpdateStrategyName is the type for names that go in
@@ -79,6 +86,12 @@ type UpdateStrategy struct {
 	// of the GitRepositoryRef.
 	// +optional
 	Path string `json:"path,omitempty"`
+}
+
+// PolicyNamespaceSelector is used for selecting policies in
+// all namespaces that match the list of labels and their values.
+type PolicyNamespaceSelector struct {
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
 }
 
 // ImageUpdateAutomationStatus defines the observed state of ImageUpdateAutomation

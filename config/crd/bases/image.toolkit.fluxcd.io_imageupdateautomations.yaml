@@ -370,6 +370,17 @@ spec:
                 description: Interval gives an lower bound for how often the automation
                   run should be attempted.
                 type: string
+              policyNamespaceSelector:
+                description: PolicyNamespaceSelector is used for selecting policies
+                  in all namespaces that match the list of labels and their values.
+                  When not specified, it defaults to selecting the policies present
+                  in the same namespace as the ImageUpdateAutomation.
+                properties:
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    type: object
+                type: object
               sourceRef:
                 description: SourceRef refers to the resource giving access details
                   to a git repository.

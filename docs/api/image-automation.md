@@ -329,6 +329,23 @@ bool
 it is unset (or set to false). Defaults to false.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>policyNamespaceSelector</code><br>
+<em>
+<a href="#image.toolkit.fluxcd.io/v1alpha2.PolicyNamespaceSelector">
+PolicyNamespaceSelector
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PolicyNamespaceSelector is used for selecting policies in
+all namespaces that match the list of labels and their values.
+When not specified, it defaults to selecting the policies
+present in the same namespace as the ImageUpdateAutomation.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -437,6 +454,23 @@ bool
 it is unset (or set to false). Defaults to false.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>policyNamespaceSelector</code><br>
+<em>
+<a href="#image.toolkit.fluxcd.io/v1alpha2.PolicyNamespaceSelector">
+PolicyNamespaceSelector
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PolicyNamespaceSelector is used for selecting policies in
+all namespaces that match the list of labels and their values.
+When not specified, it defaults to selecting the policies
+present in the same namespace as the ImageUpdateAutomation.</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -538,6 +572,38 @@ github.com/fluxcd/pkg/apis/meta.ReconcileRequestStatus
 <p>
 (Members of <code>ReconcileRequestStatus</code> are embedded into this type.)
 </p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="image.toolkit.fluxcd.io/v1alpha2.PolicyNamespaceSelector">PolicyNamespaceSelector
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec</a>)
+</p>
+<p>PolicyNamespaceSelector is used for selecting policies in
+all namespaces that match the list of labels and their values.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>matchLabels</code><br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
 </td>
 </tr>
 </tbody>
