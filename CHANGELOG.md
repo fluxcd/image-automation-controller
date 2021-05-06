@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.1
+
+**Release date:** 2021-05-06
+
+This prerelease comes with a fix to the image name setter.
+
+Fixes:
+* Fix image name marker
+  [#162](https://github.com/fluxcd/image-automation-controller/pull/162)
+* spec: fix formatting `v1alpha1` -> `v1alpha2` table
+  [#156](https://github.com/fluxcd/image-automation-controller/pull/156)
+
 ## 0.9.0
 
 **Release date:** 2021-04-22
