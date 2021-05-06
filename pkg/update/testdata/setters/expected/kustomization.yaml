@@ -5,5 +5,5 @@ resources:
 - unimportant.yaml
 images:
 - name: container
-  newName: updated # {"$imagepolicy": "automation-ns:policy:name"}
+  newName: index.repo.fake/updated # {"$imagepolicy": "automation-ns:policy:name"}
   newTag: v1.0.1 # {"$imagepolicy": "automation-ns:policy:tag"}

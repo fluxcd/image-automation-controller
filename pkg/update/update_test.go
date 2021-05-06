@@ -41,16 +41,16 @@ var _ = Describe("Update image via kyaml setters2", func() {
 
 	var (
 		policies = []imagev1alpha1_reflect.ImagePolicy{
-			imagev1alpha1_reflect.ImagePolicy{
+			{
 				ObjectMeta: metav1.ObjectMeta{ // name matches marker used in testdata/setters/{original,expected}
 					Namespace: "automation-ns",
 					Name:      "policy",
 				},
 				Status: imagev1alpha1_reflect.ImagePolicyStatus{
-					LatestImage: "updated:v1.0.1",
+					LatestImage: "index.repo.fake/updated:v1.0.1",
 				},
 			},
-			imagev1alpha1_reflect.ImagePolicy{
+			{
 				ObjectMeta: metav1.ObjectMeta{ // name matches marker used in testdata/setters/{original,expected}
 					Namespace: "automation-ns",
 					Name:      "unchanged",
@@ -68,16 +68,16 @@ var _ = Describe("Update image via kyaml setters2", func() {
 		defer os.RemoveAll(tmp)
 
 		policies := []imagev1alpha1_reflect.ImagePolicy{
-			imagev1alpha1_reflect.ImagePolicy{
+			{
 				ObjectMeta: metav1.ObjectMeta{ // name matches marker used in testdata/setters/{original,expected}
 					Namespace: "automation-ns",
 					Name:      "policy",
 				},
 				Status: imagev1alpha1_reflect.ImagePolicyStatus{
-					LatestImage: "updated:v1.0.1",
+					LatestImage: "index.repo.fake/updated:v1.0.1",
 				},
 			},
-			imagev1alpha1_reflect.ImagePolicy{
+			{
 				ObjectMeta: metav1.ObjectMeta{ // name matches marker used in testdata/setters/{original,expected}
 					Namespace: "automation-ns",
 					Name:      "unchanged",
@@ -117,7 +117,7 @@ var _ = Describe("Update image via kyaml setters2", func() {
 				Name:      "foo",
 			},
 		}}
-		r, _ := name.ParseReference("updated:v1.0.1")
+		r, _ := name.ParseReference("index.repo.fake/updated:v1.0.1")
 		expectedImageRef := imageRef{r, types.NamespacedName{
 			Name:      "policy",
 			Namespace: "automation-ns",

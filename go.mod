@@ -19,7 +19,6 @@ require (
 	github.com/go-git/go-billy/v5 v5.1.0
 	github.com/go-git/go-git/v5 v5.3.0
 	github.com/go-logr/logr v0.4.0
-	github.com/go-openapi/spec v0.19.5
 	github.com/google/go-containerregistry v0.1.1
 	github.com/libgit2/git2go/v31 v31.4.7
 	github.com/onsi/ginkgo v1.14.1
@@ -30,8 +29,9 @@ require (
 	k8s.io/api v0.20.4
 	k8s.io/apimachinery v0.20.4
 	k8s.io/client-go v0.20.4
+	k8s.io/kube-openapi v0.0.0-20210421082810-95288971da7e
 	sigs.k8s.io/controller-runtime v0.8.3
-	sigs.k8s.io/kustomize/kyaml v0.10.16
+	sigs.k8s.io/kustomize/kyaml v0.10.19
 )
 
 // Force downgrade to version used by kyaml.
