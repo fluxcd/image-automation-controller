@@ -158,7 +158,7 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 		// annoyingly, neither the library imported above, nor an
 		// alternative I found, will yield the original image name;
 		// this is an easy way to get it
-		name := image[:len(tag)+1]
+		name := image[:len(image)-len(tag)-1]
 
 		imageSetter := fmt.Sprintf("%s:%s", policy.GetNamespace(), policy.GetName())
 		defs[fieldmeta.SetterDefinitionPrefix+imageSetter] = setterSchema(imageSetter, policy.Status.LatestImage)
