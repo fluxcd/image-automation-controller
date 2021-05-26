@@ -5,6 +5,7 @@ go 1.15
 replace github.com/fluxcd/image-automation-controller/api => ./api
 
 require (
+	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7
 	github.com/cyphar/filepath-securejoin v0.2.2
 	github.com/fluxcd/image-automation-controller/api v0.9.1
 	// If you bump this, change REFLECTOR_VER in the Makefile to match
@@ -25,7 +26,6 @@ require (
 	github.com/onsi/gomega v1.10.2
 	github.com/otiai10/copy v1.2.0
 	github.com/spf13/pflag v1.0.5
-	golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b
 	k8s.io/api v0.20.4
 	k8s.io/apimachinery v0.20.4
 	k8s.io/client-go v0.20.4
