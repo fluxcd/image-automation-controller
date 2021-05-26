@@ -330,7 +330,6 @@ github.com/fluxcd/pkg/version v0.0.1 h1:/8asQoDXSThz3csiwi4Qo8Zb6blAxLXbtxNgeMJ9
 github.com/fluxcd/pkg/version v0.0.1/go.mod h1:WAF4FEEA9xyhngF8TDxg3UPu5fA1qhEYV8Pmi2Il01Q=
 github.com/fluxcd/source-controller v0.13.0 h1:BhUZx+950S1b6+F+tN93sIPOgSJ+0mX8biKN2n313nA=
 github.com/fluxcd/source-controller v0.13.0/go.mod h1:8Y76JuS33R0RaMgIdZZfYVdVI2ZrrwmxyIyPbz4w09U=
-github.com/fluxcd/source-controller/api v0.12.1/go.mod h1:+EPyhxC7Y+hUnq7EwAkkLtfbwCxJxF5yfmiyzDk43KY=
 github.com/fluxcd/source-controller/api v0.13.0 h1:p7SWHPpxco1EsGu2jnF0aCZcQcl4IYQzjcXf4K5GpcY=
 github.com/fluxcd/source-controller/api v0.13.0/go.mod h1:+EPyhxC7Y+hUnq7EwAkkLtfbwCxJxF5yfmiyzDk43KY=
 github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568 h1:BHsljHzVlRcyQhjrss6TZTdY2VfCqZPbv5k3iBFa2ZQ=
