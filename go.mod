@@ -5,6 +5,7 @@ go 1.15
 replace github.com/fluxcd/image-automation-controller/api => ./api
 
 require (
+	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7
 	github.com/cyphar/filepath-securejoin v0.2.2
 	github.com/fluxcd/image-automation-controller/api v0.9.1
 	// If you bump this, change REFLECTOR_VER in the Makefile to match
@@ -14,18 +15,17 @@ require (
 	github.com/fluxcd/pkg/runtime v0.11.0
 	github.com/fluxcd/pkg/ssh v0.0.5
 	// If you bump this, change SOURCE_VER in the Makefile to match
-	github.com/fluxcd/source-controller v0.12.1
-	github.com/fluxcd/source-controller/api v0.12.1
-	github.com/go-git/go-billy/v5 v5.1.0
-	github.com/go-git/go-git/v5 v5.3.0
+	github.com/fluxcd/source-controller v0.13.0
+	github.com/fluxcd/source-controller/api v0.13.0
+	github.com/go-git/go-billy/v5 v5.3.1
+	github.com/go-git/go-git/v5 v5.4.1
 	github.com/go-logr/logr v0.4.0
 	github.com/google/go-containerregistry v0.1.1
-	github.com/libgit2/git2go/v31 v31.4.7
+	github.com/libgit2/git2go/v31 v31.4.14
 	github.com/onsi/ginkgo v1.14.1
 	github.com/onsi/gomega v1.10.2
 	github.com/otiai10/copy v1.2.0
 	github.com/spf13/pflag v1.0.5
-	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
 	k8s.io/api v0.20.4
 	k8s.io/apimachinery v0.20.4
 	k8s.io/client-go v0.20.4

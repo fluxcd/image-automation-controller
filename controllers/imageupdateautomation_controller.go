@@ -32,12 +32,12 @@ import (
 	gogit "github.com/go-git/go-git/v5"
 	libgit2 "github.com/libgit2/git2go/v31"
 
+	"github.com/ProtonMail/go-crypto/openpgp"
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-logr/logr"
-	"golang.org/x/crypto/openpgp"
 	corev1 "k8s.io/api/core/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -59,7 +59,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
-	git "github.com/fluxcd/source-controller/pkg/git"
+	"github.com/fluxcd/source-controller/pkg/git"
 	gitstrat "github.com/fluxcd/source-controller/pkg/git/strategy"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha2"
