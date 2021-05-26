@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.10.0
+
+**Release date:** 2021-05-26
+
+This prerelease updates the source-controller dependencies to `v0.13.0`
+to include changes to Git and OpenPGP related dependencies.
+
+Improvements:
+* Update source-controller to v0.13.0
+  [#169](https://github.com/fluxcd/image-automation-controller/pull/169)
+* Switch to `github.com/ProtonMail/go-crypto/openpgp`
+  [#169](https://github.com/fluxcd/image-automation-controller/pull/169)
+* Update source-controller/api to v0.13.0
+  [#170](https://github.com/fluxcd/image-automation-controller/pull/170)
+
 ## 0.9.1
 
 **Release date:** 2021-05-06
