@@ -4,6 +4,9 @@ go 1.15
 
 replace github.com/fluxcd/image-automation-controller/api => ./api
 
+// Patch from: https://github.com/go-git/go-git/pull/326
+replace github.com/go-git/go-git/v5 => github.com/zeripath/go-git/v5 v5.3.1-0.20210527183206-91658e74f550
+
 require (
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7
 	github.com/cyphar/filepath-securejoin v0.2.2
