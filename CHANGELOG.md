@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.10.1
+
+**Release date:** 2021-06-02
+
+This prerelease comes with an update to the `go-git` implementation
+dependency, bumping the version to `v5.4.2`. This should resolve any
+issues with `object not found` and `empty git-upload-pack given`
+errors that were thrown for some Git repositories since `0.10.0`.
+
+Fixes:
+* Update go-git to v5.4.2
+  [#174](https://github.com/fluxcd/image-automation-controller/pull/174)
+
 ## 0.10.0
 
 **Release date:** 2021-05-26
