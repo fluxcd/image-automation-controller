@@ -70,12 +70,11 @@ type SourceReference struct {
 
 To be able to commit changes back, the referenced `GitRepository` object must refer to credentials
 with write access; e.g., if using a GitHub deploy key, "Allow write access" should be checked when
-creating it. Only the `url`, `ref`, `secretRef` and `gitImplementation` (see just below) fields of
-the `GitRepository` are used.
+creating it. Only the `url`, `ref`, and `secretRef` fields of the `GitRepository` are used.
 
-The `gitImplementation` field in the referenced `GitRepository` object controls which git library is
-used. This will matter if you run on Azure, and possibly otherwise -- see [the source controller
-documentation][source-docs] for more details.
+The [`gitImplementation` field][source-docs] in the referenced `GitRepository` is ignored. The
+automation controller cannot use shallow clones or submodules, so there is no reason to use the
+go-git implementation rather than libgit2.
 
 Other fields particular to how the Git repository is used are in the `git` field, [described
 below](#git-specific-specification).

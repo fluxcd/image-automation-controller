@@ -74,29 +74,3 @@ func TestLibgit2ErrorUnchanged(t *testing.T) {
 		t.Errorf("expected %q, got %q", expectedReformat, reformattedMessage)
 	}
 }
-
-func TestGoGitErrorReplace(t *testing.T) {
-	// this is what go-git uses as the error message is if the remote
-	// sends a blank first line
-	unknownMessage := `unknown error: remote: `
-	err := errors.New(unknownMessage)
-	err = gogitPushError(err)
-	reformattedMessage := err.Error()
-	if reformattedMessage == unknownMessage {
-		t.Errorf("expected rewritten error, got %q", reformattedMessage)
-	}
-}
-
-func TestGoGitErrorUnchanged(t *testing.T) {
-	// this is (roughly) what GitHub sends if the deploy key doesn't
-	// have write access; go-git passes this on verbatim
-	regularMessage := `remote: ERROR: deploy key does not have write access`
-	expectedReformat := regularMessage
-	err := errors.New(regularMessage)
-	err = gogitPushError(err)
-	reformattedMessage := err.Error()
-	// test that it's been rewritten, without checking the exact content
-	if len(reformattedMessage) > len(expectedReformat) {
-		t.Errorf("expected %q, got %q", expectedReformat, reformattedMessage)
-	}
-}
