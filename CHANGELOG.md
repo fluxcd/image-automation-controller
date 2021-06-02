@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.11.0
+
+**Release date:** 2021-06-02
+
+This prerelease replaces `go-git` usage with `libgit2` for clone, fetch and push operations.
+
+The `gitImplementation` field in the referenced `GitRepository` is ignored. The
+automation controller cannot use shallow clones or submodules, so there is no
+reason to use the `go-git` implementation rather than `libgit2`.
+
+Improvements:
+* Use libgit2 for clone, fetch, push
+  [#177](https://github.com/fluxcd/image-automation-controller/pull/177)
+  
 ## 0.10.1
 
 **Release date:** 2021-06-02
