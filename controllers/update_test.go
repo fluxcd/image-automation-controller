@@ -782,6 +782,29 @@ Images:
 					Expect(head.String()).NotTo(Equal(headHash))
 				})
 
+				It("still pushes to the push branch after it's merged", func() {
+					// observe the first commit
+					waitForNewHead(localRepo, pushBranch)
+					head, err := localRepo.Reference(plumbing.NewRemoteReferenceName(originRemote, pushBranch), true)
+					headHash := head.String()
+					Expect(err).NotTo(HaveOccurred())
+
+					// merge the push branch into checkout branch, and push the merge commit
+					// upstream.
+					// waitForNewHead() leaves the repo at the head of the branch given, i.e., the
+					// push branch), so we have to check out the "main" branch first.
+					Expect(checkoutBranch(localRepo, branch)).To(Succeed())
+					mergeBranchIntoHead(localRepo, pushBranch)
+
+					// update the policy and expect another commit in the push branch
+					policy.Status.LatestImage = "helloworld:v1.3.0"
+					Expect(k8sClient.Status().Update(context.TODO(), policy)).To(Succeed())
+					waitForNewHead(localRepo, pushBranch)
+					head, err = localRepo.Reference(plumbing.NewRemoteReferenceName(originRemote, pushBranch), true)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(head.String()).NotTo(Equal(headHash))
+				})
+
 				AfterEach(func() {
 					Expect(k8sClient.Delete(context.Background(), update)).To(Succeed())
 				})
@@ -1044,6 +1067,7 @@ func waitForNewHead(repo *git.Repository, branch string) {
 	// remote, so it is a detached head.
 	Expect(working.Reset(&git.ResetOptions{
 		Commit: remoteHead.Hash(),
+		Mode:   git.HardReset,
 	})).To(Succeed())
 }
 
@@ -1127,4 +1151,58 @@ func initGitRepo(gitServer *gittestserver.GitServer, fixture, branch, repository
 	return remote.Push(&git.PushOptions{
 		RefSpecs: []config.RefSpec{"refs/heads/*:refs/heads/*"},
 	})
+}
+
+func checkoutBranch(repo *git.Repository, branch string) error {
+	working, err := repo.Worktree()
+	if err != nil {
+		return err
+	}
+	// check that there's no local changes, as a sanity check
+	status, err := working.Status()
+	if err != nil {
+		return err
+	}
+	if len(status) > 0 {
+		for path := range status {
+			println(path, "is changed")
+		}
+	} // the checkout next will fail if there are changed files
+
+	if err = working.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(branch),
+		Create: false,
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+// This merges the push branch into HEAD, and pushes upstream. This is
+// to simulate e.g., a PR being merged.
+func mergeBranchIntoHead(repo *git.Repository, pushBranch string) {
+	// hash of head
+	headRef, err := repo.Head()
+	Expect(err).NotTo(HaveOccurred())
+	pushBranchRef, err := repo.Reference(plumbing.NewRemoteReferenceName(originRemote, pushBranch), false)
+	Expect(err).NotTo(HaveOccurred())
+
+	// You need the worktree to be able to create a commit
+	worktree, err := repo.Worktree()
+	Expect(err).NotTo(HaveOccurred())
+	_, err = worktree.Commit(fmt.Sprintf("Merge %s", pushBranch), &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "Testbot",
+			Email: "test@example.com",
+			When:  time.Now(),
+		},
+		Parents: []plumbing.Hash{headRef.Hash(), pushBranchRef.Hash()},
+	})
+	Expect(err).NotTo(HaveOccurred())
+
+	// push upstream
+	err = repo.Push(&git.PushOptions{
+		RemoteName: originRemote,
+	})
+	Expect(err).NotTo(HaveOccurred())
 }
