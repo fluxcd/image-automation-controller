@@ -31,11 +31,8 @@ require (
 	k8s.io/client-go v0.20.4
 	k8s.io/kube-openapi v0.0.0-20210421082810-95288971da7e
 	sigs.k8s.io/controller-runtime v0.8.3
-	sigs.k8s.io/kustomize/kyaml v0.10.19
+	sigs.k8s.io/kustomize/kyaml v0.10.21
 )
-
-// Force downgrade to version used by kyaml.
-replace gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 
 // side-effect of depending on source-controller
 // required by https://github.com/helm/helm/blob/v3.5.2/go.mod

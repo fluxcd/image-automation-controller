@@ -10,5 +10,5 @@ spec:
       template:
         spec:
           containers:
-          - name: c
-            image: helloworld:v1.0.0
+            - name: c
+              image: helloworld:v1.0.0
