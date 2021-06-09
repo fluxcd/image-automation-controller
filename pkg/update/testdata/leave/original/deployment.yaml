@@ -9,3 +9,6 @@ spec:
       containers:
       - name: c
         image: helloworld:v1.0.0
+        args:
+          # prove that go-yaml/yaml v3.0.0-20200615113413-eeeca48fe776 fixes https://github.com/kubernetes-sigs/kustomize/issues/3969
+          - mv /etc/resolv.conf /etc/resolv.conf.OLD && ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf

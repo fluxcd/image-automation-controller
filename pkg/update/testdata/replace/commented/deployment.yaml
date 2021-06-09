@@ -5,7 +5,9 @@ metadata:
   namespace: bar
 spec:
   template:
-    spec:
+    # prove that go-yaml/yaml v3.0.0-20200615113413-eeeca48fe776 fixes https://github.com/kubernetes-sigs/kustomize/issues/3605
+    # 컨테이너
+    spec: # 컨테이너
       containers:
       - name: c
         image: used:v1.0.0 # the comment must stay!
