@@ -1,8 +1,7 @@
-FROM golang:1.15-alpine as builder
+FROM golang:1.16-alpine as builder
 
 # These are so as to be able to build with libgit2
-RUN apk add gcc pkgconfig libc-dev
-RUN apk add --no-cache musl~=1.2 libgit2-dev~=1.1
+RUN apk add --no-cache gcc pkgconfig libc-dev musl~=1.2 libgit2-dev~=1.1
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
