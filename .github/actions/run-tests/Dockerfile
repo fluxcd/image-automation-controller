@@ -1,8 +1,8 @@
-FROM golang:1.15-alpine
+FROM golang:1.16-alpine
 
 # Add any build or testing essential system packages
 RUN apk add --no-cache build-base git pkgconf
-RUN apk add --no-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/community libgit2-dev~=1.1
+RUN apk add --no-cache libgit2-dev~=1.1
 RUN apk add --no-cache curl
 
 # Use the GitHub Actions uid:gid combination for proper fs permissions
