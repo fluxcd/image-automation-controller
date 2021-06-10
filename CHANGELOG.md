@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.12.0
+
+**Release date:** 2021-06-10
+
+This prerelease comes with an update to the Kubernetes and controller-runtime
+dependencies to align them with the Kubernetes 1.21 release, and an update to
+the YAML packages (used by the controller to patch Kubernetes manifests) to
+fix long-standing issues like panics on YAML with non-ASCII characters.
+
+This update to `gopkg.in/yaml.v3` means that the indentation style changed:
+
+From:
+
+```yaml
+spec:
+  containers:
+  - name: one
+    image: image1:v1.0.0 # {"$imagepolicy": "automation-ns:policy1"}
+  - name: two
+    image: image2:v1.0.0 # {"$imagepolicy": "automation-ns:policy2"}
+```
+
+To:
+
+```yaml
+spec:
+  containers:
+    - name: one
+      image: image1:v1.0.0 # {"$imagepolicy": "automation-ns:policy1"}
+    - name: two
+      image: image2:v1.0.0 # {"$imagepolicy": "automation-ns:policy2"}
+```
+
+Improvements:
+* Update go-yaml with changes to indentation style
+  [#182](https://github.com/fluxcd/image-automation-controller/pull/182)
+* Add nightly builds workflow and allow RC releases
+  [#184](https://github.com/fluxcd/image-automation-controller/pull/184)
+* Update dependencies
+  [#183](https://github.com/fluxcd/image-automation-controller/pull/183)
+
 ## 0.11.0
 
 **Release date:** 2021-06-02
