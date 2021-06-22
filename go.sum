@@ -317,10 +317,10 @@ github.com/fluxcd/pkg/testserver v0.1.0/go.mod h1:fvt8BHhXw6c1+CLw1QFZxcQprlcXzs
 github.com/fluxcd/pkg/untar v0.1.0/go.mod h1:aGswNyzB1mlz/T/kpOS58mITBMxMKc9tlJBH037A2HY=
 github.com/fluxcd/pkg/version v0.1.0 h1:v+SmCanmCB5Tj2Cx9TXlj+kNRfPGbAvirkeqsp7ZEAQ=
 github.com/fluxcd/pkg/version v0.1.0/go.mod h1:V7Z/w8dxLQzv0FHqa5ox5TeyOd2zOd49EeuWFgnwyj4=
-github.com/fluxcd/source-controller v0.14.0 h1:ClYKcZEUd6dEEa9j9K0zoMjfrK2a3oNM564neN5SVyQ=
-github.com/fluxcd/source-controller v0.14.0/go.mod h1:91nzWdSWW5OvxQXPXEeqXsGHRAKd//6jLjqfq4JC/gU=
-github.com/fluxcd/source-controller/api v0.14.0 h1:BiRhSF13RAcDzAi9k/HzOgzdobcDhEATYINr7Dn+wiE=
-github.com/fluxcd/source-controller/api v0.14.0/go.mod h1:P1pIkaoIsiCJ/NLC7IBXPb9XEime9NvA1WN4hZu2Of4=
+github.com/fluxcd/source-controller v0.15.2 h1:c+Nv77MxjqKFmGuPn3qA24THQv/Ikhp5UJVdMft524A=
+github.com/fluxcd/source-controller v0.15.2/go.mod h1:pjgK6jhU2DeLHyivdtbjNchqVS+I3CYLvmqSKrzzwUU=
+github.com/fluxcd/source-controller/api v0.15.2 h1:MRhh/MScEdGqGS/dYff8iEF2XhNr3ruvhGjTYnWT3ag=
+github.com/fluxcd/source-controller/api v0.15.2/go.mod h1:P1pIkaoIsiCJ/NLC7IBXPb9XEime9NvA1WN4hZu2Of4=
 github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568/go.mod h1:xEzjJPgXI435gkrCt3MPfRiAkVrwSbHsst4LCFVfpJc=
 github.com/form3tech-oss/jwt-go v3.2.2+incompatible/go.mod h1:pbq4aXjuKjdthFRnoDwaVPLA+WlJuPGy+QneDUgJi2k=
 github.com/fortytw2/leaktest v1.2.0/go.mod h1:jDsjWgpAGjm2CA7WthBh/CdZYEPF31XHquHwclZch5g=
@@ -1539,6 +1539,7 @@ gotest.tools v2.2.0+incompatible/go.mod h1:DsYFclhRJ6vuDpmuTbkuFWG+y2sxOXAzmJt81
 gotest.tools/v3 v3.0.2/go.mod h1:3SzNCllyD9/Y+b5r9JIKQ474KzkZyqLqEfYqMsX94Bk=
 gotest.tools/v3 v3.0.3/go.mod h1:Z7Lb0S5l+klDB31fvDQX8ss/FlKDxtlFlw3Oa8Ymbl8=
 helm.sh/helm/v3 v3.6.0/go.mod h1:mIIus8EOqj+obtycw3sidsR4ORr2aFDmXMSI3k+oeVY=
+helm.sh/helm/v3 v3.6.1/go.mod h1:mIIus8EOqj+obtycw3sidsR4ORr2aFDmXMSI3k+oeVY=
 honnef.co/go/tools v0.0.0-20180728063816-88497007e858/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
 honnef.co/go/tools v0.0.0-20190102054323-c2f93a96b099/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
 honnef.co/go/tools v0.0.0-20190106161140-3f1c8253044a/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
