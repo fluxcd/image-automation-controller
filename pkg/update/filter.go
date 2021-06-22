@@ -17,6 +17,7 @@ limitations under the License.
 package update
 
 import (
+	"github.com/go-logr/logr"
 	"k8s.io/kube-openapi/pkg/validation/spec"
 	"sigs.k8s.io/kustomize/kyaml/fieldmeta"
 	"sigs.k8s.io/kustomize/kyaml/openapi"
@@ -48,6 +49,14 @@ import (
 type SetAllCallback struct {
 	SettersSchema *spec.Schema
 	Callback      func(setter, oldValue, newValue string)
+	Trace         logr.Logger
+}
+
+func (s *SetAllCallback) TraceOrDiscard() logr.Logger {
+	if s.Trace == nil {
+		return logr.Discard()
+	}
+	return s.Trace
 }
 
 func (s *SetAllCallback) Filter(object *yaml.RNode) (*yaml.RNode, error) {
@@ -113,6 +122,7 @@ func (s *SetAllCallback) set(field *yaml.RNode, ext *setters2.CliExtension, sch 
 	// this has a full setter, set its value
 	old := field.YNode().Value
 	field.YNode().Value = ext.Setter.Value
+	s.TraceOrDiscard().Info("applying setter", "setter", ext.Setter.Name, "old", old, "new", ext.Setter.Value)
 	s.Callback(ext.Setter.Name, old, ext.Setter.Value)
 
 	// format the node so it is quoted if it is a string. If there is
@@ -137,6 +147,7 @@ func (s *SetAllCallback) visitScalar(object *yaml.RNode, p string, fieldSchema *
 		return nil
 	}
 
+	s.TraceOrDiscard().Info("found schema extension", "path", p)
 	// perform a direct set of the field if it matches
 	_, err = s.set(object, ext, fieldSchema.Schema)
 	return err

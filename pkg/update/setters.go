@@ -19,6 +19,7 @@ package update
 import (
 	"fmt"
 
+	"github.com/go-logr/logr"
 	"github.com/google/go-containerregistry/pkg/name"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/kube-openapi/pkg/validation/spec"
@@ -51,7 +52,7 @@ func init() {
 // UpdateWithSetters takes all YAML files from `inpath`, updates any
 // that contain an "in scope" image policy marker, and writes files it
 // updated (and only those files) back to `outpath`.
-func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.ImagePolicy) (Result, error) {
+func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []imagev1alpha1_reflect.ImagePolicy) (Result, error) {
 	// the OpenAPI schema is a package variable in kyaml/openapi. In
 	// lieu of being able to isolate invocations (per
 	// https://github.com/kubernetes-sigs/kustomize/issues/3058), I
@@ -161,28 +162,29 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 		name := image[:len(image)-len(tag)-1]
 
 		imageSetter := fmt.Sprintf("%s:%s", policy.GetNamespace(), policy.GetName())
+		tracelog.Info("adding setter", "name", imageSetter)
 		defs[fieldmeta.SetterDefinitionPrefix+imageSetter] = setterSchema(imageSetter, policy.Status.LatestImage)
 		imageRefs[imageSetter] = ref
 
 		tagSetter := imageSetter + ":tag"
+		tracelog.Info("adding setter", "name", tagSetter)
 		defs[fieldmeta.SetterDefinitionPrefix+tagSetter] = setterSchema(tagSetter, tag)
 		imageRefs[tagSetter] = ref
 
 		// Context().Name() gives the image repository _as supplied_
 		nameSetter := imageSetter + ":name"
+		tracelog.Info("adding setter", "name", nameSetter)
 		defs[fieldmeta.SetterDefinitionPrefix+nameSetter] = setterSchema(nameSetter, name)
 		imageRefs[nameSetter] = ref
 	}
 
 	settersSchema.Definitions = defs
-	set := &SetAllCallback{
-		SettersSchema: &settersSchema,
-	}
 
 	// get ready with the reader and writer
 	reader := &ScreeningLocalReader{
 		Path:  inpath,
 		Token: fmt.Sprintf("%q", SetterShortHand),
+		Trace: tracelog,
 	}
 	writer := &kio.LocalPackageWriter{
 		PackagePath: outpath,
@@ -192,7 +194,7 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 		Inputs:  []kio.Reader{reader},
 		Outputs: []kio.Writer{writer},
 		Filters: []kio.Filter{
-			setAll(set, setAllCallback),
+			setAll(&settersSchema, tracelog, setAllCallback),
 		},
 	}
 
@@ -210,7 +212,11 @@ func UpdateWithSetters(inpath, outpath string, policies []imagev1alpha1_reflect.
 // files with changed nodes. This is based on
 // [`SetAll`](https://github.com/kubernetes-sigs/kustomize/blob/kyaml/v0.10.16/kyaml/setters2/set.go#L503
 // from kyaml/kio.
-func setAll(filter *SetAllCallback, callback func(file, setterName string, node *yaml.RNode)) kio.Filter {
+func setAll(schema *spec.Schema, tracelog logr.Logger, callback func(file, setterName string, node *yaml.RNode)) kio.Filter {
+	filter := &SetAllCallback{
+		SettersSchema: schema,
+		Trace:         tracelog,
+	}
 	return kio.FilterFunc(
 		func(nodes []*yaml.RNode) ([]*yaml.RNode, error) {
 			filesToUpdate := sets.String{}

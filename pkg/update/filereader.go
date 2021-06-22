@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/go-logr/logr"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -38,6 +39,8 @@ type ScreeningLocalReader struct {
 	Token string
 	Path  string
 
+	Trace logr.Logger
+
 	// This records the relative path of each file that passed
 	// screening (i.e., contained the token), but couldn't be parsed.
 	ProblemFiles []string
@@ -51,6 +54,13 @@ type ScreeningLocalReader struct {
 // [LocalPackageReader.Read](https://godoc.org/sigs.k8s.io/kustomize/kyaml/kio#LocalPackageReader.Read),
 // adapting lightly (mainly to leave features out).
 func (r *ScreeningLocalReader) Read() ([]*yaml.RNode, error) {
+	tracelog := r.Trace
+	if tracelog == nil {
+		tracelog = logr.Discard()
+	}
+
+	tracelog.Info("scanning files", "path", r.Path, "token", r.Token)
+
 	if r.Path == "" {
 		return nil, fmt.Errorf("must supply path to scan for files")
 	}
@@ -108,6 +118,7 @@ func (r *ScreeningLocalReader) Read() ([]*yaml.RNode, error) {
 			kioutil.PathAnnotation: path,
 		}
 
+		tracelog.Info("reading file", "path", path)
 		rdr := &kio.ByteReader{
 			Reader:         bytes.NewBuffer(filebytes),
 			SetAnnotations: annotations,
@@ -119,6 +130,7 @@ func (r *ScreeningLocalReader) Read() ([]*yaml.RNode, error) {
 		// doesn't need to be the end of the matter; we can record
 		// this file as problematic, and continue.
 		if err != nil {
+			tracelog.Info("problem file", "path", path)
 			r.ProblemFiles = append(r.ProblemFiles, path)
 			return nil
 		}
