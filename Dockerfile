@@ -1,9 +1,18 @@
-FROM golang:1.16-alpine as builder
+FROM golang:1.16-buster as builder
 
-# These are so as to be able to build with libgit2
-RUN apk add --no-cache gcc pkgconfig libc-dev musl~=1.2 libgit2-dev~=1.1
+# Up-to-date libgit2 dependencies are only available in sid (unstable).
+# The libgit2 dependencies must be listed here to be able to build on ARM64.
+RUN echo "deb http://deb.debian.org/debian unstable main" >> /etc/apt/sources.list \
+    && echo "deb-src http://deb.debian.org/debian unstable main" >> /etc/apt/sources.list
+RUN set -eux; \
+    apt-get update \
+    && apt-get install -y libgit2-dev/unstable zlib1g-dev/unstable libssh2-1-dev/unstable libpcre3-dev/unstable \
+    && apt-get clean \
+    && apt-get autoremove --purge -y \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace
+
 # Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum
@@ -24,23 +33,27 @@ COPY controllers/ controllers/
 # Build
 RUN CGO_ENABLED=1 go build -o image-automation-controller main.go
 
-FROM alpine:3.13
+FROM debian:buster-slim as controller
 
 LABEL org.opencontainers.image.source="https://github.com/fluxcd/image-automation-controller"
 
-RUN apk add --no-cache ca-certificates tini
-
-# For libgit2 -- just the runtime libs this time
-RUN apk add --no-cache musl~=1.2 libgit2~=1.1
+# Up-to-date libgit2 dependencies are only available in
+# unstable, as libssh2 in testing/bullseye has been linked
+# against gcrypt which causes issues with PKCS* formats.
+RUN echo "deb http://deb.debian.org/debian unstable main" >> /etc/apt/sources.list \
+    && echo "deb-src http://deb.debian.org/debian unstable main" >> /etc/apt/sources.list
+RUN set -eux; \
+    apt-get update \
+    && apt-get install -y ca-certificates libgit2-1.1 \
+    && apt-get clean \
+    && apt-get autoremove --purge -y \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /workspace/image-automation-controller /usr/local/bin/
 
-# Create minimal nsswitch.conf file to prioritize the usage of /etc/hosts over DNS queries.
-# https://github.com/gliderlabs/docker-alpine/issues/367#issuecomment-354316460
-RUN [ ! -e /etc/nsswitch.conf ] && echo 'hosts: files dns' > /etc/nsswitch.conf
-
-RUN addgroup -S controller && adduser -S controller -G controller
+RUN groupadd controller && \
+    useradd --gid controller --shell /bin/sh --create-home controller
 
 USER controller
 
-ENTRYPOINT [ "/sbin/tini", "--", "image-automation-controller" ]
+ENTRYPOINT [ "image-automation-controller" ]
