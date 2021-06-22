@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.13.0
+
+**Release date:** 2021-06-22
+
+This prerelease comes with changes to the base image used to build the controller,
+replacing Alpine with Debian slim.
+
+Improvements:
+* Use Debian as base image
+  [#187](https://github.com/fluxcd/image-automation-controller/pull/187)
+
 ## 0.12.0
 
 **Release date:** 2021-06-10
