@@ -174,6 +174,8 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		Name:      auto.Spec.SourceRef.Name,
 		Namespace: auto.GetNamespace(),
 	}
+	debuglog.Info("fetching git repository", "gitrepository", originName)
+
 	if err := r.Get(ctx, originName, &origin); err != nil {
 		if client.IgnoreNotFound(err) == nil {
 			imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, imagev1.GitNotAvailableReason, "referenced git repository is missing")
@@ -186,19 +188,20 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, err
 	}
 
-	debuglog.Info("found git repository", "gitrepository", originName)
-
 	// validate the git spec and default any values needed later, before proceeding
 	var ref *sourcev1.GitRepositoryRef
 	if gitSpec.Checkout != nil {
 		ref = &gitSpec.Checkout.Reference
+		tracelog.Info("using git repository ref from .spec.git.checkout", "ref", ref)
 	} else if r := origin.Spec.Reference; r != nil {
 		ref = r
+		tracelog.Info("using git repository ref from GitRepository spec", "ref", ref)
 	} // else remain as `nil`, which is an acceptable value for cloneInto, later.
 
 	var pushBranch string
 	if gitSpec.Push != nil {
 		pushBranch = gitSpec.Push.Branch
+		tracelog.Info("using push branch from .spec.push.branch", "branch", pushBranch)
 	} else {
 		// Here's where it gets constrained. If there's no push branch
 		// given, then the checkout ref must include a branch, and
@@ -207,6 +210,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			failWithError(fmt.Errorf("Push branch not given explicitly, and cannot be inferred from .spec.git.checkout.ref or GitRepository .spec.ref"))
 		}
 		pushBranch = ref.Branch
+		tracelog.Info("using push branch from $ref.branch", "branch", pushBranch)
 	}
 
 	tmp, err := ioutil.TempDir("", fmt.Sprintf("%s-%s", originName.Namespace, originName.Name))
@@ -216,6 +220,8 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	defer os.RemoveAll(tmp)
 
 	// FIXME use context with deadline for at least the following ops
+
+	debuglog.Info("attempting to clone git repository", "gitrepository", originName, "ref", ref, "working", tmp)
 
 	access, err := r.getRepoAccess(ctx, &origin)
 	if err != nil {
@@ -239,10 +245,9 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		}
 	}
 
-	debuglog.Info("cloned git repository", "gitrepository", originName, "ref", ref, "working", tmp)
-
 	manifestsPath := tmp
 	if auto.Spec.Update.Path != "" {
+		tracelog.Info("adjusting update path according to .spec.update.path", "base", tmp, "spec-path", auto.Spec.Update.Path)
 		if p, err := securejoin.SecureJoin(tmp, auto.Spec.Update.Path); err != nil {
 			return failWithError(err)
 		} else {
@@ -260,7 +265,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			return failWithError(err)
 		}
 
-		debuglog.Info("applying image policies", "count", len(policies.Items), "manifests-path", manifestsPath)
+		debuglog.Info("updating with setters according to image policies", "count", len(policies.Items), "manifests-path", manifestsPath)
 		if tracelog.Enabled() {
 			for _, item := range policies.Items {
 				tracelog.Info("found policy", "namespace", item.Namespace, "name", item.Name, "latest-image", item.Status.LatestImage)
@@ -311,6 +316,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		Email: gitSpec.Commit.Author.Email,
 		When:  time.Now(),
 	}
+
 	if rev, err := commitChangedManifests(tracelog, repo, tmp, signingEntity, author, messageBuf.String()); err != nil {
 		if err == errNoChanges {
 			r.event(ctx, auto, events.EventSeverityInfo, "no updates made")
