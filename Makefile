@@ -20,6 +20,9 @@ endif
 
 TEST_CRDS:=controllers/testdata/crds
 
+# Log level for `make run`
+LOG_LEVEL?=info
+
 all: manager
 
 # Running the tests requires the source.toolkit.fluxcd.io CRDs
@@ -49,7 +52,7 @@ manager: generate fmt vet
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
-	go run ./main.go
+	go run ./main.go --log-level=${LOG_LEVEL} --log-encoding=console
 
 # Install CRDs into a cluster
 install: manifests

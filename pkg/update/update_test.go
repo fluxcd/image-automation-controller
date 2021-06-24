@@ -21,6 +21,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/google/go-containerregistry/pkg/name"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -88,7 +89,7 @@ var _ = Describe("Update image via kyaml setters2", func() {
 			},
 		}
 
-		_, err = UpdateWithSetters("testdata/setters/original", tmp, policies)
+		_, err = UpdateWithSetters(logr.Discard(), "testdata/setters/original", tmp, policies)
 		Expect(err).ToNot(HaveOccurred())
 		test.ExpectMatchingDirectories(tmp, "testdata/setters/expected")
 	})
@@ -98,7 +99,7 @@ var _ = Describe("Update image via kyaml setters2", func() {
 		Expect(err).ToNot(HaveOccurred())
 		defer os.RemoveAll(tmp)
 
-		result, err := UpdateWithSetters("testdata/setters/original", tmp, policies)
+		result, err := UpdateWithSetters(logr.Discard(), "testdata/setters/original", tmp, policies)
 		Expect(err).ToNot(HaveOccurred())
 
 		kustomizeResourceID := ObjectIdentifier{yaml.ResourceIdentifier{

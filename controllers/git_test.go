@@ -11,6 +11,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/memory"
+	"github.com/go-logr/logr"
 )
 
 func populateRepoFromFixture(repo *git.Repository, fixture string) error {
@@ -100,7 +101,7 @@ func TestIgnoreBrokenSymlink(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = commitChangedManifests(repo, tmp, nil, nil, "unused")
+	_, err = commitChangedManifests(logr.Discard(), repo, tmp, nil, nil, "unused")
 	if err != errNoChanges {
 		t.Fatalf("expected no changes but got: %v", err)
 	}

@@ -65,8 +65,16 @@ import (
 	"github.com/fluxcd/image-automation-controller/pkg/update"
 )
 
-// log level for debug info
+// log level for debug output
 const debug = 1
+
+// log level for trace output; the logging system
+// (fluxcd/pkg/runtime/logging) doesn't presently account for levels
+// more verbose than debug, so lump tracing into
+// --log-level=debug. However, it's useful as self-documentation to
+// keep tracing distinct.
+const trace = 1
+
 const originRemote = "origin"
 
 const defaultMessageTemplate = `Update from image update automation`
@@ -97,6 +105,8 @@ type ImageUpdateAutomationReconciler struct {
 
 func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logr.FromContext(ctx)
+	debuglog := log.V(debug)
+	tracelog := log.V(trace)
 	now := time.Now()
 	var templateValues TemplateData
 
@@ -164,6 +174,8 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		Name:      auto.Spec.SourceRef.Name,
 		Namespace: auto.GetNamespace(),
 	}
+	debuglog.Info("fetching git repository", "gitrepository", originName)
+
 	if err := r.Get(ctx, originName, &origin); err != nil {
 		if client.IgnoreNotFound(err) == nil {
 			imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, imagev1.GitNotAvailableReason, "referenced git repository is missing")
@@ -176,19 +188,20 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, err
 	}
 
-	log.V(debug).Info("found git repository", "gitrepository", originName)
-
 	// validate the git spec and default any values needed later, before proceeding
 	var ref *sourcev1.GitRepositoryRef
 	if gitSpec.Checkout != nil {
 		ref = &gitSpec.Checkout.Reference
+		tracelog.Info("using git repository ref from .spec.git.checkout", "ref", ref)
 	} else if r := origin.Spec.Reference; r != nil {
 		ref = r
+		tracelog.Info("using git repository ref from GitRepository spec", "ref", ref)
 	} // else remain as `nil`, which is an acceptable value for cloneInto, later.
 
 	var pushBranch string
 	if gitSpec.Push != nil {
 		pushBranch = gitSpec.Push.Branch
+		tracelog.Info("using push branch from .spec.push.branch", "branch", pushBranch)
 	} else {
 		// Here's where it gets constrained. If there's no push branch
 		// given, then the checkout ref must include a branch, and
@@ -197,6 +210,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			failWithError(fmt.Errorf("Push branch not given explicitly, and cannot be inferred from .spec.git.checkout.ref or GitRepository .spec.ref"))
 		}
 		pushBranch = ref.Branch
+		tracelog.Info("using push branch from $ref.branch", "branch", pushBranch)
 	}
 
 	tmp, err := ioutil.TempDir("", fmt.Sprintf("%s-%s", originName.Namespace, originName.Name))
@@ -206,6 +220,8 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	defer os.RemoveAll(tmp)
 
 	// FIXME use context with deadline for at least the following ops
+
+	debuglog.Info("attempting to clone git repository", "gitrepository", originName, "ref", ref, "working", tmp)
 
 	access, err := r.getRepoAccess(ctx, &origin)
 	if err != nil {
@@ -229,10 +245,9 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		}
 	}
 
-	log.V(debug).Info("cloned git repository", "gitrepository", originName, "ref", ref, "working", tmp)
-
 	manifestsPath := tmp
 	if auto.Spec.Update.Path != "" {
+		tracelog.Info("adjusting update path according to .spec.update.path", "base", tmp, "spec-path", auto.Spec.Update.Path)
 		if p, err := securejoin.SecureJoin(tmp, auto.Spec.Update.Path); err != nil {
 			return failWithError(err)
 		} else {
@@ -250,7 +265,14 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			return failWithError(err)
 		}
 
-		if result, err := updateAccordingToSetters(ctx, manifestsPath, policies.Items); err != nil {
+		debuglog.Info("updating with setters according to image policies", "count", len(policies.Items), "manifests-path", manifestsPath)
+		if tracelog.Enabled() {
+			for _, item := range policies.Items {
+				tracelog.Info("found policy", "namespace", item.Namespace, "name", item.Name, "latest-image", item.Status.LatestImage)
+			}
+		}
+
+		if result, err := updateAccordingToSetters(ctx, tracelog, manifestsPath, policies.Items); err != nil {
 			return failWithError(err)
 		} else {
 			templateValues.Updated = result
@@ -263,7 +285,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, r.patchStatus(ctx, req, auto.Status)
 	}
 
-	log.V(debug).Info("ran updates to working dir", "working", tmp)
+	debuglog.Info("ran updates to working dir", "working", tmp)
 
 	var statusMessage string
 
@@ -294,10 +316,11 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		Email: gitSpec.Commit.Author.Email,
 		When:  time.Now(),
 	}
-	if rev, err := commitChangedManifests(repo, tmp, signingEntity, author, messageBuf.String()); err != nil {
+
+	if rev, err := commitChangedManifests(tracelog, repo, tmp, signingEntity, author, messageBuf.String()); err != nil {
 		if err == errNoChanges {
 			r.event(ctx, auto, events.EventSeverityInfo, "no updates made")
-			log.V(debug).Info("no changes made in working directory; no commit")
+			debuglog.Info("no changes made in working directory; no commit")
 			statusMessage = "no updates made"
 			if lastCommit, lastTime := auto.Status.LastPushCommit, auto.Status.LastPushTime; lastCommit != "" {
 				statusMessage = fmt.Sprintf("%s; last commit %s at %s", statusMessage, lastCommit[:7], lastTime.Format(time.RFC3339))
@@ -520,11 +543,10 @@ func switchBranch(repo *gogit.Repository, pushBranch string) error {
 
 var errNoChanges error = errors.New("no changes made to working directory")
 
-func commitChangedManifests(repo *gogit.Repository, absRepoPath string, ent *openpgp.Entity, author *object.Signature, message string) (string, error) {
+func commitChangedManifests(tracelog logr.Logger, repo *gogit.Repository, absRepoPath string, ent *openpgp.Entity, author *object.Signature, message string) (string, error) {
 	working, err := repo.Worktree()
 	if err != nil {
 		return "", err
-
 	}
 	status, err := working.Status()
 	if err != nil {
@@ -547,9 +569,11 @@ func commitChangedManifests(repo *gogit.Repository, absRepoPath string, ent *ope
 			// of the bug mentioned above, but not of interest in any
 			// case.
 			if _, err := os.Stat(abspath); os.IsNotExist(err) {
+				tracelog.Info("apparently broken symlink found; ignoring", "path", abspath)
 				continue
 			}
 		}
+		tracelog.Info("adding file", "file", file)
 		working.Add(file)
 		changed = true
 	}
@@ -724,8 +748,8 @@ func (r *ImageUpdateAutomationReconciler) recordReadinessMetric(ctx context.Cont
 
 // updateAccordingToSetters updates files under the root by treating
 // the given image policies as kyaml setters.
-func updateAccordingToSetters(ctx context.Context, path string, policies []imagev1_reflect.ImagePolicy) (update.Result, error) {
-	return update.UpdateWithSetters(path, path, policies)
+func updateAccordingToSetters(ctx context.Context, tracelog logr.Logger, path string, policies []imagev1_reflect.ImagePolicy) (update.Result, error) {
+	return update.UpdateWithSetters(tracelog, path, path, policies)
 }
 
 func (r *ImageUpdateAutomationReconciler) recordSuspension(ctx context.Context, auto imagev1.ImageUpdateAutomation) {
