@@ -87,7 +87,7 @@ var _ = BeforeSuite(func(done Done) {
 		Client: k8sManager.GetClient(),
 		Scheme: scheme.Scheme,
 	}
-	Expect(imageAutoReconciler.SetupWithManager(k8sManager)).To(Succeed())
+	Expect(imageAutoReconciler.SetupWithManager(k8sManager, ImageUpdateAutomationReconcilerOptions{})).To(Succeed())
 
 	go func() {
 		defer GinkgoRecover()

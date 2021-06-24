@@ -67,6 +67,7 @@ func main() {
 		logOptions            logger.Options
 		leaderElectionOptions leaderelection.Options
 		watchAllNamespaces    bool
+		concurrent            int
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -74,6 +75,7 @@ func main() {
 	flag.StringVar(&healthAddr, "health-addr", ":9440", "The address the health endpoint binds to.")
 	flag.BoolVar(&watchAllNamespaces, "watch-all-namespaces", true,
 		"Watch for custom resources in all namespaces, if set to false it will only watch the runtime namespace.")
+	flag.IntVar(&concurrent, "concurrent", 4, "The number of concurrent resource reconciles.")
 	clientOptions.BindFlags(flag.CommandLine)
 	logOptions.BindFlags(flag.CommandLine)
 	leaderElectionOptions.BindFlags(flag.CommandLine)
@@ -128,7 +130,9 @@ func main() {
 		EventRecorder:         mgr.GetEventRecorderFor(controllerName),
 		ExternalEventRecorder: eventRecorder,
 		MetricsRecorder:       metricsRecorder,
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, controllers.ImageUpdateAutomationReconcilerOptions{
+		MaxConcurrentReconciles: concurrent,
+	}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ImageUpdateAutomation")
 		os.Exit(1)
 	}
