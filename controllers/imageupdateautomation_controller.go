@@ -62,7 +62,7 @@ import (
 	"github.com/fluxcd/source-controller/pkg/git"
 	gitstrat "github.com/fluxcd/source-controller/pkg/git/strategy"
 
-	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha2"
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
 	"github.com/fluxcd/image-automation-controller/pkg/update"
 )
 

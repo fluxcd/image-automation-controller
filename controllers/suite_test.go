@@ -33,7 +33,7 @@ import (
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha2"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
-	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha2"
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
 	// +kubebuilder:scaffold:imports
 )
 

@@ -54,7 +54,7 @@ import (
 	"github.com/fluxcd/pkg/ssh"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
-	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha2"
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
 	"github.com/fluxcd/image-automation-controller/pkg/test"
 	"github.com/fluxcd/image-automation-controller/pkg/update"
 )

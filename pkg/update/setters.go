@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/setters2"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 
-	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha2"
+	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha2"
 )
 
 const (
@@ -52,7 +52,7 @@ func init() {
 // UpdateWithSetters takes all YAML files from `inpath`, updates any
 // that contain an "in scope" image policy marker, and writes files it
 // updated (and only those files) back to `outpath`.
-func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []imagev1alpha1_reflect.ImagePolicy) (Result, error) {
+func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []imagev1_reflect.ImagePolicy) (Result, error) {
 	// the OpenAPI schema is a package variable in kyaml/openapi. In
 	// lieu of being able to isolate invocations (per
 	// https://github.com/kubernetes-sigs/kustomize/issues/3058), I

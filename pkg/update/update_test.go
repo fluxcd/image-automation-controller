@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 
 	"github.com/fluxcd/image-automation-controller/pkg/test"
-	imagev1alpha1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha2"
+	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha2"
 )
 
 func TestUpdate(t *testing.T) {
@@ -41,13 +41,13 @@ func TestUpdate(t *testing.T) {
 var _ = Describe("Update image via kyaml setters2", func() {
 
 	var (
-		policies = []imagev1alpha1_reflect.ImagePolicy{
+		policies = []imagev1_reflect.ImagePolicy{
 			{
 				ObjectMeta: metav1.ObjectMeta{ // name matches marker used in testdata/setters/{original,expected}
 					Namespace: "automation-ns",
 					Name:      "policy",
 				},
-				Status: imagev1alpha1_reflect.ImagePolicyStatus{
+				Status: imagev1_reflect.ImagePolicyStatus{
 					LatestImage: "index.repo.fake/updated:v1.0.1",
 				},
 			},
@@ -56,7 +56,7 @@ var _ = Describe("Update image via kyaml setters2", func() {
 					Namespace: "automation-ns",
 					Name:      "unchanged",
 				},
-				Status: imagev1alpha1_reflect.ImagePolicyStatus{
+				Status: imagev1_reflect.ImagePolicyStatus{
 					LatestImage: "image:v1.0.0",
 				},
 			},
@@ -68,13 +68,13 @@ var _ = Describe("Update image via kyaml setters2", func() {
 		Expect(err).ToNot(HaveOccurred())
 		defer os.RemoveAll(tmp)
 
-		policies := []imagev1alpha1_reflect.ImagePolicy{
+		policies := []imagev1_reflect.ImagePolicy{
 			{
 				ObjectMeta: metav1.ObjectMeta{ // name matches marker used in testdata/setters/{original,expected}
 					Namespace: "automation-ns",
 					Name:      "policy",
 				},
-				Status: imagev1alpha1_reflect.ImagePolicyStatus{
+				Status: imagev1_reflect.ImagePolicyStatus{
 					LatestImage: "index.repo.fake/updated:v1.0.1",
 				},
 			},
@@ -83,7 +83,7 @@ var _ = Describe("Update image via kyaml setters2", func() {
 					Namespace: "automation-ns",
 					Name:      "unchanged",
 				},
-				Status: imagev1alpha1_reflect.ImagePolicyStatus{
+				Status: imagev1_reflect.ImagePolicyStatus{
 					LatestImage: "image:v1.0.0",
 				},
 			},

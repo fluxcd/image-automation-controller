@@ -2,22 +2,23 @@
 <p>Packages:</p>
 <ul class="simple">
 <li>
-<a href="#image.toolkit.fluxcd.io%2fv1alpha2">image.toolkit.fluxcd.io/v1alpha2</a>
+<a href="#image.toolkit.fluxcd.io%2fv1beta1">image.toolkit.fluxcd.io/v1beta1</a>
 </li>
 </ul>
-<h2 id="image.toolkit.fluxcd.io/v1alpha2">image.toolkit.fluxcd.io/v1alpha2</h2>
-<p>Package v1alpha2 contains API types for the image v1alpha2 API
-group. The types here are concerned with automated updates to git,
-based on metadata from OCI image registries gathered by the
-image-reflector-controller. There is some rearrangement from
-v1alpha1 to make room for future enhancements.</p>
+<h2 id="image.toolkit.fluxcd.io/v1beta1">image.toolkit.fluxcd.io/v1beta1</h2>
+<p>Package v1beta1 contains API types for the image API group, version
+v1beta1. The types here are concerned with automated updates to
+git, based on metadata from OCI image registries gathered by the
+image-reflector-controller. v1alpha2 did some rearrangement from
+v1alpha1 to make room for future enhancements; v1beta1 does not
+change the schema from v1alpha2.</p>
 Resource Types:
 <ul class="simple"></ul>
-<h3 id="image.toolkit.fluxcd.io/v1alpha2.CommitSpec">CommitSpec
+<h3 id="image.toolkit.fluxcd.io/v1beta1.CommitSpec">CommitSpec
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.GitSpec">GitSpec</a>)
+<a href="#image.toolkit.fluxcd.io/v1beta1.GitSpec">GitSpec</a>)
 </p>
 <p>CommitSpec specifies how to commit changes to the git repository</p>
 <div class="md-typeset__scrollwrap">
@@ -34,7 +35,7 @@ Resource Types:
 <td>
 <code>author</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.CommitUser">
+<a href="#image.toolkit.fluxcd.io/v1beta1.CommitUser">
 CommitUser
 </a>
 </em>
@@ -48,7 +49,7 @@ author of commits.</p>
 <td>
 <code>signingKey</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.SigningKey">
+<a href="#image.toolkit.fluxcd.io/v1beta1.SigningKey">
 SigningKey
 </a>
 </em>
@@ -75,11 +76,11 @@ into which will be interpolated the details of the change made.</p>
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha2.CommitUser">CommitUser
+<h3 id="image.toolkit.fluxcd.io/v1beta1.CommitUser">CommitUser
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.CommitSpec">CommitSpec</a>)
+<a href="#image.toolkit.fluxcd.io/v1beta1.CommitSpec">CommitSpec</a>)
 </p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
@@ -118,11 +119,11 @@ string
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha2.GitCheckoutSpec">GitCheckoutSpec
+<h3 id="image.toolkit.fluxcd.io/v1beta1.GitCheckoutSpec">GitCheckoutSpec
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.GitSpec">GitSpec</a>)
+<a href="#image.toolkit.fluxcd.io/v1beta1.GitSpec">GitSpec</a>)
 </p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
@@ -152,11 +153,11 @@ repository.</p>
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha2.GitSpec">GitSpec
+<h3 id="image.toolkit.fluxcd.io/v1beta1.GitSpec">GitSpec
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec</a>)
+<a href="#image.toolkit.fluxcd.io/v1beta1.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec</a>)
 </p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
@@ -172,7 +173,7 @@ repository.</p>
 <td>
 <code>checkout</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.GitCheckoutSpec">
+<a href="#image.toolkit.fluxcd.io/v1beta1.GitCheckoutSpec">
 GitCheckoutSpec
 </a>
 </em>
@@ -188,7 +189,7 @@ referenced <code>GitRepository</code> or its default will be used.</p>
 <td>
 <code>commit</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.CommitSpec">
+<a href="#image.toolkit.fluxcd.io/v1beta1.CommitSpec">
 CommitSpec
 </a>
 </em>
@@ -201,7 +202,7 @@ CommitSpec
 <td>
 <code>push</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.PushSpec">
+<a href="#image.toolkit.fluxcd.io/v1beta1.PushSpec">
 PushSpec
 </a>
 </em>
@@ -217,7 +218,7 @@ automation. If missing, commits are pushed (back) to
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomation">ImageUpdateAutomation
+<h3 id="image.toolkit.fluxcd.io/v1beta1.ImageUpdateAutomation">ImageUpdateAutomation
 </h3>
 <p>ImageUpdateAutomation is the Schema for the imageupdateautomations API</p>
 <div class="md-typeset__scrollwrap">
@@ -248,7 +249,7 @@ Refer to the Kubernetes API documentation for the fields of the
 <td>
 <code>spec</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomationSpec">
+<a href="#image.toolkit.fluxcd.io/v1beta1.ImageUpdateAutomationSpec">
 ImageUpdateAutomationSpec
 </a>
 </em>
@@ -261,7 +262,7 @@ ImageUpdateAutomationSpec
 <td>
 <code>sourceRef</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.SourceReference">
+<a href="#image.toolkit.fluxcd.io/v1beta1.SourceReference">
 SourceReference
 </a>
 </em>
@@ -275,7 +276,7 @@ to a git repository.</p>
 <td>
 <code>git</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.GitSpec">
+<a href="#image.toolkit.fluxcd.io/v1beta1.GitSpec">
 GitSpec
 </a>
 </em>
@@ -305,7 +306,7 @@ run should be attempted.</p>
 <td>
 <code>update</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.UpdateStrategy">
+<a href="#image.toolkit.fluxcd.io/v1beta1.UpdateStrategy">
 UpdateStrategy
 </a>
 </em>
@@ -336,7 +337,7 @@ it is unset (or set to false). Defaults to false.</p>
 <td>
 <code>status</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomationStatus">
+<a href="#image.toolkit.fluxcd.io/v1beta1.ImageUpdateAutomationStatus">
 ImageUpdateAutomationStatus
 </a>
 </em>
@@ -348,11 +349,11 @@ ImageUpdateAutomationStatus
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec
+<h3 id="image.toolkit.fluxcd.io/v1beta1.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomation">ImageUpdateAutomation</a>)
+<a href="#image.toolkit.fluxcd.io/v1beta1.ImageUpdateAutomation">ImageUpdateAutomation</a>)
 </p>
 <p>ImageUpdateAutomationSpec defines the desired state of ImageUpdateAutomation</p>
 <div class="md-typeset__scrollwrap">
@@ -369,7 +370,7 @@ ImageUpdateAutomationStatus
 <td>
 <code>sourceRef</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.SourceReference">
+<a href="#image.toolkit.fluxcd.io/v1beta1.SourceReference">
 SourceReference
 </a>
 </em>
@@ -383,7 +384,7 @@ to a git repository.</p>
 <td>
 <code>git</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.GitSpec">
+<a href="#image.toolkit.fluxcd.io/v1beta1.GitSpec">
 GitSpec
 </a>
 </em>
@@ -413,7 +414,7 @@ run should be attempted.</p>
 <td>
 <code>update</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.UpdateStrategy">
+<a href="#image.toolkit.fluxcd.io/v1beta1.UpdateStrategy">
 UpdateStrategy
 </a>
 </em>
@@ -441,11 +442,11 @@ it is unset (or set to false). Defaults to false.</p>
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomationStatus">ImageUpdateAutomationStatus
+<h3 id="image.toolkit.fluxcd.io/v1beta1.ImageUpdateAutomationStatus">ImageUpdateAutomationStatus
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomation">ImageUpdateAutomation</a>)
+<a href="#image.toolkit.fluxcd.io/v1beta1.ImageUpdateAutomation">ImageUpdateAutomation</a>)
 </p>
 <p>ImageUpdateAutomationStatus defines the observed state of ImageUpdateAutomation</p>
 <div class="md-typeset__scrollwrap">
@@ -544,11 +545,11 @@ github.com/fluxcd/pkg/apis/meta.ReconcileRequestStatus
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha2.PushSpec">PushSpec
+<h3 id="image.toolkit.fluxcd.io/v1beta1.PushSpec">PushSpec
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.GitSpec">GitSpec</a>)
+<a href="#image.toolkit.fluxcd.io/v1beta1.GitSpec">GitSpec</a>)
 </p>
 <p>PushSpec specifies how and where to push commits.</p>
 <div class="md-typeset__scrollwrap">
@@ -578,11 +579,11 @@ starting point, if it doesn&rsquo;t already exist.</p>
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha2.SigningKey">SigningKey
+<h3 id="image.toolkit.fluxcd.io/v1beta1.SigningKey">SigningKey
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.CommitSpec">CommitSpec</a>)
+<a href="#image.toolkit.fluxcd.io/v1beta1.CommitSpec">CommitSpec</a>)
 </p>
 <p>SigningKey references a Kubernetes secret that contains a GPG keypair</p>
 <div class="md-typeset__scrollwrap">
@@ -615,11 +616,11 @@ ImageUpdateAutomation.</p>
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha2.SourceReference">SourceReference
+<h3 id="image.toolkit.fluxcd.io/v1beta1.SourceReference">SourceReference
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec</a>)
+<a href="#image.toolkit.fluxcd.io/v1beta1.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec</a>)
 </p>
 <p>SourceReference contains enough information to let you locate the
 typed, referenced source object.</p>
@@ -671,11 +672,11 @@ string
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha2.UpdateStrategy">UpdateStrategy
+<h3 id="image.toolkit.fluxcd.io/v1beta1.UpdateStrategy">UpdateStrategy
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec</a>)
+<a href="#image.toolkit.fluxcd.io/v1beta1.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec</a>)
 </p>
 <p>UpdateStrategy is a union of the various strategies for updating
 the Git repository. Parameters for each strategy (if any) can be
@@ -694,7 +695,7 @@ inlined here.</p>
 <td>
 <code>strategy</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.UpdateStrategyName">
+<a href="#image.toolkit.fluxcd.io/v1beta1.UpdateStrategyName">
 UpdateStrategyName
 </a>
 </em>
@@ -721,11 +722,11 @@ of the GitRepositoryRef.</p>
 </table>
 </div>
 </div>
-<h3 id="image.toolkit.fluxcd.io/v1alpha2.UpdateStrategyName">UpdateStrategyName
+<h3 id="image.toolkit.fluxcd.io/v1beta1.UpdateStrategyName">UpdateStrategyName
 (<code>string</code> alias)</h3>
 <p>
 (<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1alpha2.UpdateStrategy">UpdateStrategy</a>)
+<a href="#image.toolkit.fluxcd.io/v1beta1.UpdateStrategy">UpdateStrategy</a>)
 </p>
 <p>UpdateStrategyName is the type for names that go in
 .update.strategy. NB the value in the const immediately below.</p>
