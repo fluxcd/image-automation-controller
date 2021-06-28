@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/setters2"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 
-	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha2"
+	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
 )
 
 const (

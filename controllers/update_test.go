@@ -48,7 +48,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha2"
+	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/gittestserver"
 	"github.com/fluxcd/pkg/ssh"
