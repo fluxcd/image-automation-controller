@@ -299,8 +299,8 @@ github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d/go.mod h1:ZZM
 github.com/fatih/camelcase v1.0.0/go.mod h1:yN2Sb0lFhZJUdVvtELVWefmrXpuZESvPmqwoZc+/fpc=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/fatih/color v1.9.0/go.mod h1:eQcE1qtQxscV5RaZvpXrrb8Drkc3/DdQ+uUYCNjL+zU=
-github.com/fluxcd/image-reflector-controller/api v0.10.0 h1:uZsf5X0Djko2yJMNdKn516nKCiSBFecE8c+O66lrgyI=
-github.com/fluxcd/image-reflector-controller/api v0.10.0/go.mod h1:X4qZ11pfA5w1ajbkYbWmQ3hBW3gzCyIjhU87AvV6o2A=
+github.com/fluxcd/image-reflector-controller/api v0.11.0 h1:Pz9GuUQvmJO5nJPEtGBRQnIHvcY+ITqI4LdSiW11toE=
+github.com/fluxcd/image-reflector-controller/api v0.11.0/go.mod h1:X4qZ11pfA5w1ajbkYbWmQ3hBW3gzCyIjhU87AvV6o2A=
 github.com/fluxcd/pkg/apis/meta v0.10.0 h1:N7wVGHC1cyPdT87hrDC7UwCwRwnZdQM46PBSLjG2rlE=
 github.com/fluxcd/pkg/apis/meta v0.10.0/go.mod h1:CW9X9ijMTpNe7BwnokiUOrLl/h13miwVr/3abEQLbKE=
 github.com/fluxcd/pkg/gittestserver v0.3.0 h1:6aa30mybecBwBWaJ2IEk7pQzefWnjWjxkTSrHMHawvg=

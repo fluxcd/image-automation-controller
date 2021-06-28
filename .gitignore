@@ -1,6 +1,7 @@
 notes
 
-# This is downloaded in the Makefile
+# Thes are downloaded in the Makefile
+cache/*
 controllers/testdata/crds/*
 
 # Binaries for programs and plugins

@@ -3,13 +3,16 @@ IMG ?= fluxcd/image-automation-controller:latest
 # Produce CRDs that work back to Kubernetes 1.16
 CRD_OPTIONS ?= crd:crdVersions=v1
 
+# Directory with versioned, downloaded things
+CACHE:=cache
+
 # Version of the source-controller from which to get the GitRepository CRD.
 # Change this if you bump the source-controller/api version in go.mod.
 SOURCE_VER ?= v0.15.2
 
 # Version of the image-reflector-controller from which to get the ImagePolicy CRD.
 # Change this if you bump the image-reflector-controller/api version in go.mod.
-REFLECTOR_VER ?= v0.10.0
+REFLECTOR_VER ?= v0.11.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -26,20 +29,28 @@ LOG_LEVEL?=info
 all: manager
 
 # Running the tests requires the source.toolkit.fluxcd.io CRDs
-test_deps: ${TEST_CRDS}/imagepolicies_${REFLECTOR_VER}.yaml ${TEST_CRDS}/gitrepositories_${SOURCE_VER}.yaml
+test_deps: ${TEST_CRDS}/imagepolicies.yaml ${TEST_CRDS}/gitrepositories.yaml
 
 clean_test_deps:
 	rm -r ${TEST_CRDS}
 
-${TEST_CRDS}/gitrepositories_${SOURCE_VER}.yaml:
+${TEST_CRDS}/imagepolicies.yaml: ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml
 	mkdir -p ${TEST_CRDS}
-	curl -s --fail https://raw.githubusercontent.com/fluxcd/source-controller/${SOURCE_VER}/config/crd/bases/source.toolkit.fluxcd.io_gitrepositories.yaml \
-		-o ${TEST_CRDS}/gitrepositories_${SOURCE_VER}.yaml
+	cp $^ $@
 
-${TEST_CRDS}/imagepolicies_${REFLECTOR_VER}.yaml:
+${TEST_CRDS}/gitrepositories.yaml: ${CACHE}/gitrepositories_${SOURCE_VER}.yaml
 	mkdir -p ${TEST_CRDS}
+	cp $^ $@
+
+${CACHE}/gitrepositories_${SOURCE_VER}.yaml:
+	mkdir -p ${CACHE}
+	curl -s --fail https://raw.githubusercontent.com/fluxcd/source-controller/${SOURCE_VER}/config/crd/bases/source.toolkit.fluxcd.io_gitrepositories.yaml \
+		-o ${CACHE}/gitrepositories_${SOURCE_VER}.yaml
+
+${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml:
+	mkdir -p ${CACHE}
 	curl -s --fail https://raw.githubusercontent.com/fluxcd/image-reflector-controller/${REFLECTOR_VER}/config/crd/bases/image.toolkit.fluxcd.io_imagepolicies.yaml \
-		-o ${TEST_CRDS}/imagepolicies_${REFLECTOR_VER}.yaml
+		-o ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml
 
 # Run tests
 test: test_deps generate fmt vet manifests api-docs
@@ -79,7 +90,7 @@ manifests: controller-gen
 
 # Generate API reference documentation
 api-docs: gen-crd-api-reference-docs
-	$(API_REF_GEN) -api-dir=./api/v1alpha2 -config=./hack/api-docs/config.json -template-dir=./hack/api-docs/template -out-file=./docs/api/image-automation.md
+	$(API_REF_GEN) -api-dir=./api/v1beta1 -config=./hack/api-docs/config.json -template-dir=./hack/api-docs/template -out-file=./docs/api/image-automation.md
 
 # Run go mod tidy
 tidy:

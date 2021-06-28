@@ -28,7 +28,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
-	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1alpha2"
+	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
 	"github.com/fluxcd/pkg/runtime/client"
 	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/leaderelection"
@@ -38,9 +38,9 @@ import (
 	"github.com/fluxcd/pkg/runtime/probes"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
-	imagev1 "github.com/fluxcd/image-automation-controller/api/v1alpha2"
-	"github.com/fluxcd/image-automation-controller/controllers"
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
 	// +kubebuilder:scaffold:imports
+	"github.com/fluxcd/image-automation-controller/controllers"
 )
 
 const controllerName = "image-automation-controller"
