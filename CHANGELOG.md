@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.14.0
+
+**Release date:** 2021-06-28
+
+This prerelease promotes the API version from `v1alpha2` to `v1beta1`.
+
+:warning: If you have migrated your YAML files from `v1alpha1` to
+`v1alpha2`, no action is necessary at present since Kubernetes will
+automatically convert between `v1alpha2` and `v1beta1`.
+
+You may wish to migrate YAML files to `v1beta1` to prepare for
+`v1alpha2` being deprecated eventually. This is simply a case of
+replacing the `apiVersion` field value:
+
+    apiVersion: image.toolkit.fluxcd.io/v1beta1
+
+Instructions for migrating from _`v1alpha1`_ are included in the [API guide].
+
+[API guide]: https://fluxcd.io/docs/components/image/imageupdateautomations/#migrating-from-v1alpha1
+
+Improvements:
+* Let people set the number of controller workers with a flag
+  [#192](https://github.com/fluxcd/image-automation-controller/pull/192)
+* Output trace information to the debug log
+  [#190](https://github.com/fluxcd/image-automation-controller/pull/190)
+
 ## 0.13.0
 
 **Release date:** 2021-06-22
