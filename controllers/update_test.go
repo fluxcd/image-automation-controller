@@ -1149,7 +1149,9 @@ func initGitRepo(gitServer *gittestserver.GitServer, fixture, branch, repository
 	}
 
 	return remote.Push(&git.PushOptions{
-		RefSpecs: []config.RefSpec{"refs/heads/*:refs/heads/*"},
+		RefSpecs: []config.RefSpec{
+			config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch)),
+		},
 	})
 }
 
