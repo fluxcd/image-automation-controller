@@ -2,7 +2,7 @@
 # Image Update Automations
 
 The `ImageUpdateAutomation` type defines an automation process that will update a git repository,
-based on image policiy objects in the same namespace.
+based on image policy objects in the same namespace.
 
 The updates are governed by marking fields to be updated in each YAML file. For each field marked,
 the automation process checks the image policy named, and updates the field value if there is a new
