@@ -674,10 +674,25 @@ func push(ctx context.Context, path, branch string, access repoAccess) error {
 	if err != nil {
 		return err
 	}
+
+	callbacks := access.remoteCallbacks()
+
+	// calling repo.Push will succeed even if a reference update is
+	// rejected; to detect this case, this callback is supplied.
+	var callbackErr error
+	callbacks.PushUpdateReferenceCallback = func(refname, status string) libgit2.ErrorCode {
+		if status != "" {
+			callbackErr = fmt.Errorf("ref %s rejected: %s", refname, status)
+		}
+		return libgit2.ErrOk
+	}
 	err = origin.Push([]string{fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch)}, &libgit2.PushOptions{
-		RemoteCallbacks: access.remoteCallbacks(),
+		RemoteCallbacks: callbacks,
 	})
-	return libgit2PushError(err)
+	if err != nil {
+		return libgit2PushError(err)
+	}
+	return callbackErr
 }
 
 func libgit2PushError(err error) error {

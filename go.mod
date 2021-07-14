@@ -11,7 +11,7 @@ require (
 	// If you bump this, change REFLECTOR_VER in the Makefile to match
 	github.com/fluxcd/image-reflector-controller/api v0.11.0
 	github.com/fluxcd/pkg/apis/meta v0.10.0
-	github.com/fluxcd/pkg/gittestserver v0.3.0
+	github.com/fluxcd/pkg/gittestserver v0.3.1
 	github.com/fluxcd/pkg/runtime v0.12.0
 	github.com/fluxcd/pkg/ssh v0.1.0
 	// If you bump this, change SOURCE_VER in the Makefile to match
