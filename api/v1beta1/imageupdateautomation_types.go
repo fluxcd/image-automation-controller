@@ -27,7 +27,8 @@ const ImageUpdateAutomationKind = "ImageUpdateAutomation"
 // ImageUpdateAutomationSpec defines the desired state of ImageUpdateAutomation
 type ImageUpdateAutomationSpec struct {
 	// SourceRef refers to the resource giving access details
-	// to a git repository.
+	// to a git repository. It must be in the same namespace as the
+	// ImageUpdateAutomation.
 	// +required
 	SourceRef SourceReference `json:"sourceRef"`
 	// GitSpec contains all the git-specific definitions. This is
