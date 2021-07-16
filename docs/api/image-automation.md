@@ -269,7 +269,8 @@ SourceReference
 </td>
 <td>
 <p>SourceRef refers to the resource giving access details
-to a git repository.</p>
+to a git repository. It must be in the same namespace as the
+ImageUpdateAutomation.</p>
 </td>
 </tr>
 <tr>
@@ -377,7 +378,8 @@ SourceReference
 </td>
 <td>
 <p>SourceRef refers to the resource giving access details
-to a git repository.</p>
+to a git repository. It must be in the same namespace as the
+ImageUpdateAutomation.</p>
 </td>
 </tr>
 <tr>
