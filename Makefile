@@ -8,11 +8,11 @@ CACHE:=cache
 
 # Version of the source-controller from which to get the GitRepository CRD.
 # Change this if you bump the source-controller/api version in go.mod.
-SOURCE_VER ?= v0.15.2
+SOURCE_VER ?= v0.15.4
 
 # Version of the image-reflector-controller from which to get the ImagePolicy CRD.
 # Change this if you bump the image-reflector-controller/api version in go.mod.
-REFLECTOR_VER ?= v0.11.0
+REFLECTOR_VER ?= v0.11.1
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
