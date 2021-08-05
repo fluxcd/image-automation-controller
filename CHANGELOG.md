@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.14.1
+
+**Release date:** 2021-08-05
+
+This prerelease comes with an update to the Kubernetes and controller-runtime
+dependencies to align them with the Kubernetes 1.21.3 release.
+
+Improvements:
+* Update dependencies
+  [#211](https://github.com/fluxcd/image-automation-controller/pull/211)
+* Fail push if a ref update is rejected
+  [#195](https://github.com/fluxcd/image-automation-controller/pull/195)
+
 ## 0.14.0
 
 **Release date:** 2021-06-28
