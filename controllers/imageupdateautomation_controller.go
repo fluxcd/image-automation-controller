@@ -335,12 +335,10 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		}
 	} else {
 
-		var pushForce bool = false
+		var pushForce bool
 
 		if gitSpec.Push != nil {
-			if gitSpec.Push.Force != nil {
-				pushForce = *gitSpec.Push.Force
-			}
+			pushForce = gitSpec.Push.Force
 		}
 
 		if err := push(ctx, tmp, pushBranch, pushForce, access); err != nil {

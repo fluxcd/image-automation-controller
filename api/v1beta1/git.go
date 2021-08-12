@@ -88,5 +88,5 @@ type PushSpec struct {
 	// +required
 	Branch string `json:"branch"`
 	// Force specifies wether to force push the branch to origin
-	Force *bool `json:"force,omitempty"`
+	Force bool `json:"force"`
 }

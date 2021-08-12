@@ -488,6 +488,7 @@ spec:
                         type: boolean
                     required:
                     - branch
+                    - force
                     type: object
                 required:
                 - commit

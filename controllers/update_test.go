@@ -747,6 +747,7 @@ Images:
 								},
 								Push: &imagev1.PushSpec{
 									Branch: pushBranch,
+									Force:  false,
 								},
 							},
 						},
@@ -805,7 +806,7 @@ Images:
 					Expect(head.String()).NotTo(Equal(headHash))
 				})
 
-				It("should default to force push off if not specified", func() {
+				It("should fail to force push when force push set to false (default)", func() {
 					// observe the first commit
 					waitForNewHead(localRepo, pushBranch)
 
@@ -826,15 +827,6 @@ Images:
 					localRepo.DeleteBranch(pushBranch)
 					policy.Status.LatestImage = "helloworld:v1.3.0"
 					Expect(k8sClient.Status().Update(context.TODO(), policy)).To(Succeed())
-					waitForNewHead(localRepo, pushBranch)
-
-					head, err = localRepo.Reference(plumbing.NewRemoteReferenceName(originRemote, pushBranch), true)
-					Expect(err).NotTo(HaveOccurred())
-					pushBranchLatestHeadHash := head.String()
-					fluxUpdateCommit, err := localRepo.CommitObject(head.Hash())
-					Expect(err).NotTo(HaveOccurred())
-					// Ensure that commit being referenced is the flux created one, not dummy commit
-					Expect(fluxUpdateCommit.Message).To(Equal(commitMessage))
 
 					// Delete local push branch and refetch remote
 					localRepo.DeleteBranch(pushBranch)
@@ -848,19 +840,14 @@ Images:
 					// Expect push to fail
 					// Check with messages for easier debugging
 					Expect(dummyCommit.Message).To(Equal((pushBranchLatestCommit.Message)))
-					Expect(pushBranchLatestCommit.Message).ToNot(Equal((fluxUpdateCommit.Message)))
 
 					// Check with hashes for certainty
 					Expect(pushBranchInitialHeadHash).To(Equal((fetchedPushBranchLatestHeadHash)))
-					Expect(fetchedPushBranchLatestHeadHash).NotTo(Equal(pushBranchLatestHeadHash))
 
 				})
 
-				// It("should force push and rewrite when force option specified", func() {
-
-				// })
-
-				// It("should fail push on branch with another commit with force set to false", func() {
+				// It("should force push and rewrite when force set to true", func() {
+				// 	update.Spec.GitSpec.Push.Force = true
 
 				// })
 
