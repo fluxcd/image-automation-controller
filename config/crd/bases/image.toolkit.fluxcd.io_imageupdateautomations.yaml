@@ -483,6 +483,9 @@ spec:
                       branch:
                         description: Branch specifies that commits should be pushed to the branch named. The branch is created using `.spec.checkout.branch` as the starting point, if it doesn't already exist.
                         type: string
+                      force:
+                        description: Force specifies wether to force push the branch to origin
+                        type: boolean
                     required:
                     - branch
                     type: object

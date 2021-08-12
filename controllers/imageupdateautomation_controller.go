@@ -334,12 +334,21 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			return failWithError(err)
 		}
 	} else {
-		if err := push(ctx, tmp, pushBranch, access); err != nil {
+
+		var pushForce bool = false
+
+		if gitSpec.Push != nil {
+			if gitSpec.Push.Force != nil {
+				pushForce = *gitSpec.Push.Force
+			}
+		}
+
+		if err := push(ctx, tmp, pushBranch, pushForce, access); err != nil {
 			return failWithError(err)
 		}
 
 		r.event(ctx, auto, events.EventSeverityInfo, "committed and pushed change "+rev+" to "+pushBranch)
-		log.Info("pushed commit to origin", "revision", rev, "branch", pushBranch)
+		log.Info("pushed commit to origin", "revision", rev, "branch", pushBranch, "force", pushForce)
 		auto.Status.LastPushCommit = rev
 		auto.Status.LastPushTime = &metav1.Time{Time: now}
 		statusMessage = "committed and pushed " + rev + " to " + pushBranch
@@ -665,7 +674,7 @@ func fetch(ctx context.Context, path string, branch string, access repoAccess) e
 // indicated by `impl`. It's passed both the path to the repo and a
 // gogit.Repository value, since the latter may as well be used if the
 // implementation is GoGit.
-func push(ctx context.Context, path, branch string, access repoAccess) error {
+func push(ctx context.Context, path, branch string, force bool, access repoAccess) error {
 	repo, err := libgit2.OpenRepository(path)
 	if err != nil {
 		return err
@@ -686,7 +695,15 @@ func push(ctx context.Context, path, branch string, access repoAccess) error {
 		}
 		return libgit2.ErrOk
 	}
-	err = origin.Push([]string{fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch)}, &libgit2.PushOptions{
+
+	var refspec string = fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch)
+
+	// Force pushing is done by prefixing "+" to the refspec
+	if force {
+		refspec = fmt.Sprintf("+refs/heads/%s:refs/heads/%s", branch, branch)
+	}
+
+	err = origin.Push([]string{refspec}, &libgit2.PushOptions{
 		RemoteCallbacks: callbacks,
 	})
 	if err != nil {

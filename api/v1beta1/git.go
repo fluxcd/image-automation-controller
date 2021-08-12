@@ -87,4 +87,6 @@ type PushSpec struct {
 	// starting point, if it doesn't already exist.
 	// +required
 	Branch string `json:"branch"`
+	// Force specifies wether to force push the branch to origin
+	Force *bool `json:"force,omitempty"`
 }

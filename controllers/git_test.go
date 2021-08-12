@@ -157,7 +157,7 @@ func TestPushRejected(t *testing.T) {
 	})
 
 	// This is here to guard against push in general being broken
-	err = push(context.TODO(), tmp, "main", repoAccess{
+	err = push(context.TODO(), tmp, "main", false, repoAccess{
 		url:  repoURL,
 		auth: &git.Auth{},
 	})
@@ -172,7 +172,7 @@ func TestPushRejected(t *testing.T) {
 
 	// This is supposed to fail, because the hook rejects the branch
 	// pushed to.
-	err = push(context.TODO(), tmp, branch, repoAccess{
+	err = push(context.TODO(), tmp, branch, false, repoAccess{
 		url:  repoURL,
 		auth: &git.Auth{},
 	})

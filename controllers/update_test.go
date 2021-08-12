@@ -805,6 +805,65 @@ Images:
 					Expect(head.String()).NotTo(Equal(headHash))
 				})
 
+				It("should default to force push off if not specified", func() {
+					// observe the first commit
+					waitForNewHead(localRepo, pushBranch)
+
+					// Create commit on push branch that would conflict with a commit on top of the a branch from the checkout branch
+					dummyCommitMessage := "Dummy Commit"
+					commitInRepo(cloneLocalRepoURL, pushBranch, dummyCommitMessage, func(tmp string) {})
+
+					waitForNewHead(localRepo, pushBranch)
+
+					head, err := localRepo.Reference(plumbing.NewRemoteReferenceName(originRemote, pushBranch), true)
+					Expect(err).NotTo(HaveOccurred())
+					pushBranchInitialHeadHash := head.String()
+					dummyCommit, err := localRepo.CommitObject(head.Hash())
+					Expect(err).NotTo(HaveOccurred())
+					Expect(dummyCommit.Message).To(Equal(dummyCommitMessage))
+
+					// update the policy and expect another commit in the push branch, deleting local branch to ensure commit is not on top of the dummy commit
+					localRepo.DeleteBranch(pushBranch)
+					policy.Status.LatestImage = "helloworld:v1.3.0"
+					Expect(k8sClient.Status().Update(context.TODO(), policy)).To(Succeed())
+					waitForNewHead(localRepo, pushBranch)
+
+					head, err = localRepo.Reference(plumbing.NewRemoteReferenceName(originRemote, pushBranch), true)
+					Expect(err).NotTo(HaveOccurred())
+					pushBranchLatestHeadHash := head.String()
+					fluxUpdateCommit, err := localRepo.CommitObject(head.Hash())
+					Expect(err).NotTo(HaveOccurred())
+					// Ensure that commit being referenced is the flux created one, not dummy commit
+					Expect(fluxUpdateCommit.Message).To(Equal(commitMessage))
+
+					// Delete local push branch and refetch remote
+					localRepo.DeleteBranch(pushBranch)
+					waitForNewHead(localRepo, pushBranch)
+					head, err = localRepo.Reference(plumbing.NewRemoteReferenceName(originRemote, pushBranch), true)
+					Expect(err).NotTo(HaveOccurred())
+					fetchedPushBranchLatestHeadHash := head.String()
+					pushBranchLatestCommit, err := localRepo.CommitObject(head.Hash())
+					Expect(err).NotTo(HaveOccurred())
+
+					// Expect push to fail
+					// Check with messages for easier debugging
+					Expect(dummyCommit.Message).To(Equal((pushBranchLatestCommit.Message)))
+					Expect(pushBranchLatestCommit.Message).ToNot(Equal((fluxUpdateCommit.Message)))
+
+					// Check with hashes for certainty
+					Expect(pushBranchInitialHeadHash).To(Equal((fetchedPushBranchLatestHeadHash)))
+					Expect(fetchedPushBranchLatestHeadHash).NotTo(Equal(pushBranchLatestHeadHash))
+
+				})
+
+				// It("should force push and rewrite when force option specified", func() {
+
+				// })
+
+				// It("should fail push on branch with another commit with force set to false", func() {
+
+				// })
+
 				AfterEach(func() {
 					Expect(k8sClient.Delete(context.Background(), update)).To(Succeed())
 				})

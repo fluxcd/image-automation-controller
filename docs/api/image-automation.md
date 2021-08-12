@@ -575,6 +575,17 @@ named. The branch is created using <code>.spec.checkout.branch</code> as the
 starting point, if it doesn&rsquo;t already exist.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>force</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<p>Force specifies wether to force push the branch to origin</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>

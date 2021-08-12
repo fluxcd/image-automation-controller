@@ -315,6 +315,7 @@ type PushSpec struct {
 	// starting point, if it doesn't already exist.
 	// +required
 	Branch string `json:"branch"`
+	Force bool `json:"force"`
 }
 ```
 
@@ -330,6 +331,12 @@ already exist, updates will be calculated on top of any commits already on the b
 In the following snippet, updates will be pushed as commits to the branch `auto`, and when that
 branch does not exist at the origin, it will be created locally starting from the branch `main`, and
 pushed:
+
+If `force` is present and set to true, the push strategy to origin will be a force-push.
+ 
+Obviously this will rewrite any commits not made by flux that do not exist on the `.spec.git.checkout.branch` or the fallback `.spec.sourceRef`. As a result, a recommendation is to prefix the branch name with a pattern eg `flux-` or similar, so that people do not accidentally commit to a branch have have their changes overwritten. 
+
+Another recommendation when using the force parameter is to ensure that "branch protection" feature is enabled on your Git provider (eg: Github) as another safety measure so that any misconfigurations or changes to a branch cannot be overwritten by flux. 
 
 ```yaml
 spec:
