@@ -166,12 +166,6 @@ const (
 	NoStrategyReason = "MissingUpdateStrategy"
 )
 
-// SetImageUpdateAutomationReadiness sets the ready condition with the given status, reason and message.
-func SetImageUpdateAutomationReadiness(auto *ImageUpdateAutomation, status metav1.ConditionStatus, reason, message string) {
-	auto.Status.ObservedGeneration = auto.ObjectMeta.Generation
-	meta.SetResourceCondition(auto, meta.ReadyCondition, status, reason, message)
-}
-
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Last run",type=string,JSONPath=`.status.lastAutomationRunTime`

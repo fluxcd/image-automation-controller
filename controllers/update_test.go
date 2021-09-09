@@ -194,7 +194,7 @@ Images:
 					Namespace: policyKey.Namespace,
 				},
 				Spec: imagev1_reflect.ImagePolicySpec{
-					ImageRepositoryRef: meta.LocalObjectReference{
+					ImageRepositoryRef: meta.NamespacedObjectReference{
 						Name: "not-expected-to-exist",
 					},
 					Policy: imagev1_reflect.ImagePolicyChoice{
@@ -334,7 +334,7 @@ Images:
 					Namespace: policyKey.Namespace,
 				},
 				Spec: imagev1_reflect.ImagePolicySpec{
-					ImageRepositoryRef: meta.LocalObjectReference{
+					ImageRepositoryRef: meta.NamespacedObjectReference{
 						Name: "not-expected-to-exist",
 					},
 					Policy: imagev1_reflect.ImagePolicyChoice{
@@ -463,7 +463,7 @@ Images:
 					Namespace: policyKey.Namespace,
 				},
 				Spec: imagev1_reflect.ImagePolicySpec{
-					ImageRepositoryRef: meta.LocalObjectReference{
+					ImageRepositoryRef: meta.NamespacedObjectReference{
 						Name: "not-expected-to-exist",
 					},
 					Policy: imagev1_reflect.ImagePolicyChoice{
@@ -684,7 +684,7 @@ Images:
 						Namespace: policyKey.Namespace,
 					},
 					Spec: imagev1_reflect.ImagePolicySpec{
-						ImageRepositoryRef: meta.LocalObjectReference{
+						ImageRepositoryRef: meta.NamespacedObjectReference{
 							Name: "not-expected-to-exist",
 						},
 						Policy: imagev1_reflect.ImagePolicyChoice{

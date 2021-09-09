@@ -127,6 +127,22 @@ type ImageUpdateAutomation struct {
 	Status ImageUpdateAutomationStatus `json:"status,omitempty"`
 }
 
+// GetConditions gets the slice of conditions from the receiver. The
+// intended pattern is that methods for mutating the conditions will
+// use GetConditions to see the current values, construct a new set of
+// conditions based on those, then SetConditions to apply the result.
+func (obj ImageUpdateAutomation) GetConditions() []metav1.Condition {
+	return obj.Status.Conditions
+}
+
+// SetConditions sets the slice of condition on the receiver.
+func (obj *ImageUpdateAutomation) SetConditions(conditions []metav1.Condition) {
+	obj.Status.Conditions = conditions
+}
+
+// GetStatusConditions returns a pointer to the object's conditions so
+// they can be mutated. Deprecated: use GetConditions and
+// SetConditions instead.
 func (auto *ImageUpdateAutomation) GetStatusConditions() *[]metav1.Condition {
 	return &auto.Status.Conditions
 }

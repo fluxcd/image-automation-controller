@@ -46,7 +46,7 @@ spec:
                     description: GitRepositoryRef refers to the resource giving access details to a git repository to update files in.
                     properties:
                       name:
-                        description: Name of the referent
+                        description: Name of the referent.
                         type: string
                     required:
                     - name
@@ -74,7 +74,7 @@ spec:
                         description: SecretRef holds the name to a secret that contains a 'git.asc' key corresponding to the ASCII Armored file containing the GPG signing keypair as the value. It must be in the same namespace as the ImageUpdateAutomation.
                         properties:
                           name:
-                            description: Name of the referent
+                            description: Name of the referent.
                             type: string
                         required:
                         - name
@@ -172,7 +172,7 @@ spec:
                 format: date-time
                 type: string
               lastHandledReconcileAt:
-                description: LastHandledReconcileAt holds the value of the most recent reconcile request value, so a change can be detected.
+                description: LastHandledReconcileAt holds the value of the most recent reconcile request value, so a change of the annotation value can be detected.
                 type: string
               lastPushCommit:
                 description: LastPushCommit records the SHA1 of the last commit made by the controller, for this automation object
@@ -261,7 +261,7 @@ spec:
                             description: SecretRef holds the name to a secret that contains a 'git.asc' key corresponding to the ASCII Armored file containing the GPG signing keypair as the value. It must be in the same namespace as the ImageUpdateAutomation.
                             properties:
                               name:
-                                description: Name of the referent
+                                description: Name of the referent.
                                 type: string
                             required:
                             - name
@@ -379,7 +379,7 @@ spec:
                 format: date-time
                 type: string
               lastHandledReconcileAt:
-                description: LastHandledReconcileAt holds the value of the most recent reconcile request value, so a change can be detected.
+                description: LastHandledReconcileAt holds the value of the most recent reconcile request value, so a change of the annotation value can be detected.
                 type: string
               lastPushCommit:
                 description: LastPushCommit records the SHA1 of the last commit made by the controller, for this automation object
@@ -468,7 +468,7 @@ spec:
                             description: SecretRef holds the name to a secret that contains a 'git.asc' key corresponding to the ASCII Armored file containing the GPG signing keypair as the value. It must be in the same namespace as the ImageUpdateAutomation.
                             properties:
                               name:
-                                description: Name of the referent
+                                description: Name of the referent.
                                 type: string
                             required:
                             - name
@@ -586,7 +586,7 @@ spec:
                 format: date-time
                 type: string
               lastHandledReconcileAt:
-                description: LastHandledReconcileAt holds the value of the most recent reconcile request value, so a change can be detected.
+                description: LastHandledReconcileAt holds the value of the most recent reconcile request value, so a change of the annotation value can be detected.
                 type: string
               lastPushCommit:
                 description: LastPushCommit records the SHA1 of the last commit made by the controller, for this automation object

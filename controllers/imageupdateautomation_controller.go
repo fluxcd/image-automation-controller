@@ -55,6 +55,7 @@ import (
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/predicates"
@@ -156,7 +157,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	// failWithError is a helper for bailing on the reconciliation.
 	failWithError := func(err error) (ctrl.Result, error) {
 		r.event(ctx, auto, events.EventSeverityError, err.Error())
-		imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, meta.ReconciliationFailedReason, err.Error())
+		conditions.MarkFalse(&auto, meta.ReadyCondition, meta.FailedReason, err.Error())
 		if err := r.patchStatus(ctx, req, auto.Status); err != nil {
 			log.Error(err, "failed to reconcile")
 		}
@@ -183,7 +184,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	if err := r.Get(ctx, originName, &origin); err != nil {
 		if client.IgnoreNotFound(err) == nil {
-			imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, imagev1.GitNotAvailableReason, "referenced git repository is missing")
+			conditions.MarkFalse(&auto, meta.ReadyCondition, imagev1.GitNotAvailableReason, "referenced git repository is missing")
 			log.Error(err, "referenced git repository does not exist")
 			if err := r.patchStatus(ctx, req, auto.Status); err != nil {
 				return ctrl.Result{Requeue: true}, err
@@ -286,7 +287,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		log.Info("no update strategy given in the spec")
 		// no sense rescheduling until this resource changes
 		r.event(ctx, auto, events.EventSeverityInfo, "no known update strategy in spec, failing trivially")
-		imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, imagev1.NoStrategyReason, "no known update strategy is given for object")
+		conditions.MarkFalse(&auto, meta.ReadyCondition, imagev1.NoStrategyReason, "no known update strategy is given for object")
 		return ctrl.Result{}, r.patchStatus(ctx, req, auto.Status)
 	}
 
@@ -347,7 +348,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	// Getting to here is a successful run.
 	auto.Status.LastAutomationRunTime = &metav1.Time{Time: now}
-	imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionTrue, meta.ReconciliationSucceededReason, statusMessage)
+	conditions.MarkTrue(&auto, meta.ReadyCondition, meta.SucceededReason, statusMessage)
 	if err := r.patchStatus(ctx, req, auto.Status); err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
