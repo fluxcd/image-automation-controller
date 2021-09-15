@@ -38,13 +38,10 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
-	kuberecorder "k8s.io/client-go/tools/record"
-	"k8s.io/client-go/tools/reference"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -57,8 +54,8 @@ import (
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	helpers "github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/events"
-	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
@@ -67,6 +64,15 @@ import (
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
 	"github.com/fluxcd/image-automation-controller/pkg/update"
+)
+
+const (
+	EventReasonInvalidSource     = "InvalidSource"
+	EventReasonCheckoutFailed    = "GitCheckoutFailed"
+	EventReasonGitPushImpossible = "GitPushImpossible"
+	EventReasonUpdateFailed      = "UpdateFailed"
+	EventReasonNoChanges         = "NoChanges"
+	EventReasonPushSucceeded     = "UpdatePushed"
 )
 
 // log level for debug output
@@ -97,10 +103,10 @@ type TemplateData struct {
 // ImageUpdateAutomationReconciler reconciles a ImageUpdateAutomation object
 type ImageUpdateAutomationReconciler struct {
 	client.Client
-	Scheme                *runtime.Scheme
-	EventRecorder         kuberecorder.EventRecorder
-	ExternalEventRecorder *events.Recorder
-	MetricsRecorder       *metrics.Recorder
+	Scheme *runtime.Scheme
+
+	helpers.Events
+	helpers.Metrics
 }
 
 type ImageUpdateAutomationReconcilerOptions struct {
@@ -112,10 +118,11 @@ type ImageUpdateAutomationReconcilerOptions struct {
 // +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=gitrepositories,verbs=get;list;watch
 
 func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, retErr error) {
+	reconcileStart := time.Now()
+
 	log := logr.FromContext(ctx)
 	debuglog := log.V(debug)
 	tracelog := log.V(trace)
-	now := time.Now()
 	var templateValues TemplateData
 
 	var auto imagev1.ImageUpdateAutomation
@@ -123,7 +130,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	r.recordSuspension(ctx, auto)
+	r.RecordSuspend(ctx, &auto, auto.Spec.Suspend)
 	if auto.Spec.Suspend {
 		log.Info("ImageUpdateAutomation is suspended, skipping automation run")
 		return ctrl.Result{}, nil
@@ -134,37 +141,28 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{Requeue: true}, err
 	}
 	defer func() {
+		// whatever else happens, we've now "seen" the reconcile
+		// annotation if it's there
+		if token, ok := meta.ReconcileAnnotationValue(auto.GetAnnotations()); ok {
+			auto.Status.SetLastHandledReconcileRequest(token)
+		}
+
 		if err := patcher.Patch(ctx, &auto, patch.WithOwnedConditions{
 			Conditions: []string{meta.ReadyCondition},
 		}, patch.WithStatusObservedGeneration{}); err != nil {
 			retErr = kerrors.NewAggregate([]error{retErr, err})
 		}
+
+		// Always record readiness and duration metrics
+		r.RecordReadiness(ctx, &auto)
+		r.RecordDuration(ctx, &auto, reconcileStart)
 	}()
 
 	templateValues.AutomationObject = req.NamespacedName
 
-	// Record readiness metric when exiting; if there's any points at
-	// which the readiness is updated _without also exiting_, they
-	// should also record the readiness.
-	defer r.recordReadinessMetric(ctx, &auto)
-	// Record reconciliation duration when exiting
-	if r.MetricsRecorder != nil {
-		objRef, err := reference.GetReference(r.Scheme, &auto)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		defer r.MetricsRecorder.RecordDuration(*objRef, now)
-	}
-
-	// whatever else happens, we've now "seen" the reconcile
-	// annotation if it's there
-	if token, ok := meta.ReconcileAnnotationValue(auto.GetAnnotations()); ok {
-		auto.Status.SetLastHandledReconcileRequest(token)
-	}
-
 	// failWithError is a helper for bailing on the reconciliation.
-	failWithError := func(err error) (ctrl.Result, error) {
-		r.event(ctx, auto, events.EventSeverityError, err.Error())
+	failWithError := func(err error, reason string) (ctrl.Result, error) {
+		r.Event(ctx, &auto, events.EventSeverityError, reason, err.Error())
 		conditions.MarkFalse(&auto, meta.ReadyCondition, meta.FailedReason, err.Error())
 		return ctrl.Result{Requeue: true}, err
 	}
@@ -173,11 +171,11 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	// only GitRepository objects are supported for now
 	if kind := auto.Spec.SourceRef.Kind; kind != sourcev1.GitRepositoryKind {
-		return failWithError(fmt.Errorf("source kind %q not supported", kind))
+		return failWithError(fmt.Errorf("source kind %q not supported", kind), EventReasonInvalidSource)
 	}
 	gitSpec := auto.Spec.GitSpec
 	if gitSpec == nil {
-		return failWithError(fmt.Errorf("source kind %s neccessitates field .spec.git", sourcev1.GitRepositoryKind))
+		return failWithError(fmt.Errorf("source kind %s neccessitates field .spec.git", sourcev1.GitRepositoryKind), EventReasonInvalidSource)
 	}
 
 	var origin sourcev1.GitRepository
@@ -215,7 +213,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		// given, then the checkout ref must include a branch, and
 		// that can be used.
 		if ref.Branch == "" {
-			failWithError(fmt.Errorf("Push branch not given explicitly, and cannot be inferred from .spec.git.checkout.ref or GitRepository .spec.ref"))
+			failWithError(fmt.Errorf("Push branch not given explicitly, and cannot be inferred from .spec.git.checkout.ref or GitRepository .spec.ref"), EventReasonGitPushImpossible)
 		}
 		pushBranch = ref.Branch
 		tracelog.Info("using push branch from $ref.branch", "branch", pushBranch)
@@ -223,7 +221,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	tmp, err := ioutil.TempDir("", fmt.Sprintf("%s-%s", originName.Namespace, originName.Name))
 	if err != nil {
-		return failWithError(err)
+		return failWithError(err, EventReasonCheckoutFailed)
 	}
 	defer os.RemoveAll(tmp)
 
@@ -233,12 +231,12 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	access, err := r.getRepoAccess(ctx, &origin)
 	if err != nil {
-		return failWithError(err)
+		return failWithError(err, EventReasonCheckoutFailed)
 	}
 
 	var repo *gogit.Repository
 	if repo, err = cloneInto(ctx, access, ref, tmp); err != nil {
-		return failWithError(err)
+		return failWithError(err, EventReasonCheckoutFailed)
 	}
 
 	// When there's a push spec, the pushed-to branch is where commits
@@ -246,10 +244,10 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	if gitSpec.Push != nil {
 		if err := fetch(ctx, tmp, pushBranch, access); err != nil && err != errRemoteBranchMissing {
-			return failWithError(err)
+			return failWithError(err, EventReasonCheckoutFailed)
 		}
 		if err = switchBranch(repo, pushBranch); err != nil {
-			return failWithError(err)
+			return failWithError(err, EventReasonCheckoutFailed)
 		}
 	}
 
@@ -257,7 +255,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	if auto.Spec.Update.Path != "" {
 		tracelog.Info("adjusting update path according to .spec.update.path", "base", tmp, "spec-path", auto.Spec.Update.Path)
 		if p, err := securejoin.SecureJoin(tmp, auto.Spec.Update.Path); err != nil {
-			return failWithError(err)
+			return failWithError(err, EventReasonCheckoutFailed)
 		} else {
 			manifestsPath = p
 		}
@@ -270,7 +268,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		// could be filtered by the automation object).
 		var policies imagev1_reflect.ImagePolicyList
 		if err := r.List(ctx, &policies, &client.ListOptions{Namespace: req.NamespacedName.Namespace}); err != nil {
-			return failWithError(err)
+			return failWithError(err, EventReasonUpdateFailed)
 		}
 
 		debuglog.Info("updating with setters according to image policies", "count", len(policies.Items), "manifests-path", manifestsPath)
@@ -281,14 +279,14 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		}
 
 		if result, err := updateAccordingToSetters(ctx, tracelog, manifestsPath, policies.Items); err != nil {
-			return failWithError(err)
+			return failWithError(err, EventReasonUpdateFailed)
 		} else {
 			templateValues.Updated = result
 		}
 	default:
 		log.Info("no update strategy given in the spec")
 		// no sense rescheduling until this resource changes
-		r.event(ctx, auto, events.EventSeverityInfo, "no known update strategy in spec, failing trivially")
+		r.Event(ctx, &auto, events.EventSeverityInfo, "no known update strategy in spec, failing trivially", EventReasonUpdateFailed)
 		conditions.MarkFalse(&auto, meta.ReadyCondition, imagev1.NoStrategyReason, "no known update strategy is given for object")
 		return ctrl.Result{}, nil
 	}
@@ -309,47 +307,48 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	}
 	tmpl, err := template.New("commit message").Parse(msgTmpl)
 	if err != nil {
-		return failWithError(fmt.Errorf("unable to create commit message template from spec: %w", err))
+		return failWithError(fmt.Errorf("unable to create commit message template from spec: %w", err), EventReasonUpdateFailed)
 	}
 	messageBuf := &strings.Builder{}
 	if err := tmpl.Execute(messageBuf, templateValues); err != nil {
-		return failWithError(fmt.Errorf("failed to run template from spec: %w", err))
+		return failWithError(fmt.Errorf("failed to run template from spec: %w", err), EventReasonUpdateFailed)
 	}
 
 	// The status message depends on what happens next. Since there's
 	// more than one way to succeed, there's some if..else below, and
 	// early returns only on failure.
+	commitTime := time.Now()
 	author := &object.Signature{
 		Name:  gitSpec.Commit.Author.Name,
 		Email: gitSpec.Commit.Author.Email,
-		When:  time.Now(),
+		When:  commitTime,
 	}
 
 	if rev, err := commitChangedManifests(tracelog, repo, tmp, signingEntity, author, messageBuf.String()); err != nil {
 		if err == errNoChanges {
-			r.event(ctx, auto, events.EventSeverityInfo, "no updates made")
+			r.Event(ctx, &auto, events.EventSeverityInfo, "no updates made", EventReasonNoChanges)
 			debuglog.Info("no changes made in working directory; no commit")
 			statusMessage = "no updates made"
 			if lastCommit, lastTime := auto.Status.LastPushCommit, auto.Status.LastPushTime; lastCommit != "" {
 				statusMessage = fmt.Sprintf("%s; last commit %s at %s", statusMessage, lastCommit[:7], lastTime.Format(time.RFC3339))
 			}
 		} else {
-			return failWithError(err)
+			return failWithError(err, EventReasonUpdateFailed)
 		}
 	} else {
 		if err := push(ctx, tmp, pushBranch, access); err != nil {
-			return failWithError(err)
+			return failWithError(err, EventReasonUpdateFailed)
 		}
 
-		r.event(ctx, auto, events.EventSeverityInfo, "committed and pushed change "+rev+" to "+pushBranch)
+		r.Event(ctx, &auto, events.EventSeverityInfo, "committed and pushed change "+rev+" to "+pushBranch, EventReasonPushSucceeded)
 		log.Info("pushed commit to origin", "revision", rev, "branch", pushBranch)
 		auto.Status.LastPushCommit = rev
-		auto.Status.LastPushTime = &metav1.Time{Time: now}
+		auto.Status.LastPushTime = &metav1.Time{Time: commitTime}
 		statusMessage = "committed and pushed " + rev + " to " + pushBranch
 	}
 
 	// Getting to here is a successful run.
-	auto.Status.LastAutomationRunTime = &metav1.Time{Time: now}
+	auto.Status.LastAutomationRunTime = &metav1.Time{Time: reconcileStart}
 	conditions.MarkTrue(&auto, meta.ReadyCondition, meta.SucceededReason, statusMessage)
 
 	// We're either in this method because something changed, or this
@@ -712,69 +711,10 @@ func libgit2PushError(err error) error {
 	return errors.New(b.String())
 }
 
-// --- events, metrics
-
-func (r *ImageUpdateAutomationReconciler) event(ctx context.Context, auto imagev1.ImageUpdateAutomation, severity, msg string) {
-	if r.EventRecorder != nil {
-		r.EventRecorder.Event(&auto, "Normal", severity, msg)
-	}
-	if r.ExternalEventRecorder != nil {
-		objRef, err := reference.GetReference(r.Scheme, &auto)
-		if err != nil {
-			logr.FromContext(ctx).Error(err, "unable to send event")
-			return
-		}
-
-		if err := r.ExternalEventRecorder.Eventf(*objRef, nil, severity, severity, msg); err != nil {
-			logr.FromContext(ctx).Error(err, "unable to send event")
-			return
-		}
-	}
-}
-
-func (r *ImageUpdateAutomationReconciler) recordReadinessMetric(ctx context.Context, auto *imagev1.ImageUpdateAutomation) {
-	if r.MetricsRecorder == nil {
-		return
-	}
-
-	objRef, err := reference.GetReference(r.Scheme, auto)
-	if err != nil {
-		logr.FromContext(ctx).Error(err, "unable to record readiness metric")
-		return
-	}
-	if rc := apimeta.FindStatusCondition(auto.Status.Conditions, meta.ReadyCondition); rc != nil {
-		r.MetricsRecorder.RecordCondition(*objRef, *rc, !auto.DeletionTimestamp.IsZero())
-	} else {
-		r.MetricsRecorder.RecordCondition(*objRef, metav1.Condition{
-			Type:   meta.ReadyCondition,
-			Status: metav1.ConditionUnknown,
-		}, !auto.DeletionTimestamp.IsZero())
-	}
-}
-
 // --- updates
 
 // updateAccordingToSetters updates files under the root by treating
 // the given image policies as kyaml setters.
 func updateAccordingToSetters(ctx context.Context, tracelog logr.Logger, path string, policies []imagev1_reflect.ImagePolicy) (update.Result, error) {
 	return update.UpdateWithSetters(tracelog, path, path, policies)
-}
-
-func (r *ImageUpdateAutomationReconciler) recordSuspension(ctx context.Context, auto imagev1.ImageUpdateAutomation) {
-	if r.MetricsRecorder == nil {
-		return
-	}
-	log := logr.FromContext(ctx)
-
-	objRef, err := reference.GetReference(r.Scheme, &auto)
-	if err != nil {
-		log.Error(err, "unable to record suspended metric")
-		return
-	}
-
-	if !auto.DeletionTimestamp.IsZero() {
-		r.MetricsRecorder.RecordSuspend(*objRef, false)
-	} else {
-		r.MetricsRecorder.RecordSuspend(*objRef, auto.Spec.Suspend)
-	}
 }
