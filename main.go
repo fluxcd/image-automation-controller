@@ -30,6 +30,7 @@ import (
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
 	"github.com/fluxcd/pkg/runtime/client"
+	helpers "github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/leaderelection"
 	"github.com/fluxcd/pkg/runtime/logger"
@@ -124,12 +125,14 @@ func main() {
 	probes.SetupChecks(mgr, setupLog)
 	pprof.SetupHandlers(mgr, setupLog)
 
+	events := helpers.MakeEvents(mgr, controllerName, eventRecorder)
+	metrics := helpers.MustMakeMetrics(mgr)
+
 	if err = (&controllers.ImageUpdateAutomationReconciler{
-		Client:                mgr.GetClient(),
-		Scheme:                mgr.GetScheme(),
-		EventRecorder:         mgr.GetEventRecorderFor(controllerName),
-		ExternalEventRecorder: eventRecorder,
-		MetricsRecorder:       metricsRecorder,
+		Client:  mgr.GetClient(),
+		Scheme:  mgr.GetScheme(),
+		Events:  events,
+		Metrics: metrics,
 	}).SetupWithManager(mgr, controllers.ImageUpdateAutomationReconcilerOptions{
 		MaxConcurrentReconciles: concurrent,
 	}); err != nil {
