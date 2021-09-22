@@ -17,95 +17,58 @@ limitations under the License.
 package controllers
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	"github.com/fluxcd/pkg/runtime/testenv"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
-	// +kubebuilder:scaffold:imports
 )
 
-// These tests use Ginkgo (BDD-style Go testing framework). Refer to
-// http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
+var (
+	testEnv *testenv.Environment
+	ctx     = ctrl.SetupSignalHandler()
+)
 
-var cfg *rest.Config
-var k8sClient client.Client
-var k8sManager ctrl.Manager
-var imageAutoReconciler *ImageUpdateAutomationReconciler
-var testEnv *envtest.Environment
+func TestMain(m *testing.M) {
+	utilruntime.Must(imagev1_reflect.AddToScheme(scheme.Scheme))
+	utilruntime.Must(sourcev1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(imagev1.AddToScheme(scheme.Scheme))
 
-func TestAPIs(t *testing.T) {
-	RegisterFailHandler(Fail)
+	testEnv = testenv.New(testenv.WithCRDPath(
+		filepath.Join("..", "config", "crd", "bases"),
+		filepath.Join("testdata", "crds"),
+	))
 
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"Controller Suite",
-		[]Reporter{printer.NewlineReporter{}})
-}
-
-var _ = BeforeSuite(func(done Done) {
-	ctrl.SetLogger(
-		zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)),
-	)
-
-	By("bootstrapping test environment")
-	testEnv = &envtest.Environment{
-		CRDDirectoryPaths: []string{
-			filepath.Join("..", "config", "crd", "bases"),
-			filepath.Join("testdata", "crds"),
-		},
-	}
-
-	var err error
-	cfg, err = testEnv.Start()
-	Expect(err).ToNot(HaveOccurred())
-	Expect(cfg).ToNot(BeNil())
-
-	Expect(sourcev1.AddToScheme(scheme.Scheme)).To(Succeed())
-	Expect(imagev1_reflect.AddToScheme(scheme.Scheme)).To(Succeed())
-
-	Expect(imagev1.AddToScheme(scheme.Scheme)).To(Succeed())
-	// +kubebuilder:scaffold:scheme
-
-	k8sManager, err = ctrl.NewManager(cfg, ctrl.Options{
+	if err := (&ImageUpdateAutomationReconciler{
+		Client: testEnv,
 		Scheme: scheme.Scheme,
-	})
-	Expect(err).ToNot(HaveOccurred())
-
-	imageAutoReconciler = &ImageUpdateAutomationReconciler{
-		Client: k8sManager.GetClient(),
-		Scheme: scheme.Scheme,
+	}).SetupWithManager(testEnv, ImageUpdateAutomationReconcilerOptions{}); err != nil {
+		panic(fmt.Sprintf("Failed to start ImageUpdateAutomationReconciler: %v", err))
 	}
-	Expect(imageAutoReconciler.SetupWithManager(k8sManager, ImageUpdateAutomationReconcilerOptions{})).To(Succeed())
 
 	go func() {
-		defer GinkgoRecover()
-		err = k8sManager.Start(ctrl.SetupSignalHandler())
-		Expect(err).ToNot(HaveOccurred())
+		fmt.Println("Starting the test environment")
+		if err := testEnv.Start(ctx); err != nil {
+			panic(fmt.Sprintf("Failed to start the test environment manager: %v", err))
+		}
 	}()
+	<-testEnv.Manager.Elected()
 
-	// Specifically an uncached client. Use <reconciler>.Get if you
-	// want to see what the reconcilers see.
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
-	Expect(err).ToNot(HaveOccurred())
-	Expect(k8sClient).ToNot(BeNil())
+	code := m.Run()
 
-	close(done)
-}, 60)
+	fmt.Println("Stopping the test environment")
+	if err := testEnv.Stop(); err != nil {
+		panic(fmt.Sprintf("Failed to stop the test environment: %v", err))
+	}
 
-var _ = AfterSuite(func() {
-	By("tearing down the test environment")
-	err := testEnv.Stop()
-	Expect(err).ToNot(HaveOccurred())
-})
+	os.Exit(code)
+}
