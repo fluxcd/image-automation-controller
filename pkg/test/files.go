@@ -27,21 +27,21 @@ import (
 
 // TODO rewrite this as just doing the diff, so I can test that it
 // fails at the right times too.
-func ExpectMatchingDirectories(actualRoot, expectedRoot string) {
-	Expect(actualRoot).To(BeADirectory())
-	Expect(expectedRoot).To(BeADirectory())
+func ExpectMatchingDirectories(g *WithT, actualRoot, expectedRoot string) {
+	g.Expect(actualRoot).To(BeADirectory())
+	g.Expect(expectedRoot).To(BeADirectory())
 	actualonly, expectedonly, different := DiffDirectories(actualRoot, expectedRoot)
-	Expect(actualonly).To(BeEmpty(), "Expect no files in %s but not in %s", actualRoot, expectedRoot)
-	Expect(expectedonly).To(BeEmpty(), "Expect no files in %s but not in %s", expectedRoot, actualRoot)
+	g.Expect(actualonly).To(BeEmpty(), "Expect no files in %s but not in %s", actualRoot, expectedRoot)
+	g.Expect(expectedonly).To(BeEmpty(), "Expect no files in %s but not in %s", expectedRoot, actualRoot)
 	// these are enumerated, so that the output is the actual difference
 	for _, diff := range different {
-		diff.FailedExpectation()
+		diff.FailedExpectation(g)
 	}
 }
 
 type Diff interface {
 	Path() string
-	FailedExpectation()
+	FailedExpectation(g *WithT)
 }
 
 type contentdiff struct {
@@ -53,8 +53,8 @@ func (d contentdiff) Path() string {
 }
 
 // Run an expectation that will fail, giving an appropriate error
-func (d contentdiff) FailedExpectation() {
-	Expect(d.actual).To(Equal(d.expected))
+func (d contentdiff) FailedExpectation(g *WithT) {
+	g.Expect(d.actual).To(Equal(d.expected))
 }
 
 type dirfile struct {
@@ -66,11 +66,11 @@ func (d dirfile) Path() string {
 	return d.path
 }
 
-func (d dirfile) FailedExpectation() {
+func (d dirfile) FailedExpectation(g *WithT) {
 	if d.expectedRegularFile {
-		Expect(d.path).To(BeARegularFile())
+		g.Expect(d.path).To(BeARegularFile())
 	} else {
-		Expect(d.path).To(BeADirectory())
+		g.Expect(d.path).To(BeADirectory())
 	}
 }
 
