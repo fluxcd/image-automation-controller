@@ -19,41 +19,51 @@ package test
 import (
 	"testing"
 
-	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-func TestFiles(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Files comparison helper")
+func TestExpectMatchingDirectories(t *testing.T) {
+	tests := []struct {
+		name         string
+		actualRoot   string
+		expectedRoot string
+	}{
+		{
+			name:         "same directory",
+			actualRoot:   "testdata/base",
+			expectedRoot: "testdata/base",
+		},
+		{
+			name:         "different equivalent directories",
+			actualRoot:   "testdata/base",
+			expectedRoot: "testdata/equiv",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+			ExpectMatchingDirectories(g, tt.actualRoot, tt.expectedRoot)
+		})
+	}
 }
 
-var _ = Describe("when no differences", func() {
-	It("matches when given the same directory", func() {
-		ExpectMatchingDirectories("testdata/base", "testdata/base")
-	})
-	It("matches when given equivalent directories", func() {
-		ExpectMatchingDirectories("testdata/base", "testdata/equiv")
-	})
-})
+func TestDiffDirectories(t *testing.T) {
+	g := NewWithT(t)
 
-var _ = Describe("with differences", func() {
-	It("finds files in expected from a/ but not in actual b/", func() {
-		aonly, _, _ := DiffDirectories("testdata/diff/a", "testdata/diff/b")
-		Expect(aonly).To(Equal([]string{"/only", "/only/here.yaml", "/onlyhere.yaml"}))
-	})
+	// Finds files in expected from a/ but not in actual b/.
+	aonly, _, _ := DiffDirectories("testdata/diff/a", "testdata/diff/b")
+	g.Expect(aonly).To(Equal([]string{"/only", "/only/here.yaml", "/onlyhere.yaml"}))
 
-	It("finds files in actual a/ that weren't expected from b/", func() {
-		bonly, _, _ := DiffDirectories("testdata/diff/a", "testdata/diff/b") // change in order
-		Expect(bonly).To(Equal([]string{"/only", "/only/here.yaml", "/onlyhere.yaml"}))
-	})
+	// Finds files in actual a/ that weren't expected from b/.
+	bonly, _, _ := DiffDirectories("testdata/diff/a", "testdata/diff/b") // change in order
+	g.Expect(bonly).To(Equal([]string{"/only", "/only/here.yaml", "/onlyhere.yaml"}))
 
-	It("finds files that are different in a and b", func() {
-		_, _, diffs := DiffDirectories("testdata/diff/a", "testdata/diff/b")
-		var diffpaths []string
-		for _, d := range diffs {
-			diffpaths = append(diffpaths, d.Path())
-		}
-		Expect(diffpaths).To(Equal([]string{"/different/content.yaml", "/dirfile"}))
-	})
-})
+	// Finds files that are different in a and b.
+	_, _, diffs := DiffDirectories("testdata/diff/a", "testdata/diff/b")
+	var diffpaths []string
+	for _, d := range diffs {
+		diffpaths = append(diffpaths, d.Path())
+	}
+	g.Expect(diffpaths).To(Equal([]string{"/different/content.yaml", "/dirfile"}))
+}
