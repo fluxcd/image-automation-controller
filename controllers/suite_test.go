@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/fluxcd/pkg/runtime/testenv"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -31,6 +32,10 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
+)
+
+const (
+	contextTimeout = time.Second * 10
 )
 
 var (
