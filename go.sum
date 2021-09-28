@@ -358,8 +358,8 @@ github.com/fluxcd/pkg/testserver v0.1.0/go.mod h1:fvt8BHhXw6c1+CLw1QFZxcQprlcXzs
 github.com/fluxcd/pkg/untar v0.1.0/go.mod h1:aGswNyzB1mlz/T/kpOS58mITBMxMKc9tlJBH037A2HY=
 github.com/fluxcd/pkg/version v0.1.0 h1:v+SmCanmCB5Tj2Cx9TXlj+kNRfPGbAvirkeqsp7ZEAQ=
 github.com/fluxcd/pkg/version v0.1.0/go.mod h1:V7Z/w8dxLQzv0FHqa5ox5TeyOd2zOd49EeuWFgnwyj4=
-github.com/fluxcd/source-controller v0.15.4 h1:FtFkrja75qGRK05CoYf9extdQO5Z3Ts4QloBSiWaHhE=
-github.com/fluxcd/source-controller v0.15.4/go.mod h1:yv3qPWT6aNYWYXdmjTjcZmUTfgoC/c7yovcnApnGKYE=
+github.com/fluxcd/source-controller v0.15.5-0.20210930103634-ac1b95090415 h1:XrTvVFkWdFQX6GbosGNVtfreqAVqjBtFVk2cqy0uBYk=
+github.com/fluxcd/source-controller v0.15.5-0.20210930103634-ac1b95090415/go.mod h1:XPuJVVTs4eYwDWbZjaZY6JLiaNMPti+sl6LpCewEcvc=
 github.com/fluxcd/source-controller/api v0.15.4 h1:9aRcH/WKJWt7Bp954K/wzLRuiRiHuD2osvYp74GoP64=
 github.com/fluxcd/source-controller/api v0.15.4/go.mod h1:guUCCapjzE2kocwFreQTM/IGvtAglIJc4L97mokairo=
 github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568/go.mod h1:xEzjJPgXI435gkrCt3MPfRiAkVrwSbHsst4LCFVfpJc=
@@ -683,8 +683,8 @@ github.com/lann/builder v0.0.0-20180802200727-47ae307949d0/go.mod h1:dXGbAdH5GtB
 github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0/go.mod h1:vmVJ0l/dxyfGW6FmdpVm2joNMFikkuWg0EoCKLGUMNw=
 github.com/lib/pq v1.2.0/go.mod h1:5WUZQaWbwv1U+lTReE5YruASi9Al49XbQIvNi/34Woo=
 github.com/lib/pq v1.10.0/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
-github.com/libgit2/git2go/v31 v31.4.14 h1:6GOd3965D9e/+gjxCwZF4eQ+vB9kKB4yKFqdQr6XZ2E=
-github.com/libgit2/git2go/v31 v31.4.14/go.mod h1:c/rkJcBcUFx6wHaT++UwNpKvIsmPNqCeQ/vzO4DrEec=
+github.com/libgit2/git2go/v31 v31.6.1 h1:FnKHHDDBgltSsu9RpKuL4rSR8dQ1JTf9dfvFhZ1y7Aw=
+github.com/libgit2/git2go/v31 v31.6.1/go.mod h1:c/rkJcBcUFx6wHaT++UwNpKvIsmPNqCeQ/vzO4DrEec=
 github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de/go.mod h1:zAbeS9B/r2mtpb6U+EI2rYA5OAXxsYw6wTamcNW+zcE=
 github.com/lightstep/lightstep-tracer-common/golang/gogo v0.0.0-20190605223551-bc2310a04743/go.mod h1:qklhhLq1aX+mtWk9cPHPzaBjWImj5ULL6C7HFJtXQMM=
 github.com/lightstep/lightstep-tracer-go v0.18.1/go.mod h1:jlF1pusYV4pidLvZ+XD0UBX0ZE6WURAspgAczcDHrL4=
