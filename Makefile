@@ -7,15 +7,21 @@ TAG ?= latest
 CRD_OPTIONS ?= crd:crdVersions=v1
 
 # Base image used to build the Go binary
-BASE_IMG ?= ghcr.io/hiddeco/golang-with-libgit2
-BASE_TAG ?= dev
+LIBGIT2_IMG ?= ghcr.io/fluxcd/golang-with-libgit2
+LIBGIT2_TAG ?= libgit2-1.1.1
+
+# Allows for defining additional Docker buildx arguments,
+# e.g. '--push'.
+BUILD_ARGS ?=
+# Architectures to build images for
+BUILD_PLATFORMS ?= linux/amd64,linux/arm64,linux/arm/v7
 
 # Directory with versioned, downloaded things
 CACHE := cache
 
 # Version of the source-controller from which to get the GitRepository CRD.
 # Change this if you bump the source-controller/api version in go.mod.
-SOURCE_VER ?= v0.15.4
+SOURCE_VER ?= v0.16.0
 
 # Version of the image-reflector-controller from which to get the ImagePolicy CRD.
 # Change this if you bump the image-reflector-controller/api version in go.mod.
@@ -27,13 +33,21 @@ LIBGIT2_VER ?= 1.1.1
 # Repository root based on Git metadata.
 REPOSITORY_ROOT := $(shell git rev-parse --show-toplevel)
 
-# libgit2 related magical paths.
+# libgit2 related magical paths
 # These are used to determine if the target libgit2 version is already available on
-# the system, or where they should be installed to.
-SYSTEM_LIBGIT2_VER := $(shell pkg-config --modversion libgit2 2>/dev/null)
+# the system, or where they should be installed to
+SYSTEM_LIBGIT2_VERSION := $(shell pkg-config --modversion libgit2 2>/dev/null)
 LIBGIT2_PATH := $(REPOSITORY_ROOT)/hack/libgit2
 LIBGIT2_LIB_PATH := $(LIBGIT2_PATH)/lib
-LIBGIT2 := $(LIBGIT2_LIB_PATH)/libgit2.so.$(LIBGIT2_VER)
+LIBGIT2 := $(LIBGIT2_LIB_PATH)/libgit2.so.$(LIBGIT2_VERSION)
+
+ifneq ($(LIBGIT2_VERSION),$(SYSTEM_LIBGIT2_VERSION))
+	LIBGIT2_FORCE ?= 1
+endif
+
+ifeq ($(shell uname -s),Darwin)
+	LIBGIT2 := $(LIBGIT2_LIB_PATH)/libgit2.$(LIBGIT2_VERSION).dylib
+endif
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -127,10 +141,12 @@ generate: controller-gen	## Generate code
 	cd api; $(CONTROLLER_GEN) object:headerFile="../hack/boilerplate.go.txt" paths="./..."
 
 docker-build:  ## Build the Docker image
-	docker build \
-		--build-arg BASE_IMG=$(BASE_IMG) \
-		--build-arg BASE_TAG=$(BASE_TAG) \
-		-t $(IMG):$(TAG) .
+	docker buildx build \
+		--build-arg LIBGIT2_IMG=$(LIBGIT2_IMG) \
+		--build-arg LIBGIT2_TAG=$(LIBGIT2_TAG) \
+		--platform=$(BUILD_PLATFORMS) \
+		-t $(IMG):$(TAG) \
+		$(BUILD_ARGS) .
 
 docker-push:	## Push the Docker image
 	docker push $(IMG):$(TAG)
@@ -168,16 +184,15 @@ else
 API_REF_GEN=$(shell which gen-crd-api-reference-docs)
 endif
 
-libgit2: $(LIBGIT2)	## Detect or download libgit2 library
+libgit2: $(LIBGIT2)  ## Detect or download libgit2 library
 
 $(LIBGIT2):
-ifeq ($(LIBGIT2_VER),$(SYSTEM_LIBGIT2_VER))
-else
+ifeq (1, $(LIBGIT2_FORCE))
 	@{ \
 	set -e; \
 	mkdir -p $(LIBGIT2_PATH); \
-	docker cp $(shell docker create --rm $(BASE_IMG):$(BASE_TAG)):/libgit2/Makefile $(LIBGIT2_PATH); \
-	INSTALL_PREFIX=$(LIBGIT2_PATH) LIGBIT2_VERSION=$(LIBGIT2_VER) make -C $(LIBGIT2_PATH); \
+	curl -sL https://raw.githubusercontent.com/fluxcd/golang-with-libgit2/$(LIBGIT2_TAG)/hack/Makefile -o $(LIBGIT2_PATH)/Makefile; \
+	INSTALL_PREFIX=$(LIBGIT2_PATH) make -C $(LIBGIT2_PATH) libgit2; \
 	}
 endif
 
