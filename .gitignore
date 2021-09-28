@@ -27,3 +27,6 @@ bin
 *.swp
 *.swo
 *~
+
+# Exclude all libgit2 related files
+hack/libgit2/

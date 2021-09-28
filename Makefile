@@ -1,5 +1,8 @@
 # Image URL to use all building/pushing image targets
-IMG ?= fluxcd/image-automation-controller:latest
+IMG ?= fluxcd/image-automation-controller
+# Image tag to use all building/push image targets
+TAG ?= latest
+
 # Produce CRDs that work back to Kubernetes 1.16
 CRD_OPTIONS ?= crd:crdVersions=v1
 
@@ -92,12 +95,12 @@ uninstall: manifests	## Uninstall CRDs from a cluster
 	kustomize build config/crd | kubectl delete -f -
 
 deploy: manifests	## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-	cd config/manager && kustomize edit set image fluxcd/image-automation-controller=${IMG}
+	cd config/manager && kustomize edit set image fluxcd/image-automation-controller=$(IMG):$(TAG)
 	kustomize build config/default | kubectl apply -f -
 
 dev-deploy: manifests
 	mkdir -p config/dev && cp config/default/* config/dev
-	cd config/dev && kustomize edit set image fluxcd/image-automation-controller=${IMG}
+	cd config/dev && kustomize edit set image fluxcd/image-automation-controller=$(IMG):$(TAG)
 	kustomize build config/dev | kubectl apply -f -
 	rm -rf config/dev
 
@@ -123,14 +126,17 @@ vet: $(LIBGIT2)	## Run go vet against code
 generate: controller-gen	## Generate code
 	cd api; $(CONTROLLER_GEN) object:headerFile="../hack/boilerplate.go.txt" paths="./..."
 
-docker-build: test	## Build the Docker image
-	docker build . -t ${IMG}
+docker-build:  ## Build the Docker image
+	docker build \
+		--build-arg BASE_IMG=$(BASE_IMG) \
+		--build-arg BASE_TAG=$(BASE_TAG) \
+		-t $(IMG):$(TAG) .
 
 docker-push:	## Push the Docker image
-	docker push ${IMG}
+	docker push $(IMG):$(TAG)
 
 docker-deploy:	## Set the Docker image in-cluster
-	kubectl -n flux-system set image deployment/image-automation-controller manager=${IMG}
+	kubectl -n flux-system set image deployment/image-automation-controller manager=$(IMG):$(TAG)
 
 controller-gen: 	## Find or download controller-gen
 ifeq (, $(shell which controller-gen))
@@ -171,7 +177,7 @@ else
 	set -e; \
 	mkdir -p $(LIBGIT2_PATH); \
 	docker cp $(shell docker create --rm $(BASE_IMG):$(BASE_TAG)):/libgit2/Makefile $(LIBGIT2_PATH); \
-	INSTALL_PREFIX=$(LIBGIT2_PATH) LIGBIT2_VERSION=$(LIBGIT2_VER) LIBGIT2_REVISION= make -C $(LIBGIT2_PATH); \
+	INSTALL_PREFIX=$(LIBGIT2_PATH) LIGBIT2_VERSION=$(LIBGIT2_VER) make -C $(LIBGIT2_PATH); \
 	}
 endif
 
