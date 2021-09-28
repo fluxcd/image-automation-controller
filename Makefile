@@ -52,29 +52,23 @@ ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml:
 	curl -s --fail https://raw.githubusercontent.com/fluxcd/image-reflector-controller/${REFLECTOR_VER}/config/crd/bases/image.toolkit.fluxcd.io_imagepolicies.yaml \
 		-o ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml
 
-# Run tests
-test: test_deps generate fmt vet manifests api-docs
+test: test_deps generate fmt vet manifests api-docs	## Run tests
 	go test ./... -coverprofile cover.out
 	cd api; go test ./... -coverprofile cover.out
 
-# Build manager binary
-manager: generate fmt vet
+manager: generate fmt vet	## Build manager binary
 	go build -o bin/manager main.go
 
-# Run against the configured Kubernetes cluster in ~/.kube/config
-run: generate fmt vet manifests
+run: generate fmt vet manifests	# Run against the configured Kubernetes cluster in ~/.kube/config
 	go run ./main.go --log-level=${LOG_LEVEL} --log-encoding=console
 
-# Install CRDs into a cluster
-install: manifests
+install: manifests	## Install CRDs into a cluster
 	kustomize build config/crd | kubectl apply -f -
 
-# Uninstall CRDs from a cluster
-uninstall: manifests
+uninstall: manifests	## Uninstall CRDs from a cluster
 	kustomize build config/crd | kubectl delete -f -
 
-# Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-deploy: manifests
+deploy: manifests	## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 	cd config/manager && kustomize edit set image fluxcd/image-automation-controller=${IMG}
 	kustomize build config/default | kubectl apply -f -
 
@@ -84,48 +78,38 @@ dev-deploy: manifests
 	kustomize build config/dev | kubectl apply -f -
 	rm -rf config/dev
 
-# Generate manifests e.g. CRD, RBAC etc.
-manifests: controller-gen
+manifests: controller-gen	## Generate manifests e.g. CRD, RBAC etc.
 	cd api; $(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role paths="./..." output:crd:artifacts:config="../config/crd/bases"
 
-# Generate API reference documentation
-api-docs: gen-crd-api-reference-docs
+api-docs: gen-crd-api-reference-docs	## Generate API reference documentation
 	$(API_REF_GEN) -api-dir=./api/v1beta1 -config=./hack/api-docs/config.json -template-dir=./hack/api-docs/template -out-file=./docs/api/image-automation.md
 
-# Run go mod tidy
-tidy:
+tidy:	## Run go mod tidy
 	cd api; rm -f go.sum; go mod tidy
 	rm -f go.sum; go mod tidy
 
-# Run go fmt against code
-fmt:
+fmt:	## Run go fmt against code
 	go fmt ./...
 	cd api; go fmt ./...
 
-# Run go vet against code
-vet:
+vet:	## Run go vet against code
 	go vet ./...
 	cd api; go vet ./...
 
-# Generate code
-generate: controller-gen
+
+generate: controller-gen	## Generate code
 	cd api; $(CONTROLLER_GEN) object:headerFile="../hack/boilerplate.go.txt" paths="./..."
 
-# Build the docker image
-docker-build: test
+docker-build: test	## Build the Docker image
 	docker build . -t ${IMG}
 
-# Push the docker image
-docker-push:
+docker-push:	## Push the Docker image
 	docker push ${IMG}
 
-# Set the docker image in-cluster
-docker-deploy:
+docker-deploy:	## Set the Docker image in-cluster
 	kubectl -n flux-system set image deployment/image-automation-controller manager=${IMG}
 
-# find or download controller-gen
-# download controller-gen if necessary
-controller-gen:
+controller-gen: 	## Find or download controller-gen
 ifeq (, $(shell which controller-gen))
 	@{ \
 	set -e ;\
@@ -140,8 +124,7 @@ else
 CONTROLLER_GEN=$(shell which controller-gen)
 endif
 
-# Find or download gen-crd-api-reference-docs
-gen-crd-api-reference-docs:
+gen-crd-api-reference-docs:	## Find or download gen-crd-api-reference-docs
 ifeq (, $(shell which gen-crd-api-reference-docs))
 	@{ \
 	set -e ;\
@@ -155,3 +138,7 @@ API_REF_GEN=$(GOBIN)/gen-crd-api-reference-docs
 else
 API_REF_GEN=$(shell which gen-crd-api-reference-docs)
 endif
+
+.PHONY: help
+help:  ## Display this help menu
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
