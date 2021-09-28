@@ -15,7 +15,6 @@ require (
 	github.com/fluxcd/pkg/runtime v0.13.0-rc.3
 	github.com/fluxcd/pkg/ssh v0.1.0
 	// If you bump this, change SOURCE_VER in the Makefile to match
-	// TODO(hidde): set to tagged version of release.
 	github.com/fluxcd/source-controller v0.15.4-0.20210812121231-7c95db88f781
 	github.com/fluxcd/source-controller/api v0.15.4-0.20210812121231-7c95db88f781
 	github.com/go-git/go-billy/v5 v5.3.1
