@@ -3,8 +3,12 @@ IMG ?= fluxcd/image-automation-controller:latest
 # Produce CRDs that work back to Kubernetes 1.16
 CRD_OPTIONS ?= crd:crdVersions=v1
 
+# Base image used to build the Go binary
+BASE_IMG ?= ghcr.io/hiddeco/golang-with-libgit2
+BASE_TAG ?= dev
+
 # Directory with versioned, downloaded things
-CACHE:=cache
+CACHE := cache
 
 # Version of the source-controller from which to get the GitRepository CRD.
 # Change this if you bump the source-controller/api version in go.mod.
@@ -14,6 +18,20 @@ SOURCE_VER ?= v0.15.4
 # Change this if you bump the image-reflector-controller/api version in go.mod.
 REFLECTOR_VER ?= v0.11.1
 
+# Version of libgit2 the controller should depend on.
+LIBGIT2_VER ?= 1.1.1
+
+# Repository root based on Git metadata.
+REPOSITORY_ROOT := $(shell git rev-parse --show-toplevel)
+
+# libgit2 related magical paths.
+# These are used to determine if the target libgit2 version is already available on
+# the system, or where they should be installed to.
+SYSTEM_LIBGIT2_VER := $(shell pkg-config --modversion libgit2 2>/dev/null)
+LIBGIT2_PATH := $(REPOSITORY_ROOT)/hack/libgit2
+LIBGIT2_LIB_PATH := $(LIBGIT2_PATH)/lib
+LIBGIT2 := $(LIBGIT2_LIB_PATH)/libgit2.so.$(LIBGIT2_VER)
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -21,10 +39,10 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-TEST_CRDS:=controllers/testdata/crds
+TEST_CRDS := controllers/testdata/crds
 
 # Log level for `make run`
-LOG_LEVEL?=info
+LOG_LEVEL ?= info
 
 all: manager
 
@@ -52,14 +70,19 @@ ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml:
 	curl -s --fail https://raw.githubusercontent.com/fluxcd/image-reflector-controller/${REFLECTOR_VER}/config/crd/bases/image.toolkit.fluxcd.io_imagepolicies.yaml \
 		-o ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml
 
-test: test_deps generate fmt vet manifests api-docs	## Run tests
+test: $(LIBGIT2) test-api test_deps generate fmt vet manifests api-docs	## Run tests
+	LD_LIBRARY_PATH=$(LIBGIT2_LIB_PATH) \
+	PKG_CONFIG_PATH=$(LIBGIT2_LIB_PATH)/pkgconfig/ \
 	go test ./... -coverprofile cover.out
+
+test-api:	## Run api tests
 	cd api; go test ./... -coverprofile cover.out
 
-manager: generate fmt vet	## Build manager binary
+manager: $(LIBGIT2) generate fmt vet	## Build manager binary
+	PKG_CONFIG_PATH=$(LIBGIT2_LIB_PATH)/pkgconfig/ \
 	go build -o bin/manager main.go
 
-run: generate fmt vet manifests	# Run against the configured Kubernetes cluster in ~/.kube/config
+run: $(LIBGIT2) generate fmt vet manifests	# Run against the configured Kubernetes cluster in ~/.kube/config
 	go run ./main.go --log-level=${LOG_LEVEL} --log-encoding=console
 
 install: manifests	## Install CRDs into a cluster
@@ -92,10 +115,10 @@ fmt:	## Run go fmt against code
 	go fmt ./...
 	cd api; go fmt ./...
 
-vet:	## Run go vet against code
+vet: $(LIBGIT2)	## Run go vet against code
+	PKG_CONFIG_PATH=$(LIBGIT2_LIB_PATH)/pkgconfig \
 	go vet ./...
 	cd api; go vet ./...
-
 
 generate: controller-gen	## Generate code
 	cd api; $(CONTROLLER_GEN) object:headerFile="../hack/boilerplate.go.txt" paths="./..."
@@ -137,6 +160,19 @@ ifeq (, $(shell which gen-crd-api-reference-docs))
 API_REF_GEN=$(GOBIN)/gen-crd-api-reference-docs
 else
 API_REF_GEN=$(shell which gen-crd-api-reference-docs)
+endif
+
+libgit2: $(LIBGIT2)	## Detect or download libgit2 library
+
+$(LIBGIT2):
+ifeq ($(LIBGIT2_VER),$(SYSTEM_LIBGIT2_VER))
+else
+	@{ \
+	set -e; \
+	mkdir -p $(LIBGIT2_PATH); \
+	docker cp $(shell docker create --rm $(BASE_IMG):$(BASE_TAG)):/libgit2/Makefile $(LIBGIT2_PATH); \
+	INSTALL_PREFIX=$(LIBGIT2_PATH) LIGBIT2_VERSION=$(LIBGIT2_VER) LIBGIT2_REVISION= make -C $(LIBGIT2_PATH); \
+	}
 endif
 
 .PHONY: help
