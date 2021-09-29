@@ -211,8 +211,8 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		// Here's where it gets constrained. If there's no push branch
 		// given, then the checkout ref must include a branch, and
 		// that can be used.
-		if ref.Branch == "" {
-			failWithError(fmt.Errorf("Push branch not given explicitly, and cannot be inferred from .spec.git.checkout.ref or GitRepository .spec.ref"))
+		if ref == nil || ref.Branch == "" {
+			return failWithError(fmt.Errorf("Push branch not given explicitly, and cannot be inferred from .spec.git.checkout.ref or GitRepository .spec.ref"))
 		}
 		pushBranch = ref.Branch
 		tracelog.Info("using push branch from $ref.branch", "branch", pushBranch)
