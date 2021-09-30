@@ -1116,45 +1116,6 @@ func commitInRepo(repoURL, branch, msg string, changeFiles func(path string)) {
 	Expect(repo.Push(&git.PushOptions{RemoteName: "origin"})).To(Succeed())
 }
 
-// Initialise a git server with a repo including the files in dir.
-func initGitRepo(gitServer *gittestserver.GitServer, fixture, branch, repositoryPath string) error {
-	fs := memfs.New()
-	repo, err := git.Init(memory.NewStorage(), fs)
-	if err != nil {
-		return err
-	}
-
-	err = populateRepoFromFixture(repo, fixture)
-	if err != nil {
-		return err
-	}
-
-	working, err := repo.Worktree()
-	if err != nil {
-		return err
-	}
-	if err = working.Checkout(&git.CheckoutOptions{
-		Branch: plumbing.NewBranchReferenceName(branch),
-		Create: true,
-	}); err != nil {
-		return err
-	}
-
-	remote, err := repo.CreateRemote(&config.RemoteConfig{
-		Name: "origin",
-		URLs: []string{gitServer.HTTPAddressWithCredentials() + repositoryPath},
-	})
-	if err != nil {
-		return err
-	}
-
-	return remote.Push(&git.PushOptions{
-		RefSpecs: []config.RefSpec{
-			config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch)),
-		},
-	})
-}
-
 func checkoutBranch(repo *git.Repository, branch string) error {
 	working, err := repo.Worktree()
 	if err != nil {

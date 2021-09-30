@@ -4,78 +4,17 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/go-git/go-billy/v5/memfs"
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/go-logr/logr"
 
 	"github.com/fluxcd/pkg/gittestserver"
 	"github.com/fluxcd/source-controller/pkg/git"
 )
-
-func populateRepoFromFixture(repo *gogit.Repository, fixture string) error {
-	working, err := repo.Worktree()
-	if err != nil {
-		return err
-	}
-	fs := working.Filesystem
-
-	if err = filepath.Walk(fixture, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			return fs.MkdirAll(fs.Join(path[len(fixture):]), info.Mode())
-		}
-		// copy symlinks as-is, so I can test what happens with broken symlinks
-		if info.Mode()&os.ModeSymlink > 0 {
-			target, err := os.Readlink(path)
-			if err != nil {
-				return err
-			}
-			return fs.Symlink(target, path[len(fixture):])
-		}
-
-		fileBytes, err := ioutil.ReadFile(path)
-		if err != nil {
-			return err
-		}
-
-		ff, err := fs.Create(path[len(fixture):])
-		if err != nil {
-			return err
-		}
-		defer ff.Close()
-
-		_, err = ff.Write(fileBytes)
-		return err
-	}); err != nil {
-		return err
-	}
-
-	_, err = working.Add(".")
-	if err != nil {
-		return err
-	}
-
-	if _, err = working.Commit("Initial revision from "+fixture, &gogit.CommitOptions{
-		Author: &object.Signature{
-			Name:  "Testbot",
-			Email: "test@example.com",
-			When:  time.Now(),
-		},
-	}); err != nil {
-		return err
-	}
-
-	return nil
-}
 
 func TestRepoForFixture(t *testing.T) {
 	repo, err := gogit.Init(memory.NewStorage(), memfs.New())
