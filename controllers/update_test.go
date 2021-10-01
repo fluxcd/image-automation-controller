@@ -135,7 +135,11 @@ Files:
 
 Objects:
 {{ range $resource, $_ := .Updated.Objects -}}
+{{ if eq $resource.Kind "Deployment" -}}
+- {{ $resource.Kind | lower }} {{ $resource.Name | lower }}
+{{ else -}}
 - {{ $resource.Kind }} {{ $resource.Name }}
+{{ end -}}
 {{ end -}}
 
 Images:
@@ -150,7 +154,7 @@ Automation: %s/update-test
 Files:
 - deploy.yaml
 Objects:
-- Deployment test
+- deployment test
 Images:
 - helloworld:v1.0.0 (%s)
 `
