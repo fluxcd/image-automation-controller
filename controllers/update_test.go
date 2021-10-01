@@ -206,11 +206,9 @@ Images:
 						},
 					},
 				},
-				Status: imagev1_reflect.ImagePolicyStatus{
-					LatestImage: "helloworld:v1.0.0",
-				},
 			}
 			Expect(k8sClient.Create(context.Background(), policy)).To(Succeed())
+			policy.Status.LatestImage = "helloworld:v1.0.0"
 			Expect(k8sClient.Status().Update(context.Background(), policy)).To(Succeed())
 
 			// Format the expected message given the generated values
@@ -346,11 +344,9 @@ Images:
 						},
 					},
 				},
-				Status: imagev1_reflect.ImagePolicyStatus{
-					LatestImage: "helloworld:v1.0.0",
-				},
 			}
 			Expect(k8sClient.Create(context.Background(), policy)).To(Succeed())
+			policy.Status.LatestImage = "helloworld:v1.0.0"
 			Expect(k8sClient.Status().Update(context.Background(), policy)).To(Succeed())
 
 			// Insert a setter reference into the deployment file,
@@ -475,11 +471,9 @@ Images:
 						},
 					},
 				},
-				Status: imagev1_reflect.ImagePolicyStatus{
-					LatestImage: "helloworld:v1.0.0",
-				},
 			}
 			Expect(k8sClient.Create(context.Background(), policy)).To(Succeed())
+			policy.Status.LatestImage = "helloworld:v1.0.0"
 			Expect(k8sClient.Status().Update(context.Background(), policy)).To(Succeed())
 
 			// Insert a setter reference into the deployment file,
@@ -696,11 +690,9 @@ Images:
 							},
 						},
 					},
-					Status: imagev1_reflect.ImagePolicyStatus{
-						LatestImage: latestImage,
-					},
 				}
 				Expect(k8sClient.Create(context.Background(), policy)).To(Succeed())
+				policy.Status.LatestImage = latestImage
 				Expect(k8sClient.Status().Update(context.Background(), policy)).To(Succeed())
 
 			})
