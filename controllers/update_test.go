@@ -229,6 +229,7 @@ Images:
 			policy.Name = policyKey.Name
 			policy.Namespace = policyKey.Namespace
 			g.Expect(testEnv.Create(ctx, policy)).To(Succeed())
+			policy.Status.LatestImage = "helloworld:v1.0.0"
 			g.Expect(testEnv.Status().Update(ctx, policy)).To(Succeed())
 
 			// Format the expected message given the generated values
@@ -525,13 +526,11 @@ func TestImageUpdateAutomation_e2e(t *testing.T) {
 						},
 					},
 				},
-				Status: imagev1_reflect.ImagePolicyStatus{
-					LatestImage: latestImage,
-				},
 			}
 			policy.Name = policyKey.Name
 			policy.Namespace = policyKey.Namespace
 			g.Expect(testEnv.Create(ctx, policy)).To(Succeed())
+			policy.Status.LatestImage = latestImage
 			g.Expect(testEnv.Status().Update(ctx, policy)).To(Succeed())
 			defer func() {
 				g.Expect(testEnv.Delete(ctx, policy)).To(Succeed())
