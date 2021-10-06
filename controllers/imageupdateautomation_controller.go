@@ -56,6 +56,7 @@ import (
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/events"
+	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
@@ -65,16 +66,6 @@ import (
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
 	"github.com/fluxcd/image-automation-controller/pkg/update"
 )
-
-// log level for debug output
-const debug = 1
-
-// log level for trace output; the logging system
-// (fluxcd/pkg/runtime/logging) doesn't presently account for levels
-// more verbose than debug, so lump tracing into
-// --log-level=debug. However, it's useful as self-documentation to
-// keep tracing distinct.
-const trace = 1
 
 const originRemote = "origin"
 
@@ -110,8 +101,8 @@ type ImageUpdateAutomationReconcilerOptions struct {
 
 func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logr.FromContext(ctx)
-	debuglog := log.V(debug)
-	tracelog := log.V(trace)
+	debuglog := log.V(logger.DebugLevel)
+	tracelog := log.V(logger.TraceLevel)
 	now := time.Now()
 	var templateValues TemplateData
 
