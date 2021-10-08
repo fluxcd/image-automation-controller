@@ -337,8 +337,8 @@ github.com/evanphx/json-patch v4.11.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQL
 github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d/go.mod h1:ZZMPRZwes7CROmyNKgQzC3XPs6L/G2EJLHddWejkmf4=
 github.com/fatih/camelcase v1.0.0/go.mod h1:yN2Sb0lFhZJUdVvtELVWefmrXpuZESvPmqwoZc+/fpc=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
-github.com/fluxcd/image-reflector-controller/api v0.11.1 h1:8pmUKL7Pise0JOBFgqw7eWtOK/rs3HNibXqCK9aJ8LE=
-github.com/fluxcd/image-reflector-controller/api v0.11.1/go.mod h1:lgQHGFz29OHmDU5Jwg689C/M+P/f9ujt6NS0zCLT0BQ=
+github.com/fluxcd/image-reflector-controller/api v0.12.0 h1:ghdbOUmbNaPi/jVfNnI3xzvhudXBZx6xUld/OLNSVXM=
+github.com/fluxcd/image-reflector-controller/api v0.12.0/go.mod h1:lgQHGFz29OHmDU5Jwg689C/M+P/f9ujt6NS0zCLT0BQ=
 github.com/fluxcd/pkg/apis/meta v0.10.0/go.mod h1:CW9X9ijMTpNe7BwnokiUOrLl/h13miwVr/3abEQLbKE=
 github.com/fluxcd/pkg/apis/meta v0.10.1 h1:zISenRlqNG7WK8TP3HxZTvv+1Z7JZOUIQvZrOr6pQ2w=
 github.com/fluxcd/pkg/apis/meta v0.10.1/go.mod h1:yUblM2vg+X8TE3A2VvJfdhkGmg+uqBlSPkLk7dxi0UM=
