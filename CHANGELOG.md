@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.15.0
+
+**Release date:** 2021-10-08
+
+This prerelease improves the configuration of the `libgit2` C library, solving
+most issues around private key formats (e.g. PKCS#8 and ED25519) by ensuring
+it is linked against OpenSSL and LibSSH2.
+
+Improvements:
+* Update github.com/libgit2/git2go to v31.6.1
+  [#222](https://github.com/fluxcd/image-automation-controller/pull/222)
+* Use pkg/runtime consts for log levels
+  [#232](https://github.com/fluxcd/image-automation-controller/pull/232)
+* Update fluxcd/image-reflector-controller to v0.12.0
+  [#233](https://github.com/fluxcd/image-automation-controller/pull/233)
+
+Fixes:
+* Provide a sample of v1beta1 ImageUpdateAutomation
+  [#219](https://github.com/fluxcd/image-automation-controller/pull/219)
+* Fix nil-dereference in controller
+  [#224](https://github.com/fluxcd/image-automation-controller/pull/224)
+
 ## 0.14.1
 
 **Release date:** 2021-08-05
