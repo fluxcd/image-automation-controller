@@ -5,6 +5,7 @@ go 1.16
 replace github.com/fluxcd/image-automation-controller/api => ./api
 
 require (
+	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7
 	github.com/cyphar/filepath-securejoin v0.2.2
 	github.com/fluxcd/image-automation-controller/api v0.15.0

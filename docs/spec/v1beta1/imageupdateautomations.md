@@ -315,7 +315,45 @@ spec:
       - {{.}}
       {{ end -}}
 ```
+#### Commit Message with Template functions
 
+With template functions, it is possible to manipulate and transform the supplied data in order to generate more complex commit messages.
+
+```yaml
+kind: ImageUpdateAutomation
+metadata:
+  name: flux-system
+spec:
+  git:
+    commit:
+      messageTemplate: |
+        Automated image update
+
+        Automation name: {{ .AutomationObject }}
+
+        Files:
+        {{ range $filename, $_ := .Updated.Files -}}
+        - {{ $filename }}
+        {{ end -}}
+
+        Objects:
+        {{ range $resource, $_ := .Updated.Objects -}}
+        - {{ $resource.Kind | lower }} {{ $resource.Name | lower  }}
+        {{ end -}}
+
+        Images:
+        {{ range $image, $_ := .Updated.Images -}}
+        	{{ if contains "1.0.0" $image -}}
+        		- {{ $image }}
+        	{{ else -}}
+        		[skip ci] wrong image
+        	{{ end -}}        
+        {{ end -}}        
+      author:
+        email: fluxcdbot@users.noreply.github.com
+        name: fluxcdbot
+```
+There are over 70 available functions. Some of them are defined by the [Go template language](https://pkg.go.dev/text/template) itself. Most of the others are part of the [Sprig template library](http://masterminds.github.io/sprig/). 
 ### Push
 
 The optional `push` field defines how commits are pushed to the origin.

@@ -29,6 +29,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/Masterminds/sprig/v3"
+
 	gogit "github.com/go-git/go-git/v5"
 	libgit2 "github.com/libgit2/git2go/v31"
 
@@ -291,17 +293,9 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	// construct the commit message from template and values
-	msgTmpl := gitSpec.Commit.MessageTemplate
-	if msgTmpl == "" {
-		msgTmpl = defaultMessageTemplate
-	}
-	tmpl, err := template.New("commit message").Parse(msgTmpl)
+	message, err := templateMsg(gitSpec.Commit.MessageTemplate, &templateValues)
 	if err != nil {
-		return failWithError(fmt.Errorf("unable to create commit message template from spec: %w", err))
-	}
-	messageBuf := &strings.Builder{}
-	if err := tmpl.Execute(messageBuf, templateValues); err != nil {
-		return failWithError(fmt.Errorf("failed to run template from spec: %w", err))
+		return failWithError(err)
 	}
 
 	// The status message depends on what happens next. Since there's
@@ -313,7 +307,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		When:  time.Now(),
 	}
 
-	if rev, err := commitChangedManifests(tracelog, repo, tmp, signingEntity, author, messageBuf.String()); err != nil {
+	if rev, err := commitChangedManifests(tracelog, repo, tmp, signingEntity, author, message); err != nil {
 		if err == errNoChanges {
 			r.event(ctx, auto, events.EventSeverityInfo, "no updates made")
 			debuglog.Info("no changes made in working directory; no commit")
@@ -783,4 +777,25 @@ func (r *ImageUpdateAutomationReconciler) recordSuspension(ctx context.Context, 
 	} else {
 		r.MetricsRecorder.RecordSuspend(*objRef, auto.Spec.Suspend)
 	}
+}
+
+// templateMsg renders a msg template, returning the message or an error.
+func templateMsg(messageTemplate string, templateValues *TemplateData) (string, error) {
+	if messageTemplate == "" {
+		messageTemplate = defaultMessageTemplate
+	}
+
+	// Includes only functions that are guaranteed to always evaluate to the same result for given input.
+	// This removes the possibility of accidentally relying on where or when the template runs.
+	// https://github.com/Masterminds/sprig/blob/3ac42c7bc5e4be6aa534e036fb19dde4a996da2e/functions.go#L70
+	t, err := template.New("commit message").Funcs(sprig.HermeticTxtFuncMap()).Parse(messageTemplate)
+	if err != nil {
+		return "", fmt.Errorf("unable to create commit message template from spec: %w", err)
+	}
+
+	b := &strings.Builder{}
+	if err := t.Execute(b, *templateValues); err != nil {
+		return "", fmt.Errorf("failed to run template from spec: %w", err)
+	}
+	return b.String(), nil
 }
