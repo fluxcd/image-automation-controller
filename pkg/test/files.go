@@ -83,16 +83,21 @@ func (d dirfile) FailedExpectation(g *WithT) {
 // `foo.yaml~`). It panics if it encounters any error apart from a
 // file not found.
 func DiffDirectories(actual, expected string) (actualonly []string, expectedonly []string, different []Diff) {
+	seen := make(map[string]struct{})
+
 	filepath.Walk(expected, func(expectedPath string, expectedInfo os.FileInfo, err error) error {
 		if err != nil {
 			panic(err)
 		}
+
+		relPath := expectedPath[len(expected):]
+		seen[relPath] = struct{}{}
+
 		// ignore emacs backups
 		if strings.HasSuffix(expectedPath, "~") {
 			return nil
 		}
-		relPath := expectedPath[len(expected):]
-		actualPath := filepath.Join(actual, relPath)
+
 		// ignore dotfiles
 		if strings.HasPrefix(filepath.Base(expectedPath), ".") {
 			if expectedInfo.IsDir() {
@@ -101,24 +106,30 @@ func DiffDirectories(actual, expected string) (actualonly []string, expectedonly
 			return nil
 		}
 
+		actualPath := filepath.Join(actual, relPath)
 		actualInfo, err := os.Stat(actualPath)
 		switch {
 		case err == nil:
 			break
 		case os.IsNotExist(err):
 			expectedonly = append(expectedonly, relPath)
+			if expectedInfo.IsDir() {
+				return filepath.SkipDir
+			}
 			return nil
 		default:
 			panic(err)
 		}
 
 		// file exists in both places
-
 		switch {
 		case actualInfo.IsDir() && expectedInfo.IsDir():
 			return nil // i.e., keep recursing
 		case actualInfo.IsDir() || expectedInfo.IsDir():
 			different = append(different, dirfile{path: relPath, abspath: actualPath, expectedRegularFile: actualInfo.IsDir()})
+			if expectedInfo.IsDir() {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
@@ -152,18 +163,12 @@ func DiffDirectories(actual, expected string) (actualonly []string, expectedonly
 		if actualInfo.IsDir() && strings.HasPrefix(filepath.Base(actualPath), ".") {
 			return filepath.SkipDir
 		}
-		// since I've already compared any file that exists in
-		// expected or both, I'm only concerned with files that appear
-		// in actual but not in expected.
-		expectedPath := filepath.Join(expected, relPath)
-		_, err = os.Stat(expectedPath)
-		switch {
-		case err == nil:
-			break
-		case os.IsNotExist(err):
+
+		if _, ok := seen[relPath]; !ok {
 			actualonly = append(actualonly, relPath)
-		default:
-			panic(err)
+			if actualInfo.IsDir() {
+				return filepath.SkipDir
+			}
 		}
 		return nil
 	})
