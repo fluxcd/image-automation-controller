@@ -15,7 +15,7 @@ require (
 	github.com/fluxcd/pkg/runtime v0.12.1
 	github.com/fluxcd/pkg/ssh v0.1.0
 	// If you bump this, change SOURCE_VER in the Makefile to match
-	github.com/fluxcd/source-controller v0.16.0
+	github.com/fluxcd/source-controller v0.16.1-0.20211014172658-a62cfe828ae4
 	github.com/fluxcd/source-controller/api v0.16.0
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
@@ -33,7 +33,3 @@ require (
 	sigs.k8s.io/controller-runtime v0.9.5
 	sigs.k8s.io/kustomize/kyaml v0.10.21
 )
-
-// side-effect of depending on source-controller
-// required by https://github.com/helm/helm/blob/v3.6.0/go.mod
-replace github.com/docker/distribution => github.com/docker/distribution v0.0.0-20191216044856-a8371794149d
