@@ -51,13 +51,13 @@ func TestExpectMatchingDirectories(t *testing.T) {
 func TestDiffDirectories(t *testing.T) {
 	g := NewWithT(t)
 
-	// Finds files in expected from a/ but not in actual b/.
-	aonly, _, _ := DiffDirectories("testdata/diff/a", "testdata/diff/b")
-	g.Expect(aonly).To(Equal([]string{"/only", "/only/here.yaml", "/onlyhere.yaml"}))
-
 	// Finds files in actual a/ that weren't expected from b/.
-	bonly, _, _ := DiffDirectories("testdata/diff/a", "testdata/diff/b") // change in order
-	g.Expect(bonly).To(Equal([]string{"/only", "/only/here.yaml", "/onlyhere.yaml"}))
+	actualonly, _, _ := DiffDirectories("testdata/diff/a", "testdata/diff/b")
+	g.Expect(actualonly).To(Equal([]string{"/only", "/onlyhere.yaml"}))
+
+	// Finds files in expected from a/ but not in actual b/.
+	_, expectedonly, _ := DiffDirectories("testdata/diff/b", "testdata/diff/a") // NB change in order
+	g.Expect(expectedonly).To(Equal([]string{"/only", "/onlyhere.yaml"}))
 
 	// Finds files that are different in a and b.
 	_, _, diffs := DiffDirectories("testdata/diff/a", "testdata/diff/b")
