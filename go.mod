@@ -12,12 +12,12 @@ require (
 	// If you bump this, change REFLECTOR_VER in the Makefile to match
 	github.com/fluxcd/image-reflector-controller/api v0.12.0
 	github.com/fluxcd/pkg/apis/meta v0.10.1
-	github.com/fluxcd/pkg/gittestserver v0.3.1
+	github.com/fluxcd/pkg/gittestserver v0.4.1
 	github.com/fluxcd/pkg/runtime v0.12.1
 	github.com/fluxcd/pkg/ssh v0.1.0
 	// If you bump this, change SOURCE_VER in the Makefile to match
-	github.com/fluxcd/source-controller v0.16.0
-	github.com/fluxcd/source-controller/api v0.16.0
+	github.com/fluxcd/source-controller v0.17.0
+	github.com/fluxcd/source-controller/api v0.17.0
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v0.4.0
