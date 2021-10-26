@@ -628,10 +628,12 @@ func fetch(ctx context.Context, path string, branch string, access repoAccess) e
 	if err != nil {
 		return err
 	}
+	defer repo.Free()
 	origin, err := repo.Remotes.Lookup(originRemote)
 	if err != nil {
 		return err
 	}
+	defer origin.Free()
 	err = origin.Fetch(
 		[]string{refspec},
 		&libgit2.FetchOptions{
@@ -653,10 +655,12 @@ func push(ctx context.Context, path, branch string, access repoAccess) error {
 	if err != nil {
 		return err
 	}
+	defer repo.Free()
 	origin, err := repo.Remotes.Lookup(originRemote)
 	if err != nil {
 		return err
 	}
+	defer origin.Free()
 
 	callbacks := access.remoteCallbacks()
 
