@@ -16,7 +16,6 @@ import (
 	"github.com/go-logr/logr"
 
 	"github.com/fluxcd/pkg/gittestserver"
-	"github.com/fluxcd/source-controller/pkg/git"
 )
 
 func populateRepoFromFixture(repo *gogit.Repository, fixture string) error {
@@ -159,7 +158,7 @@ func TestPushRejected(t *testing.T) {
 	// This is here to guard against push in general being broken
 	err = push(context.TODO(), tmp, "main", repoAccess{
 		url:  repoURL,
-		auth: &git.Auth{},
+		auth: nil,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -174,7 +173,7 @@ func TestPushRejected(t *testing.T) {
 	// pushed to.
 	err = push(context.TODO(), tmp, branch, repoAccess{
 		url:  repoURL,
-		auth: &git.Auth{},
+		auth: nil,
 	})
 	if err == nil {
 		t.Error("push to a forbidden branch is expected to fail, but succeeded")

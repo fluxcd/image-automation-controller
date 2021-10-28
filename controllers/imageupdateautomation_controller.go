@@ -63,6 +63,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 	"github.com/fluxcd/source-controller/pkg/git"
+	gitlibgit2 "github.com/fluxcd/source-controller/pkg/git/libgit2"
 	gitstrat "github.com/fluxcd/source-controller/pkg/git/strategy"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
@@ -444,35 +445,28 @@ func (r *ImageUpdateAutomationReconciler) automationsForImagePolicy(obj client.O
 // matter what is used.
 
 type repoAccess struct {
-	auth *git.Auth
+	auth *git.AuthOptions
 	url  string
 }
 
 func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, repository *sourcev1.GitRepository) (repoAccess, error) {
 	var access repoAccess
-	access.auth = &git.Auth{}
 	access.url = repository.Spec.URL
 
-	authStrat, err := gitstrat.AuthSecretStrategyForURL(access.url, git.CheckoutOptions{GitImplementation: sourcev1.LibGit2Implementation})
-	if err != nil {
-		return access, err
-	}
-
-	if repository.Spec.SecretRef != nil && authStrat != nil {
-
+	if repository.Spec.SecretRef != nil {
 		name := types.NamespacedName{
 			Namespace: repository.GetNamespace(),
 			Name:      repository.Spec.SecretRef.Name,
 		}
 
-		var secret corev1.Secret
-		err = r.Client.Get(ctx, name, &secret)
+		secret := &corev1.Secret{}
+		err := r.Client.Get(ctx, name, secret)
 		if err != nil {
 			err = fmt.Errorf("auth secret error: %w", err)
 			return access, err
 		}
 
-		access.auth, err = authStrat.Method(secret)
+		access.auth, err = git.AuthOptionsFromSecret(access.url, secret)
 		if err != nil {
 			err = fmt.Errorf("auth error: %w", err)
 			return access, err
@@ -482,19 +476,23 @@ func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, rep
 }
 
 func (r repoAccess) remoteCallbacks() libgit2.RemoteCallbacks {
-	return libgit2.RemoteCallbacks{
-		CertificateCheckCallback: r.auth.CertCallback,
-		CredentialsCallback:      r.auth.CredCallback,
-	}
+	return gitlibgit2.RemoteCallbacks(r.auth)
 }
 
 // cloneInto clones the upstream repository at the `ref` given (which
 // can be `nil`). It returns a `*gogit.Repository` since that is used
 // for committing changes.
 func cloneInto(ctx context.Context, access repoAccess, ref *sourcev1.GitRepositoryRef, path string) (*gogit.Repository, error) {
-	checkoutStrat, err := gitstrat.CheckoutStrategyForRef(ref, git.CheckoutOptions{GitImplementation: sourcev1.LibGit2Implementation})
+	opts := git.CheckoutOptions{}
+	if ref != nil {
+		opts.Tag = ref.Tag
+		opts.SemVer = ref.SemVer
+		opts.Tag = ref.Tag
+		opts.Branch = ref.Branch
+	}
+	checkoutStrat, err := gitstrat.CheckoutStrategyForImplementation(ctx, sourcev1.LibGit2Implementation, opts)
 	if err == nil {
-		_, _, err = checkoutStrat.Checkout(ctx, path, access.url, access.auth)
+		_, err = checkoutStrat.Checkout(ctx, path, access.url, access.auth)
 	}
 	if err != nil {
 		return nil, err
@@ -630,10 +628,12 @@ func fetch(ctx context.Context, path string, branch string, access repoAccess) e
 	if err != nil {
 		return err
 	}
+	defer repo.Free()
 	origin, err := repo.Remotes.Lookup(originRemote)
 	if err != nil {
 		return err
 	}
+	defer origin.Free()
 	err = origin.Fetch(
 		[]string{refspec},
 		&libgit2.FetchOptions{
@@ -655,10 +655,12 @@ func push(ctx context.Context, path, branch string, access repoAccess) error {
 	if err != nil {
 		return err
 	}
+	defer repo.Free()
 	origin, err := repo.Remotes.Lookup(originRemote)
 	if err != nil {
 		return err
 	}
+	defer origin.Free()
 
 	callbacks := access.remoteCallbacks()
 
