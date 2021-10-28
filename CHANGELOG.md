@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.16.0
+
+**Release date:** 2021-10-28
+
+This prerelease finalizes the improvements around the `libgit2` C library.
+Users who noticed a memory increase after upgrading to `v0.15.0` are highly
+encouraged to update to this new version as soon as possible, as this release
+stabilizes it again.
+
+In addition, [support for sprig functions](https://github.com/fluxcd/image-automation-controller/blob/v0.16.0/docs/spec/v1beta1/imageupdateautomations.md#commit-message-with-template-functions)
+has been added in this release; allowing for more complex manipulations and
+transformations of the commit message.
+
+Improvements:
+* Add support for the sprig functions library
+  [#223](https://github.com/fluxcd/image-automation-controller/pull/223)
+* controllers: use new `git` contract
+  [#239](https://github.com/fluxcd/image-automation-controller/pull/239)
+
 ## 0.15.0
 
 **Release date:** 2021-10-08
