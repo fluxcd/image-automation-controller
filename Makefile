@@ -89,14 +89,14 @@ ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml:
 
 test: $(LIBGIT2) test-api test_deps generate fmt vet manifests api-docs	## Run tests
 	LD_LIBRARY_PATH=$(LIBGIT2_LIB_PATH) \
-	PKG_CONFIG_PATH=$(LIBGIT2_LIB_PATH)/pkgconfig/ \
+	PKG_CONFIG_PATH=$(LIBGIT2_LIB_PATH)/pkgconfig/:$(PKG_CONFIG_PATH) \
 	go test ./... -coverprofile cover.out
 
 test-api:	## Run api tests
 	cd api; go test ./... -coverprofile cover.out
 
 manager: $(LIBGIT2) generate fmt vet	## Build manager binary
-	PKG_CONFIG_PATH=$(LIBGIT2_LIB_PATH)/pkgconfig/ \
+	PKG_CONFIG_PATH=$(LIBGIT2_LIB_PATH)/pkgconfig/:$(PKG_CONFIG_PATH) \
 	go build -o bin/manager main.go
 
 run: $(LIBGIT2) generate fmt vet manifests	# Run against the configured Kubernetes cluster in ~/.kube/config
@@ -133,7 +133,7 @@ fmt:	## Run go fmt against code
 	cd api; go fmt ./...
 
 vet: $(LIBGIT2)	## Run go vet against code
-	PKG_CONFIG_PATH=$(LIBGIT2_LIB_PATH)/pkgconfig \
+	PKG_CONFIG_PATH=$(LIBGIT2_LIB_PATH)/pkgconfig:$(PKG_CONFIG_PATH) \
 	go vet ./...
 	cd api; go vet ./...
 
