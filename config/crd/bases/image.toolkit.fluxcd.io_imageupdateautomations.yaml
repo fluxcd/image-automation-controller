@@ -220,7 +220,6 @@ spec:
                         description: Reference gives a branch, tag or commit to clone from the Git repository.
                         properties:
                           branch:
-                            default: master
                             description: The Git branch to checkout, defaults to master.
                             type: string
                           commit:
@@ -427,7 +426,6 @@ spec:
                         description: Reference gives a branch, tag or commit to clone from the Git repository.
                         properties:
                           branch:
-                            default: master
                             description: The Git branch to checkout, defaults to master.
                             type: string
                           commit:
