@@ -351,8 +351,8 @@ github.com/fluxcd/image-reflector-controller/api v0.12.0/go.mod h1:lgQHGFz29OHmD
 github.com/fluxcd/pkg/apis/meta v0.10.0/go.mod h1:CW9X9ijMTpNe7BwnokiUOrLl/h13miwVr/3abEQLbKE=
 github.com/fluxcd/pkg/apis/meta v0.10.1 h1:zISenRlqNG7WK8TP3HxZTvv+1Z7JZOUIQvZrOr6pQ2w=
 github.com/fluxcd/pkg/apis/meta v0.10.1/go.mod h1:yUblM2vg+X8TE3A2VvJfdhkGmg+uqBlSPkLk7dxi0UM=
-github.com/fluxcd/pkg/gittestserver v0.4.1 h1:knghRrVEEPnpO0VJYjoz0H2YMc4fnKAVt5hDGsB1IHc=
-github.com/fluxcd/pkg/gittestserver v0.4.1/go.mod h1:hUPx21fe/6oox336Wih/XF1fnmzLmptNMOvATbTZXNY=
+github.com/fluxcd/pkg/gittestserver v0.4.2 h1:XqoiemTnnUNldnOw8N7OTdalu2iZp1FTRhp9uUauDJQ=
+github.com/fluxcd/pkg/gittestserver v0.4.2/go.mod h1:hUPx21fe/6oox336Wih/XF1fnmzLmptNMOvATbTZXNY=
 github.com/fluxcd/pkg/gitutil v0.1.0 h1:VO3kJY/CKOCO4ysDNqfdpTg04icAKBOSb3lbR5uE/IE=
 github.com/fluxcd/pkg/gitutil v0.1.0/go.mod h1:Ybz50Ck5gkcnvF0TagaMwtlRy3X3wXuiri1HVsK5id4=
 github.com/fluxcd/pkg/helmtestserver v0.2.0/go.mod h1:Yie8n7xuu5Nvf1Q7302LKsubJhWpwzCaK0rLJvmF7aI=
@@ -366,10 +366,10 @@ github.com/fluxcd/pkg/testserver v0.1.0/go.mod h1:fvt8BHhXw6c1+CLw1QFZxcQprlcXzs
 github.com/fluxcd/pkg/untar v0.1.0/go.mod h1:aGswNyzB1mlz/T/kpOS58mITBMxMKc9tlJBH037A2HY=
 github.com/fluxcd/pkg/version v0.1.0 h1:v+SmCanmCB5Tj2Cx9TXlj+kNRfPGbAvirkeqsp7ZEAQ=
 github.com/fluxcd/pkg/version v0.1.0/go.mod h1:V7Z/w8dxLQzv0FHqa5ox5TeyOd2zOd49EeuWFgnwyj4=
-github.com/fluxcd/source-controller v0.17.0 h1:NXemBcfzZzv3OiT5mjK2vynKl0Ni1IPY5PJAsZChOfs=
-github.com/fluxcd/source-controller v0.17.0/go.mod h1:0vG0i0o33aviv369fHguCyG3O9nyoLFVcKNDvWl75P0=
-github.com/fluxcd/source-controller/api v0.17.0 h1:skXx2H5SeziUTwJrp9MPJNwTtYTctJMQ7ZIJfLmg9b0=
-github.com/fluxcd/source-controller/api v0.17.0/go.mod h1:guUCCapjzE2kocwFreQTM/IGvtAglIJc4L97mokairo=
+github.com/fluxcd/source-controller v0.17.2 h1:lPnZxXX0CshkDVHfZxz1GWu98TLrcRuk3X3f544pMjs=
+github.com/fluxcd/source-controller v0.17.2/go.mod h1:nEaHFlXAVbv/gNo1kWWF52y8J922MIQQUYXD/azF6f8=
+github.com/fluxcd/source-controller/api v0.17.2 h1:noePJGsevuvxWols6ErbowujuAHGWb/ZO8irtRHcVAc=
+github.com/fluxcd/source-controller/api v0.17.2/go.mod h1:guUCCapjzE2kocwFreQTM/IGvtAglIJc4L97mokairo=
 github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568/go.mod h1:xEzjJPgXI435gkrCt3MPfRiAkVrwSbHsst4LCFVfpJc=
 github.com/form3tech-oss/jwt-go v3.2.2+incompatible/go.mod h1:pbq4aXjuKjdthFRnoDwaVPLA+WlJuPGy+QneDUgJi2k=
 github.com/franela/goblin v0.0.0-20200105215937-c9ffbefa60db/go.mod h1:7dvUGVsVBjqR7JHJk0brhHOZYGmfBYOrK0ZhYMEtBr4=
