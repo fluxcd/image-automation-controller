@@ -109,272 +109,182 @@ Images:
 )
 
 func TestImageUpdateAutomation_commit_message(t *testing.T) {
-	g := NewWithT(t)
+	policySpec := imagev1_reflect.ImagePolicySpec{
+		ImageRepositoryRef: meta.NamespacedObjectReference{
+			Name: "not-expected-to-exist",
+		},
+		Policy: imagev1_reflect.ImagePolicyChoice{
+			SemVer: &imagev1_reflect.SemVerPolicy{
+				Range: "1.x",
+			},
+		},
+	}
+	fixture := "testdata/appconfig"
+	latest := "helloworld:v1.0.0"
 
-	namespace := "image-auto-test-" + randStringRunes(5)
-	branch := randStringRunes(8)
-	repositoryPath := "/config-" + randStringRunes(6) + ".git"
-	gitRepoName := "image-auto-" + randStringRunes(5)
-	imagePolicyName := "policy-" + randStringRunes(5)
+	testWithRepoAndImagePolicy(
+		NewWithT(t), fixture, policySpec, latest,
+		func(g *WithT, namespace, repoURL, gitRepoName, branch, imagePolicyName string, localRepo *git.Repository) {
+			commitMessage := fmt.Sprintf(testCommitMessageFmt, namespace, imagePolicyName)
 
-	// Create test git server.
-	gitServer, err := setupGitTestServer()
-	g.Expect(err).ToNot(HaveOccurred(), "failed to create test git server")
-	defer os.RemoveAll(gitServer.Root())
-	defer gitServer.StopHTTP()
+			// Update the setter marker in the repo.
+			policyKey := types.NamespacedName{
+				Name:      imagePolicyName,
+				Namespace: namespace,
+			}
+			commitInRepo(g, repoURL, branch, "Install setter marker", func(tmp string) {
+				g.Expect(replaceMarker(tmp, policyKey)).To(Succeed())
+			})
 
-	// Create test namespace.
-	nsCleanup, err := createNamespace(namespace)
-	g.Expect(err).ToNot(HaveOccurred(), "failed to create test namespace")
-	defer func() {
-		g.Expect(nsCleanup()).To(Succeed())
-	}()
+			// Pull the head commit that was just pushed, so it's not considered a new
+			// commit when checking for a commit made by automation.
+			waitForNewHead(g, localRepo, branch)
 
-	// Create a git repo.
-	g.Expect(initGitRepo(gitServer, "testdata/appconfig", branch, repositoryPath)).To(Succeed())
+			// Create the automation object and let it make a commit itself.
+			updateStrategy := &imagev1.UpdateStrategy{
+				Strategy: imagev1.UpdateStrategySetters,
+			}
+			err := createImageUpdateAutomation("update-test", namespace, gitRepoName, branch, "", testCommitTemplate, "", updateStrategy)
+			g.Expect(err).ToNot(HaveOccurred())
 
-	// Clone the repo.
-	repoURL := gitServer.HTTPAddressWithCredentials() + repositoryPath
-	localRepo, err := cloneRepo(repoURL, branch)
-	g.Expect(err).ToNot(HaveOccurred(), "failed to clone git repo")
+			// Wait for a new commit to be made by the controller.
+			waitForNewHead(g, localRepo, branch)
 
-	// Create GitRepository resource for the above repo.
-	err = createGitRepository(gitRepoName, namespace, "", repoURL, "")
-	g.Expect(err).ToNot(HaveOccurred(), "failed to create GitRepository resource")
-
-	// Create ImagePolicy with populated latest image in the status.
-	err = createImagePolicyWithLatestImage(imagePolicyName, namespace, "not-expected-to-exist", "1.x", "helloworld:v1.0.0")
-	g.Expect(err).ToNot(HaveOccurred(), "failed to create ImagePolicy resource")
-
-	t.Run("update with commit template", func(t *testing.T) {
-		commitMessage := fmt.Sprintf(testCommitMessageFmt, namespace, imagePolicyName)
-
-		// Update the setter marker in the repo.
-		policyKey := types.NamespacedName{
-			Name:      imagePolicyName,
-			Namespace: namespace,
-		}
-		commitInRepo(g, repoURL, branch, "Install setter marker", func(tmp string) {
-			g.Expect(replaceMarker(tmp, policyKey)).To(Succeed())
+			head, _ := localRepo.Head()
+			commit, err := localRepo.CommitObject(head.Hash())
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(commit.Author).NotTo(BeNil())
+			g.Expect(commit.Author.Name).To(Equal(testAuthorName))
+			g.Expect(commit.Author.Email).To(Equal(testAuthorEmail))
+			g.Expect(commit.Message).To(Equal(commitMessage))
 		})
-
-		// Pull the head commit that was just pushed, so it's not considered a new
-		// commit when checking for a commit made by automation.
-		waitForNewHead(g, localRepo, branch)
-
-		// Create the automation object and let it make a commit itself.
-		updateStrategy := &imagev1.UpdateStrategy{
-			Strategy: imagev1.UpdateStrategySetters,
-		}
-		err = createImageUpdateAutomation("update-test", namespace, gitRepoName, branch, "", testCommitTemplate, "", updateStrategy)
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Wait for a new commit to be made by the controller.
-		waitForNewHead(g, localRepo, branch)
-
-		head, _ := localRepo.Head()
-		commit, err := localRepo.CommitObject(head.Hash())
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(commit.Author).NotTo(BeNil())
-		g.Expect(commit.Author.Name).To(Equal(testAuthorName))
-		g.Expect(commit.Author.Email).To(Equal(testAuthorEmail))
-		g.Expect(commit.Message).To(Equal(commitMessage))
-	})
 }
 
 func TestImageUpdateAutomation_update_path(t *testing.T) {
-	g := NewWithT(t)
+	policySpec := imagev1_reflect.ImagePolicySpec{
+		ImageRepositoryRef: meta.NamespacedObjectReference{
+			Name: "not-expected-to-exist",
+		},
+		Policy: imagev1_reflect.ImagePolicyChoice{
+			SemVer: &imagev1_reflect.SemVerPolicy{
+				Range: "1.x",
+			},
+		},
+	}
+	fixture := "testdata/pathconfig"
+	latest := "helloworld:v1.0.0"
 
-	namespace := "image-auto-test-" + randStringRunes(5)
-	branch := randStringRunes(8)
-	repositoryPath := "/config-" + randStringRunes(6) + ".git"
-	gitRepoName := "image-auto-" + randStringRunes(5)
-	imagePolicyName := "policy-" + randStringRunes(5)
+	testWithRepoAndImagePolicy(
+		NewWithT(t), fixture, policySpec, latest,
+		func(g *WithT, namespace, repoURL, gitRepoName, branch, imagePolicyName string, localRepo *git.Repository) {
+			// Update the setter marker in the repo.
+			policyKey := types.NamespacedName{
+				Name:      imagePolicyName,
+				Namespace: namespace,
+			}
+			commitInRepo(g, repoURL, branch, "Install setter marker", func(tmp string) {
+				g.Expect(replaceMarker(path.Join(tmp, "yes"), policyKey)).To(Succeed())
+			})
+			commitInRepo(g, repoURL, branch, "Install setter marker", func(tmp string) {
+				g.Expect(replaceMarker(path.Join(tmp, "no"), policyKey)).To(Succeed())
+			})
 
-	// Create test git server.
-	gitServer, err := setupGitTestServer()
-	g.Expect(err).ToNot(HaveOccurred(), "failed to create test git server")
-	defer os.RemoveAll(gitServer.Root())
-	defer gitServer.StopHTTP()
+			// Pull the head commit that was just pushed, so it's not considered a new
+			// commit when checking for a commit made by automation.
+			waitForNewHead(g, localRepo, branch)
 
-	// Create test namespace.
-	nsCleanup, err := createNamespace(namespace)
-	g.Expect(err).ToNot(HaveOccurred(), "failed to create test namespace")
-	defer func() {
-		g.Expect(nsCleanup()).To(Succeed())
-	}()
+			// Create the automation object and let it make a commit itself.
+			updateStrategy := &imagev1.UpdateStrategy{
+				Strategy: imagev1.UpdateStrategySetters,
+				Path:     "./yes",
+			}
+			err := createImageUpdateAutomation("update-test", namespace, gitRepoName, branch, "", testCommitTemplate, "", updateStrategy)
+			g.Expect(err).ToNot(HaveOccurred())
 
-	// Create a git repo.
-	g.Expect(initGitRepo(gitServer, "testdata/pathconfig", branch, repositoryPath)).To(Succeed())
+			// Wait for a new commit to be made by the controller.
+			waitForNewHead(g, localRepo, branch)
 
-	// Clone the repo.
-	repoURL := gitServer.HTTPAddressWithCredentials() + repositoryPath
-	localRepo, err := cloneRepo(repoURL, branch)
-	g.Expect(err).ToNot(HaveOccurred(), "failed to clone git repo")
-
-	// Create GitRepository resource for the above repo.
-	err = createGitRepository(gitRepoName, namespace, "", repoURL, "")
-	g.Expect(err).ToNot(HaveOccurred(), "failed to create GitRepository resource")
-
-	// Create ImagePolicy with populated latest image in the status.
-	err = createImagePolicyWithLatestImage(imagePolicyName, namespace, "not-expected-to-exist", "1.x", "helloworld:v1.0.0")
-	g.Expect(err).ToNot(HaveOccurred(), "failed to create ImagePolicy resource")
-
-	t.Run("update only under the update path", func(t *testing.T) {
-		// Update the setter marker in the repo.
-		policyKey := types.NamespacedName{
-			Name:      imagePolicyName,
-			Namespace: namespace,
-		}
-		commitInRepo(g, repoURL, branch, "Install setter marker", func(tmp string) {
-			g.Expect(replaceMarker(path.Join(tmp, "yes"), policyKey)).To(Succeed())
+			head, _ := localRepo.Head()
+			commit, err := localRepo.CommitObject(head.Hash())
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(commit.Message).ToNot(ContainSubstring("update-no"))
+			g.Expect(commit.Message).To(ContainSubstring("update-yes"))
 		})
-		commitInRepo(g, repoURL, branch, "Install setter marker", func(tmp string) {
-			g.Expect(replaceMarker(path.Join(tmp, "no"), policyKey)).To(Succeed())
-		})
-
-		// Pull the head commit that was just pushed, so it's not considered a new
-		// commit when checking for a commit made by automation.
-		waitForNewHead(g, localRepo, branch)
-
-		// Create the automation object and let it make a commit itself.
-		updateStrategy := &imagev1.UpdateStrategy{
-			Strategy: imagev1.UpdateStrategySetters,
-			Path:     "./yes",
-		}
-		err = createImageUpdateAutomation("update-test", namespace, gitRepoName, branch, "", testCommitTemplate, "", updateStrategy)
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Wait for a new commit to be made by the controller.
-		waitForNewHead(g, localRepo, branch)
-
-		head, _ := localRepo.Head()
-		commit, err := localRepo.CommitObject(head.Hash())
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(commit.Message).ToNot(ContainSubstring("update-no"))
-		g.Expect(commit.Message).To(ContainSubstring("update-yes"))
-	})
 }
 
 func TestImageUpdateAutomation_signed_commit(t *testing.T) {
-	g := NewWithT(t)
+	policySpec := imagev1_reflect.ImagePolicySpec{
+		ImageRepositoryRef: meta.NamespacedObjectReference{
+			Name: "not-expected-to-exist",
+		},
+		Policy: imagev1_reflect.ImagePolicyChoice{
+			SemVer: &imagev1_reflect.SemVerPolicy{
+				Range: "1.x",
+			},
+		},
+	}
+	fixture := "testdata/appconfig"
+	latest := "helloworld:v1.0.0"
 
-	namespace := "image-auto-test-" + randStringRunes(5)
-	branch := randStringRunes(8)
-	repositoryPath := "/config-" + randStringRunes(6) + ".git"
-	gitRepoName := "image-auto-" + randStringRunes(5)
-	imagePolicyName := "policy-" + randStringRunes(5)
-	signingKeySecretName := "signing-key-secret-" + randStringRunes(5)
+	testWithRepoAndImagePolicy(
+		NewWithT(t), fixture, policySpec, latest,
+		func(g *WithT, namespace, repoURL, gitRepoName, branch, imagePolicyName string, localRepo *git.Repository) {
+			signingKeySecretName := "signing-key-secret-" + randStringRunes(5)
+			// Update the setter marker in the repo.
+			policyKey := types.NamespacedName{
+				Name:      imagePolicyName,
+				Namespace: namespace,
+			}
+			commitInRepo(g, repoURL, branch, "Install setter marker", func(tmp string) {
+				g.Expect(replaceMarker(tmp, policyKey)).To(Succeed())
+			})
 
-	// Create test git server.
-	gitServer, err := setupGitTestServer()
-	g.Expect(err).ToNot(HaveOccurred(), "failed to create test git server")
-	defer os.RemoveAll(gitServer.Root())
-	defer gitServer.StopHTTP()
+			// Pull the head commit that was just pushed, so it's not considered a new
+			// commit when checking for a commit made by automation.
+			waitForNewHead(g, localRepo, branch)
 
-	// Create test namespace.
-	nsCleanup, err := createNamespace(namespace)
-	g.Expect(err).ToNot(HaveOccurred(), "failed to create test namespace")
-	defer func() {
-		g.Expect(nsCleanup()).To(Succeed())
-	}()
+			pgpEntity, err := createSigningKeyPair(signingKeySecretName, namespace)
+			g.Expect(err).ToNot(HaveOccurred(), "failed to create signing key pair")
 
-	// Create a git repo.
-	g.Expect(initGitRepo(gitServer, "testdata/appconfig", branch, repositoryPath)).To(Succeed())
+			// Create the automation object and let it make a commit itself.
+			updateStrategy := &imagev1.UpdateStrategy{
+				Strategy: imagev1.UpdateStrategySetters,
+			}
+			err = createImageUpdateAutomation("update-test", namespace, gitRepoName, branch, "", testCommitTemplate, signingKeySecretName, updateStrategy)
+			g.Expect(err).ToNot(HaveOccurred())
 
-	// Clone the repo.
-	repoURL := gitServer.HTTPAddressWithCredentials() + repositoryPath
-	localRepo, err := cloneRepo(repoURL, branch)
-	g.Expect(err).ToNot(HaveOccurred(), "failed to clone git repo")
+			// Wait for a new commit to be made by the controller.
+			waitForNewHead(g, localRepo, branch)
 
-	// Create GitRepository resource for the above repo.
-	err = createGitRepository(gitRepoName, namespace, "", repoURL, "")
-	g.Expect(err).ToNot(HaveOccurred(), "failed to create GitRepository resource")
+			head, err := localRepo.Head()
+			g.Expect(err).ToNot(HaveOccurred())
+			commit, err := localRepo.CommitObject(head.Hash())
+			g.Expect(err).ToNot(HaveOccurred())
 
-	// Create ImagePolicy with populated latest image in the status.
-	err = createImagePolicyWithLatestImage(imagePolicyName, namespace, "not-expected-to-exist", "1.x", "helloworld:v1.0.0")
-	g.Expect(err).ToNot(HaveOccurred(), "failed to create ImagePolicy resource")
+			// Configure OpenPGP armor encoder.
+			b := bytes.NewBuffer(nil)
+			w, err := armor.Encode(b, openpgp.PrivateKeyType, nil)
+			g.Expect(err).ToNot(HaveOccurred())
 
-	t.Run("update with signed commit", func(t *testing.T) {
-		// Update the setter marker in the repo.
-		policyKey := types.NamespacedName{
-			Name:      imagePolicyName,
-			Namespace: namespace,
-		}
-		commitInRepo(g, repoURL, branch, "Install setter marker", func(tmp string) {
-			g.Expect(replaceMarker(tmp, policyKey)).To(Succeed())
+			// Serialize public key.
+			err = pgpEntity.Serialize(w)
+			g.Expect(err).ToNot(HaveOccurred())
+			err = w.Close()
+			g.Expect(err).ToNot(HaveOccurred())
+
+			// Verify commit.
+			ent, err := commit.Verify(b.String())
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(ent.PrimaryKey.Fingerprint).To(Equal(pgpEntity.PrimaryKey.Fingerprint))
 		})
-
-		// Pull the head commit that was just pushed, so it's not considered a new
-		// commit when checking for a commit made by automation.
-		waitForNewHead(g, localRepo, branch)
-
-		pgpEntity, err := createSigningKeyPair(signingKeySecretName, namespace)
-		g.Expect(err).ToNot(HaveOccurred(), "failed to create signing key pair")
-
-		// Create the automation object and let it make a commit itself.
-		updateStrategy := &imagev1.UpdateStrategy{
-			Strategy: imagev1.UpdateStrategySetters,
-		}
-		err = createImageUpdateAutomation("update-test", namespace, gitRepoName, branch, "", testCommitTemplate, signingKeySecretName, updateStrategy)
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Wait for a new commit to be made by the controller.
-		waitForNewHead(g, localRepo, branch)
-
-		head, err := localRepo.Head()
-		g.Expect(err).ToNot(HaveOccurred())
-		commit, err := localRepo.CommitObject(head.Hash())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Configure OpenPGP armor encoder.
-		b := bytes.NewBuffer(nil)
-		w, err := armor.Encode(b, openpgp.PrivateKeyType, nil)
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Serialize public key.
-		err = pgpEntity.Serialize(w)
-		g.Expect(err).ToNot(HaveOccurred())
-		err = w.Close()
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Verify commit.
-		ent, err := commit.Verify(b.String())
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(ent.PrimaryKey.Fingerprint).To(Equal(pgpEntity.PrimaryKey.Fingerprint))
-	})
 }
 
 func TestImageUpdateAutomation_e2e(t *testing.T) {
-	tests := []struct {
-		name  string
-		proto string
-		impl  string
-	}{
-		{
-			name:  "go-git with HTTP",
-			proto: "http",
-			impl:  sourcev1.GoGitImplementation,
-		},
-		{
-			name:  "go-git with SSH",
-			proto: "ssh",
-			impl:  sourcev1.GoGitImplementation,
-		},
-		{
-			name:  "libgit2 with HTTP",
-			proto: "http",
-			impl:  sourcev1.LibGit2Implementation,
-		},
-		{
-			name:  "libgit2 with SSH",
-			proto: "ssh",
-			impl:  sourcev1.LibGit2Implementation,
-		},
-	}
+	gitImpls := []string{sourcev1.GoGitImplementation, sourcev1.LibGit2Implementation}
+	protos := []string{"http", "ssh"}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	testFunc := func(proto string, impl string) func(t *testing.T) {
+		return func(t *testing.T) {
 			g := NewWithT(t)
 
 			const latestImage = "helloworld:1.0.1"
@@ -403,11 +313,11 @@ func TestImageUpdateAutomation_e2e(t *testing.T) {
 			defer gitServer.StopHTTP()
 
 			cloneLocalRepoURL := gitServer.HTTPAddressWithCredentials() + repositoryPath
-			repoURL, err := getRepoURL(gitServer, repositoryPath, tt.proto)
+			repoURL, err := getRepoURL(gitServer, repositoryPath, proto)
 			g.Expect(err).ToNot(HaveOccurred())
 
 			// Start the ssh server if needed.
-			if tt.proto == "ssh" {
+			if proto == "ssh" {
 				// NOTE: Check how this is done in source-controller.
 				go func() {
 					gitServer.StartSSH()
@@ -427,15 +337,15 @@ func TestImageUpdateAutomation_e2e(t *testing.T) {
 			g.Expect(err).ToNot(HaveOccurred(), "failed to clone git repo")
 
 			// Create GitRepository resource for the above repo.
-			if tt.proto == "ssh" {
+			if proto == "ssh" {
 				// SSH requires an identity (private key) and known_hosts file
 				// in a secret.
 				err = createSSHIdentitySecret(gitSecretName, namespace, repoURL)
 				g.Expect(err).ToNot(HaveOccurred())
-				err = createGitRepository(gitRepoName, namespace, tt.impl, repoURL, gitSecretName)
+				err = createGitRepository(gitRepoName, namespace, impl, repoURL, gitSecretName)
 				g.Expect(err).ToNot(HaveOccurred())
 			} else {
-				err = createGitRepository(gitRepoName, namespace, tt.impl, repoURL, "")
+				err = createGitRepository(gitRepoName, namespace, impl, repoURL, "")
 				g.Expect(err).ToNot(HaveOccurred())
 			}
 
@@ -634,7 +544,14 @@ func TestImageUpdateAutomation_e2e(t *testing.T) {
 				// TODO: Implement adding request annotation.
 				// Refer: https://github.com/fluxcd/image-automation-controller/pull/82/commits/4fde199362b42fa37068f2e6c6885cfea474a3d1#diff-1168fadffa18bd096582ae7f8b6db744fd896bd5600ee1d1ac6ac4474af251b9L292-L334
 			})
-		})
+		}
+	}
+
+	// Run the protocol based e2e tests against the git implementations.
+	for _, gitImpl := range gitImpls {
+		for _, p := range protos {
+			t.Run(gitImpl+"_"+p, testFunc(p, gitImpl))
+		}
 	}
 }
 
@@ -909,6 +826,58 @@ func mergeBranchIntoHead(g *WithT, repo *git.Repository, pushBranch string) {
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
+// testWithRepoAndImagePolicyTestFunc is the test closure function type passed
+// to testWithRepoAndImagePolicy.
+type testWithRepoAndImagePolicyTestFunc func(g *WithT, namespace, repoURL, gitRepoName, branch, imagePolicyName string, localRepo *git.Repository)
+
+// testWithRepoAndImagePolicy sets up a git server, a repository in the git
+// server, a GitRepository object for the created git repo, and an ImagePolicy
+// with the given policy spec. It calls testFunc to run the test in the created
+// environment.
+func testWithRepoAndImagePolicy(
+	g *WithT,
+	fixture string,
+	policySpec imagev1_reflect.ImagePolicySpec,
+	latest string,
+	testFunc testWithRepoAndImagePolicyTestFunc) {
+	namespace := "image-auto-test-" + randStringRunes(5)
+	branch := randStringRunes(8)
+	repositoryPath := "/config-" + randStringRunes(6) + ".git"
+	gitRepoName := "image-auto-" + randStringRunes(5)
+	imagePolicyName := "policy-" + randStringRunes(5)
+
+	// Create test git server.
+	gitServer, err := setupGitTestServer()
+	g.Expect(err).ToNot(HaveOccurred(), "failed to create test git server")
+	defer os.RemoveAll(gitServer.Root())
+	defer gitServer.StopHTTP()
+
+	// Create test namespace.
+	nsCleanup, err := createNamespace(namespace)
+	g.Expect(err).ToNot(HaveOccurred(), "failed to create test namespace")
+	defer func() {
+		g.Expect(nsCleanup()).To(Succeed())
+	}()
+
+	// Create a git repo.
+	g.Expect(initGitRepo(gitServer, fixture, branch, repositoryPath)).To(Succeed())
+
+	// Clone the repo.
+	repoURL := gitServer.HTTPAddressWithCredentials() + repositoryPath
+	localRepo, err := cloneRepo(repoURL, branch)
+	g.Expect(err).ToNot(HaveOccurred(), "failed to clone git repo")
+
+	// Create GitRepository resource for the above repo.
+	err = createGitRepository(gitRepoName, namespace, "", repoURL, "")
+	g.Expect(err).ToNot(HaveOccurred(), "failed to create GitRepository resource")
+
+	// Create ImagePolicy with populated latest image in the status.
+	err = createImagePolicyWithLatestImageForSpec(imagePolicyName, namespace, policySpec, latest)
+	g.Expect(err).ToNot(HaveOccurred(), "failed to create ImagePolicy resource")
+
+	testFunc(g, namespace, repoURL, gitRepoName, branch, imagePolicyName, localRepo)
+}
+
 // setupGitTestServer creates and returns a git test server. The caller must
 // ensure it's stopped and cleaned up.
 func setupGitTestServer() (*gittestserver.GitServer, error) {
@@ -977,17 +946,22 @@ func createGitRepository(name, namespace, impl, repoURL, secretRef string) error
 }
 
 func createImagePolicyWithLatestImage(name, namespace, repoRef, semverRange, latest string) error {
-	policy := &imagev1_reflect.ImagePolicy{
-		Spec: imagev1_reflect.ImagePolicySpec{
-			ImageRepositoryRef: meta.NamespacedObjectReference{
-				Name: repoRef,
-			},
-			Policy: imagev1_reflect.ImagePolicyChoice{
-				SemVer: &imagev1_reflect.SemVerPolicy{
-					Range: semverRange,
-				},
+	policySpec := imagev1_reflect.ImagePolicySpec{
+		ImageRepositoryRef: meta.NamespacedObjectReference{
+			Name: repoRef,
+		},
+		Policy: imagev1_reflect.ImagePolicyChoice{
+			SemVer: &imagev1_reflect.SemVerPolicy{
+				Range: semverRange,
 			},
 		},
+	}
+	return createImagePolicyWithLatestImageForSpec(name, namespace, policySpec, latest)
+}
+
+func createImagePolicyWithLatestImageForSpec(name, namespace string, policySpec imagev1_reflect.ImagePolicySpec, latest string) error {
+	policy := &imagev1_reflect.ImagePolicy{
+		Spec: policySpec,
 	}
 	policy.Name = name
 	policy.Namespace = namespace
