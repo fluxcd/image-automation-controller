@@ -18,6 +18,7 @@ package update
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -159,7 +160,7 @@ func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []
 		// annoyingly, neither the library imported above, nor an
 		// alternative I found, will yield the original image name;
 		// this is an easy way to get it
-		name := image[:len(image)-len(tag)-1]
+		name := strings.TrimRight(image, ":"+tag)
 
 		imageSetter := fmt.Sprintf("%s:%s", policy.GetNamespace(), policy.GetName())
 		tracelog.Info("adding setter", "name", imageSetter)
