@@ -227,8 +227,11 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		return failWithError(err)
 	}
 
+	// Use the git operations timeout for the repo.
+	cloneCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
+	defer cancel()
 	var repo *gogit.Repository
-	if repo, err = cloneInto(ctx, access, ref, tmp); err != nil {
+	if repo, err = cloneInto(cloneCtx, access, ref, tmp); err != nil {
 		return failWithError(err)
 	}
 
@@ -236,7 +239,10 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	// shall be made
 
 	if gitSpec.Push != nil {
-		if err := fetch(ctx, tmp, pushBranch, access); err != nil && err != errRemoteBranchMissing {
+		// Use the git operations timeout for the repo.
+		fetchCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
+		defer cancel()
+		if err := fetch(fetchCtx, tmp, pushBranch, access); err != nil && err != errRemoteBranchMissing {
 			return failWithError(err)
 		}
 		if err = switchBranch(repo, pushBranch); err != nil {
@@ -320,7 +326,10 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			return failWithError(err)
 		}
 	} else {
-		if err := push(ctx, tmp, pushBranch, access); err != nil {
+		// Use the git operations timeout for the repo.
+		pushCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
+		defer cancel()
+		if err := push(pushCtx, tmp, pushBranch, access); err != nil {
 			return failWithError(err)
 		}
 
@@ -475,8 +484,8 @@ func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, rep
 	return access, nil
 }
 
-func (r repoAccess) remoteCallbacks() libgit2.RemoteCallbacks {
-	return gitlibgit2.RemoteCallbacks(r.auth)
+func (r repoAccess) remoteCallbacks(ctx context.Context) libgit2.RemoteCallbacks {
+	return gitlibgit2.RemoteCallbacks(ctx, r.auth)
 }
 
 // cloneInto clones the upstream repository at the `ref` given (which
@@ -637,7 +646,7 @@ func fetch(ctx context.Context, path string, branch string, access repoAccess) e
 	err = origin.Fetch(
 		[]string{refspec},
 		&libgit2.FetchOptions{
-			RemoteCallbacks: access.remoteCallbacks(),
+			RemoteCallbacks: access.remoteCallbacks(ctx),
 		}, "",
 	)
 	if err != nil && libgit2.IsErrorCode(err, libgit2.ErrorCodeNotFound) {
@@ -662,7 +671,7 @@ func push(ctx context.Context, path, branch string, access repoAccess) error {
 	}
 	defer origin.Free()
 
-	callbacks := access.remoteCallbacks()
+	callbacks := access.remoteCallbacks(ctx)
 
 	// calling repo.Push will succeed even if a reference update is
 	// rejected; to detect this case, this callback is supplied.
