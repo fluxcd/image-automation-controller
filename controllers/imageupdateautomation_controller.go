@@ -296,7 +296,9 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	var signingEntity *openpgp.Entity
 	if gitSpec.Commit.SigningKey != nil {
-		signingEntity, err = r.getSigningEntity(ctx, auto)
+		if signingEntity, err = r.getSigningEntity(ctx, auto); err != nil {
+			failWithError(err)
+		}
 	}
 
 	// construct the commit message from template and values
