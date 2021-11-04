@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.16.1
+
+**Release date:** 2021-11-04
+
+This prerelease adds more improvements around the `libgit2` C library
+used for Git transport operations, ensuring they respect the operation
+`timeout` specified in `GitRepositorySpec` of the respective `GitRepository`
+referenced in `GitCheckoutSpec`.
+
+Improvements:
+* Respect PKG_CONFIG_PATH from the environment
+  [#251](https://github.com/fluxcd/image-automation-controller/pull/251)
+* Pass context to libgit2.RemoteCallbacks
+  [#252](https://github.com/fluxcd/image-automation-controller/pull/252)
+
 ## 0.16.0
 
 **Release date:** 2021-10-28
