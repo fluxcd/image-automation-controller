@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.17.0
+
+**Release date:** 2021-11-09
+
+This prerelease comes with improvements to alerting.
+The controller no longer emits events when no updates were made to the upstream Git repository.
+After a successful Git push, the controller emits an event that contains the commit message.
+
+Improvements:
+* Add the commit message to the event body
+  [#259](https://github.com/fluxcd/image-automation-controller/pull/259)
+
+Fixes:
+* Fix unhandled error in signing key retrieval
+  [#258](https://github.com/fluxcd/image-automation-controller/pull/258)
+* Use strings.TrimRight to determine image name
+  [#257](https://github.com/fluxcd/image-automation-controller/pull/257)
+
 ## 0.16.1
 
 **Release date:** 2021-11-04
