@@ -318,7 +318,6 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	if rev, err := commitChangedManifests(tracelog, repo, tmp, signingEntity, author, message); err != nil {
 		if err == errNoChanges {
-			r.event(ctx, auto, events.EventSeverityInfo, "no updates made")
 			debuglog.Info("no changes made in working directory; no commit")
 			statusMessage = "no updates made"
 			if lastCommit, lastTime := auto.Status.LastPushCommit, auto.Status.LastPushTime; lastCommit != "" {
@@ -335,7 +334,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			return failWithError(err)
 		}
 
-		r.event(ctx, auto, events.EventSeverityInfo, "committed and pushed change "+rev+" to "+pushBranch)
+		r.event(ctx, auto, events.EventSeverityInfo, fmt.Sprintf("Committed and pushed change %s to %s\n%s", rev, pushBranch, message))
 		log.Info("pushed commit to origin", "revision", rev, "branch", pushBranch)
 		auto.Status.LastPushCommit = rev
 		auto.Status.LastPushTime = &metav1.Time{Time: now}
