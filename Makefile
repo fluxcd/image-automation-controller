@@ -1,18 +1,53 @@
 # Image URL to use all building/pushing image targets
-IMG ?= fluxcd/image-automation-controller:latest
+IMG ?= fluxcd/image-automation-controller
+# Image tag to use all building/push image targets
+TAG ?= latest
+
 # Produce CRDs that work back to Kubernetes 1.16
 CRD_OPTIONS ?= crd:crdVersions=v1
 
+# Base image used to build the Go binary
+LIBGIT2_IMG ?= ghcr.io/fluxcd/golang-with-libgit2
+LIBGIT2_TAG ?= libgit2-1.1.1-1
+
+# Allows for defining additional Docker buildx arguments,
+# e.g. '--push'.
+BUILD_ARGS ?=
+# Architectures to build images for
+BUILD_PLATFORMS ?= linux/amd64,linux/arm64,linux/arm/v7
+
 # Directory with versioned, downloaded things
-CACHE:=cache
+CACHE := cache
 
 # Version of the source-controller from which to get the GitRepository CRD.
 # Change this if you bump the source-controller/api version in go.mod.
-SOURCE_VER ?= v0.15.4
+SOURCE_VER ?= v0.16.0
 
 # Version of the image-reflector-controller from which to get the ImagePolicy CRD.
 # Change this if you bump the image-reflector-controller/api version in go.mod.
 REFLECTOR_VER ?= v0.11.1
+
+# Version of libgit2 the controller should depend on.
+LIBGIT2_VER ?= 1.1.1
+
+# Repository root based on Git metadata.
+REPOSITORY_ROOT := $(shell git rev-parse --show-toplevel)
+
+# libgit2 related magical paths
+# These are used to determine if the target libgit2 version is already available on
+# the system, or where they should be installed to
+SYSTEM_LIBGIT2_VERSION := $(shell pkg-config --modversion libgit2 2>/dev/null)
+LIBGIT2_PATH := $(REPOSITORY_ROOT)/hack/libgit2
+LIBGIT2_LIB_PATH := $(LIBGIT2_PATH)/lib
+LIBGIT2 := $(LIBGIT2_LIB_PATH)/libgit2.so.$(LIBGIT2_VERSION)
+
+ifneq ($(LIBGIT2_VERSION),$(SYSTEM_LIBGIT2_VERSION))
+	LIBGIT2_FORCE ?= 1
+endif
+
+ifeq ($(shell uname -s),Darwin)
+	LIBGIT2 := $(LIBGIT2_LIB_PATH)/libgit2.$(LIBGIT2_VERSION).dylib
+endif
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -21,10 +56,10 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-TEST_CRDS:=controllers/testdata/crds
+TEST_CRDS := controllers/testdata/crds
 
 # Log level for `make run`
-LOG_LEVEL?=info
+LOG_LEVEL ?= info
 
 all: manager
 
@@ -52,80 +87,74 @@ ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml:
 	curl -s --fail https://raw.githubusercontent.com/fluxcd/image-reflector-controller/${REFLECTOR_VER}/config/crd/bases/image.toolkit.fluxcd.io_imagepolicies.yaml \
 		-o ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml
 
-# Run tests
-test: test_deps generate fmt vet manifests api-docs
+test: $(LIBGIT2) test-api test_deps generate fmt vet manifests api-docs	## Run tests
+	LD_LIBRARY_PATH=$(LIBGIT2_LIB_PATH) \
+	PKG_CONFIG_PATH=$(LIBGIT2_LIB_PATH)/pkgconfig/ \
 	go test ./... -coverprofile cover.out
+
+test-api:	## Run api tests
 	cd api; go test ./... -coverprofile cover.out
 
-# Build manager binary
-manager: generate fmt vet
+manager: $(LIBGIT2) generate fmt vet	## Build manager binary
+	PKG_CONFIG_PATH=$(LIBGIT2_LIB_PATH)/pkgconfig/ \
 	go build -o bin/manager main.go
 
-# Run against the configured Kubernetes cluster in ~/.kube/config
-run: generate fmt vet manifests
+run: $(LIBGIT2) generate fmt vet manifests	# Run against the configured Kubernetes cluster in ~/.kube/config
 	go run ./main.go --log-level=${LOG_LEVEL} --log-encoding=console
 
-# Install CRDs into a cluster
-install: manifests
+install: manifests	## Install CRDs into a cluster
 	kustomize build config/crd | kubectl apply -f -
 
-# Uninstall CRDs from a cluster
-uninstall: manifests
+uninstall: manifests	## Uninstall CRDs from a cluster
 	kustomize build config/crd | kubectl delete -f -
 
-# Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-deploy: manifests
-	cd config/manager && kustomize edit set image fluxcd/image-automation-controller=${IMG}
+deploy: manifests	## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
+	cd config/manager && kustomize edit set image fluxcd/image-automation-controller=$(IMG):$(TAG)
 	kustomize build config/default | kubectl apply -f -
 
 dev-deploy: manifests
 	mkdir -p config/dev && cp config/default/* config/dev
-	cd config/dev && kustomize edit set image fluxcd/image-automation-controller=${IMG}
+	cd config/dev && kustomize edit set image fluxcd/image-automation-controller=$(IMG):$(TAG)
 	kustomize build config/dev | kubectl apply -f -
 	rm -rf config/dev
 
-# Generate manifests e.g. CRD, RBAC etc.
-manifests: controller-gen
+manifests: controller-gen	## Generate manifests e.g. CRD, RBAC etc.
 	cd api; $(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role paths="./..." output:crd:artifacts:config="../config/crd/bases"
 
-# Generate API reference documentation
-api-docs: gen-crd-api-reference-docs
+api-docs: gen-crd-api-reference-docs	## Generate API reference documentation
 	$(API_REF_GEN) -api-dir=./api/v1beta1 -config=./hack/api-docs/config.json -template-dir=./hack/api-docs/template -out-file=./docs/api/image-automation.md
 
-# Run go mod tidy
-tidy:
+tidy:	## Run go mod tidy
 	cd api; rm -f go.sum; go mod tidy
 	rm -f go.sum; go mod tidy
 
-# Run go fmt against code
-fmt:
+fmt:	## Run go fmt against code
 	go fmt ./...
 	cd api; go fmt ./...
 
-# Run go vet against code
-vet:
+vet: $(LIBGIT2)	## Run go vet against code
+	PKG_CONFIG_PATH=$(LIBGIT2_LIB_PATH)/pkgconfig \
 	go vet ./...
 	cd api; go vet ./...
 
-# Generate code
-generate: controller-gen
+generate: controller-gen	## Generate code
 	cd api; $(CONTROLLER_GEN) object:headerFile="../hack/boilerplate.go.txt" paths="./..."
 
-# Build the docker image
-docker-build: test
-	docker build . -t ${IMG}
+docker-build:  ## Build the Docker image
+	docker buildx build \
+		--build-arg LIBGIT2_IMG=$(LIBGIT2_IMG) \
+		--build-arg LIBGIT2_TAG=$(LIBGIT2_TAG) \
+		--platform=$(BUILD_PLATFORMS) \
+		-t $(IMG):$(TAG) \
+		$(BUILD_ARGS) .
 
-# Push the docker image
-docker-push:
-	docker push ${IMG}
+docker-push:	## Push the Docker image
+	docker push $(IMG):$(TAG)
 
-# Set the docker image in-cluster
-docker-deploy:
-	kubectl -n flux-system set image deployment/image-automation-controller manager=${IMG}
+docker-deploy:	## Set the Docker image in-cluster
+	kubectl -n flux-system set image deployment/image-automation-controller manager=$(IMG):$(TAG)
 
-# find or download controller-gen
-# download controller-gen if necessary
-controller-gen:
+controller-gen: 	## Find or download controller-gen
 ifeq (, $(shell which controller-gen))
 	@{ \
 	set -e ;\
@@ -140,8 +169,7 @@ else
 CONTROLLER_GEN=$(shell which controller-gen)
 endif
 
-# Find or download gen-crd-api-reference-docs
-gen-crd-api-reference-docs:
+gen-crd-api-reference-docs:	## Find or download gen-crd-api-reference-docs
 ifeq (, $(shell which gen-crd-api-reference-docs))
 	@{ \
 	set -e ;\
@@ -155,3 +183,19 @@ API_REF_GEN=$(GOBIN)/gen-crd-api-reference-docs
 else
 API_REF_GEN=$(shell which gen-crd-api-reference-docs)
 endif
+
+libgit2: $(LIBGIT2)  ## Detect or download libgit2 library
+
+$(LIBGIT2):
+ifeq (1, $(LIBGIT2_FORCE))
+	@{ \
+	set -e; \
+	mkdir -p $(LIBGIT2_PATH); \
+	curl -sL https://raw.githubusercontent.com/fluxcd/golang-with-libgit2/$(LIBGIT2_TAG)/hack/Makefile -o $(LIBGIT2_PATH)/Makefile; \
+	INSTALL_PREFIX=$(LIBGIT2_PATH) make -C $(LIBGIT2_PATH) libgit2; \
+	}
+endif
+
+.PHONY: help
+help:  ## Display this help menu
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)

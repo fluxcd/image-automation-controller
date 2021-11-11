@@ -668,7 +668,7 @@ func push(ctx context.Context, path, branch string, access repoAccess) error {
 		if status != "" {
 			callbackErr = fmt.Errorf("ref %s rejected: %s", refname, status)
 		}
-		return libgit2.ErrOk
+		return libgit2.ErrorCodeOK
 	}
 	err = origin.Push([]string{fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch)}, &libgit2.PushOptions{
 		RemoteCallbacks: callbacks,
