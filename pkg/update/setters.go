@@ -160,7 +160,7 @@ func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []
 		// annoyingly, neither the library imported above, nor an
 		// alternative I found, will yield the original image name;
 		// this is an easy way to get it
-		name := strings.TrimRight(image, ":"+tag)
+		name := strings.TrimSuffix(image, ":"+tag)
 
 		imageSetter := fmt.Sprintf("%s:%s", policy.GetNamespace(), policy.GetName())
 		tracelog.Info("adding setter", "name", imageSetter)
