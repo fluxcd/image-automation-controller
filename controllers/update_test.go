@@ -353,15 +353,20 @@ func TestImageUpdateAutomation_e2e(t *testing.T) {
 			Name:      imagePolicyName,
 			Namespace: namespace,
 		}
-		// NB not testing the image reflector controller; this
-		// will make a "fully formed" ImagePolicy object.
-		err = createImagePolicyWithLatestImage(imagePolicyName, namespace, "not-expected-to-exist", "1.x", latestImage)
-		g.Expect(err).ToNot(HaveOccurred(), "failed to create ImagePolicy resource")
 
-		// Create ImageUpdateAutomation resource for each of the test cases
-		// and cleanup at the end.
+		// Create ImagePolicy and ImageUpdateAutomation resource for each of the
+		// test cases and cleanup at the end.
 
 		t.Run("PushSpec", func(t *testing.T) {
+			// NB not testing the image reflector controller; this
+			// will make a "fully formed" ImagePolicy object.
+			err = createImagePolicyWithLatestImage(imagePolicyName, namespace, "not-expected-to-exist", "1.x", latestImage)
+			g.Expect(err).ToNot(HaveOccurred(), "failed to create ImagePolicy resource")
+
+			defer func() {
+				g.Expect(deleteImagePolicy(imagePolicyName, namespace)).ToNot(HaveOccurred())
+			}()
+
 			imageUpdateAutomationName := "update-" + randStringRunes(5)
 			pushBranch := "pr-" + randStringRunes(5)
 
@@ -435,6 +440,13 @@ func TestImageUpdateAutomation_e2e(t *testing.T) {
 		})
 
 		t.Run("with update strategy setters", func(t *testing.T) {
+			err = createImagePolicyWithLatestImage(imagePolicyName, namespace, "not-expected-to-exist", "1.x", latestImage)
+			g.Expect(err).ToNot(HaveOccurred(), "failed to create ImagePolicy resource")
+
+			defer func() {
+				g.Expect(deleteImagePolicy(imagePolicyName, namespace)).ToNot(HaveOccurred())
+			}()
+
 			// Insert a setter reference into the deployment file,
 			// before creating the automation object itself.
 			commitInRepo(g, cloneLocalRepoURL, branch, "Install setter marker", func(tmp string) {
@@ -477,6 +489,13 @@ func TestImageUpdateAutomation_e2e(t *testing.T) {
 		})
 
 		t.Run("no reconciliation when object is suspended", func(t *testing.T) {
+			err = createImagePolicyWithLatestImage(imagePolicyName, namespace, "not-expected-to-exist", "1.x", latestImage)
+			g.Expect(err).ToNot(HaveOccurred(), "failed to create ImagePolicy resource")
+
+			defer func() {
+				g.Expect(deleteImagePolicy(imagePolicyName, namespace)).ToNot(HaveOccurred())
+			}()
+
 			// Create the automation object.
 			updateKey := types.NamespacedName{
 				Namespace: namespace,
@@ -548,7 +567,7 @@ func TestImageUpdateAutomation_e2e(t *testing.T) {
 	// Run the protocol based e2e tests against the git implementations.
 	for _, gitImpl := range gitImpls {
 		for _, proto := range protos {
-			t.Run(gitImpl+"_"+proto, func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s_%s", gitImpl, proto), func(t *testing.T) {
 				testFunc(t, proto, gitImpl)
 			})
 		}
@@ -1044,6 +1063,13 @@ func deleteImageUpdateAutomation(name, namespace string) error {
 	update.Name = name
 	update.Namespace = namespace
 	return testEnv.Delete(context.Background(), update)
+}
+
+func deleteImagePolicy(name, namespace string) error {
+	imagePolicy := &imagev1_reflect.ImagePolicy{}
+	imagePolicy.Name = name
+	imagePolicy.Namespace = namespace
+	return testEnv.Delete(context.Background(), imagePolicy)
 }
 
 func createSigningKeyPair(name, namespace string) (*openpgp.Entity, error) {

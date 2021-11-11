@@ -19,7 +19,7 @@ func mustRef(ref string) imageRef {
 	return imageRef{r, types.NamespacedName{}}
 }
 
-func TestMustRef(t *testing.T) {
+func TestImageRef(t *testing.T) {
 	g := NewWithT(t)
 
 	t.Run("gives each component of an image ref", func(t *testing.T) {
