@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.17.1
+
+**Release date:** 2021-11-11
+
+This prerelease comes with a bug fix to the image setter, ensuring it does not
+accidentally replace a valid image reference with an invalid one.
+
+Fixes:
+* Replace strings.TrimRight with strings.TrimSuffix
+  [#262](https://github.com/fluxcd/image-automation-controller/pull/262)
+
 ## 0.17.0
 
 **Release date:** 2021-11-09
