@@ -28,7 +28,7 @@ SOURCE_VER ?= v0.16.0
 REFLECTOR_VER ?= v0.11.1
 
 # Version of libgit2 the controller should depend on.
-LIBGIT2_VER ?= 1.1.1
+LIBGIT2_VERSION ?= 1.1.1
 
 # Repository root based on Git metadata.
 REPOSITORY_ROOT := $(shell git rev-parse --show-toplevel)
