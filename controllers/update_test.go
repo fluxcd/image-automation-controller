@@ -348,16 +348,15 @@ func TestImageUpdateAutomation_e2e(t *testing.T) {
 			g.Expect(err).ToNot(HaveOccurred())
 		}
 
-		// Create an image policy.
-		policyKey := types.NamespacedName{
-			Name:      imagePolicyName,
-			Namespace: namespace,
-		}
-
 		// Create ImagePolicy and ImageUpdateAutomation resource for each of the
 		// test cases and cleanup at the end.
 
 		t.Run("PushSpec", func(t *testing.T) {
+			// Create an image policy.
+			policyKey := types.NamespacedName{
+				Name:      imagePolicyName,
+				Namespace: namespace,
+			}
 			// NB not testing the image reflector controller; this
 			// will make a "fully formed" ImagePolicy object.
 			err = createImagePolicyWithLatestImage(imagePolicyName, namespace, "not-expected-to-exist", "1.x", latestImage)
@@ -440,6 +439,11 @@ func TestImageUpdateAutomation_e2e(t *testing.T) {
 		})
 
 		t.Run("with update strategy setters", func(t *testing.T) {
+			// Create an image policy.
+			policyKey := types.NamespacedName{
+				Name:      imagePolicyName,
+				Namespace: namespace,
+			}
 			err = createImagePolicyWithLatestImage(imagePolicyName, namespace, "not-expected-to-exist", "1.x", latestImage)
 			g.Expect(err).ToNot(HaveOccurred(), "failed to create ImagePolicy resource")
 
@@ -486,16 +490,56 @@ func TestImageUpdateAutomation_e2e(t *testing.T) {
 			compareRepoWithExpected(g, cloneLocalRepoURL, branch, "testdata/appconfig-setters-expected", func(tmp string) {
 				g.Expect(replaceMarker(tmp, policyKey)).To(Succeed())
 			})
+
+			t.Run("reconciles with reconcile request annotation", func(t *testing.T) {
+				// The automation has run, and is not expected to run
+				// again for 2 hours. Make a commit to the git repo
+				// which needs to be undone by automation, then add
+				// the annotation and make sure it runs again.
+
+				// Get the last run value.
+				var updateObj imagev1.ImageUpdateAutomation
+				g.Expect(testEnv.Get(context.Background(), updateKey, &updateObj)).To(Succeed())
+				lastRun := updateObj.Status.LastAutomationRunTime
+				g.Expect(lastRun).ToNot(BeNil())
+
+				// Reverse image update.
+				commitInRepo(g, cloneLocalRepoURL, branch, "Revert image update", func(tmp string) {
+					g.Expect(copy.Copy("testdata/appconfig/deploy.yaml", filepath.Join(tmp, "deploy.yaml")))
+					g.Expect(replaceMarker(tmp, policyKey))
+				})
+
+				// Check that it was reverted.
+				compareRepoWithExpected(g, cloneLocalRepoURL, branch, "testdata/appconfig", func(tmp string) {
+					g.Expect(replaceMarker(tmp, policyKey)).To(Succeed())
+				})
+
+				ts := time.Now().String()
+
+				var updatePatch imagev1.ImageUpdateAutomation
+				g.Expect(testEnv.Get(context.Background(), updateKey, &updatePatch)).To(Succeed())
+				updatePatch.ObjectMeta.Annotations = map[string]string{
+					meta.ReconcileRequestAnnotation: ts,
+				}
+				g.Expect(testEnv.Patch(context.Background(), &updatePatch, client.Merge)).To(Succeed())
+
+				g.Eventually(func() bool {
+					if err := testEnv.Get(context.Background(), updateKey, &updateObj); err != nil {
+						return false
+					}
+					newLastRun := updateObj.Status.LastAutomationRunTime
+					return newLastRun != nil && newLastRun.Time.After(lastRun.Time)
+				}, timeout, time.Second).Should(BeTrue())
+
+				g.Expect(updateObj.Status.LastHandledReconcileAt).To(Equal(ts))
+
+				compareRepoWithExpected(g, cloneLocalRepoURL, branch, "testdata/appconfig-setters-expected", func(tmp string) {
+					g.Expect(replaceMarker(tmp, policyKey))
+				})
+			})
 		})
 
 		t.Run("no reconciliation when object is suspended", func(t *testing.T) {
-			err = createImagePolicyWithLatestImage(imagePolicyName, namespace, "not-expected-to-exist", "1.x", latestImage)
-			g.Expect(err).ToNot(HaveOccurred(), "failed to create ImagePolicy resource")
-
-			defer func() {
-				g.Expect(deleteImagePolicy(imagePolicyName, namespace)).ToNot(HaveOccurred())
-			}()
-
 			// Create the automation object.
 			updateKey := types.NamespacedName{
 				Namespace: namespace,
@@ -551,16 +595,6 @@ func TestImageUpdateAutomation_e2e(t *testing.T) {
 			var checkUpdate imagev1.ImageUpdateAutomation
 			g.Expect(testEnv.Get(context.Background(), updateKey, &checkUpdate)).To(Succeed())
 			g.Expect(checkUpdate.Status.ObservedGeneration).NotTo(Equal(checkUpdate.ObjectMeta.Generation))
-		})
-
-		t.Run("reconciles with reconcile request annotation", func(t *testing.T) {
-			// The automation has run, and is not expected to run
-			// again for 2 hours. Make a commit to the git repo
-			// which needs to be undone by automation, then add
-			// the annotation and make sure it runs again.
-
-			// TODO: Implement adding request annotation.
-			// Refer: https://github.com/fluxcd/image-automation-controller/pull/82/commits/4fde199362b42fa37068f2e6c6885cfea474a3d1#diff-1168fadffa18bd096582ae7f8b6db744fd896bd5600ee1d1ac6ac4474af251b9L292-L334
 		})
 	}
 
