@@ -21,7 +21,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"os"
 	"path/filepath"
@@ -212,7 +211,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		tracelog.Info("using push branch from $ref.branch", "branch", pushBranch)
 	}
 
-	tmp, err := ioutil.TempDir("", fmt.Sprintf("%s-%s", originName.Namespace, originName.Name))
+	tmp, err := os.MkdirTemp("", fmt.Sprintf("%s-%s", originName.Namespace, originName.Name))
 	if err != nil {
 		return failWithError(err)
 	}

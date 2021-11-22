@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -41,7 +40,7 @@ func populateRepoFromFixture(repo *gogit.Repository, fixture string) error {
 			return fs.Symlink(target, path[len(fixture):])
 		}
 
-		fileBytes, err := ioutil.ReadFile(path)
+		fileBytes, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
@@ -90,7 +89,7 @@ func TestRepoForFixture(t *testing.T) {
 
 func TestIgnoreBrokenSymlink(t *testing.T) {
 	// init a git repo in the filesystem so we can operate on files there
-	tmp, err := ioutil.TempDir("", "flux-test")
+	tmp, err := os.MkdirTemp("", "flux-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +144,7 @@ func TestPushRejected(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tmp, err := ioutil.TempDir("", "gotest-imageauto-git")
+	tmp, err := os.MkdirTemp("", "gotest-imageauto-git")
 	if err != nil {
 		t.Fatal(err)
 	}
