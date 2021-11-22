@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"net/url"
 	"os"
@@ -1014,12 +1013,12 @@ func expectCommittedAndPushed(conditions []metav1.Condition) {
 func replaceMarker(path string, policyKey types.NamespacedName) error {
 	// NB this requires knowledge of what's in the git repo, so a little brittle
 	deployment := filepath.Join(path, "deploy.yaml")
-	filebytes, err := ioutil.ReadFile(deployment)
+	filebytes, err := os.ReadFile(deployment)
 	if err != nil {
 		return err
 	}
 	newfilebytes := bytes.ReplaceAll(filebytes, []byte("SETTER_SITE"), []byte(setterRef(policyKey)))
-	if err = ioutil.WriteFile(deployment, newfilebytes, os.FileMode(0666)); err != nil {
+	if err = os.WriteFile(deployment, newfilebytes, os.FileMode(0666)); err != nil {
 		return err
 	}
 	return nil
@@ -1076,13 +1075,13 @@ func waitForNewHead(repo *git.Repository, branch string) {
 }
 
 func compareRepoWithExpected(repoURL, branch, fixture string, changeFixture func(tmp string)) {
-	expected, err := ioutil.TempDir("", "gotest-imageauto-expected")
+	expected, err := os.MkdirTemp("", "gotest-imageauto-expected")
 	Expect(err).ToNot(HaveOccurred())
 	defer os.RemoveAll(expected)
 	copy.Copy(fixture, expected)
 	changeFixture(expected)
 
-	tmp, err := ioutil.TempDir("", "gotest-imageauto")
+	tmp, err := os.MkdirTemp("", "gotest-imageauto")
 	Expect(err).ToNot(HaveOccurred())
 	defer os.RemoveAll(tmp)
 	_, err = git.PlainClone(tmp, false, &git.CloneOptions{
@@ -1094,7 +1093,7 @@ func compareRepoWithExpected(repoURL, branch, fixture string, changeFixture func
 }
 
 func commitInRepo(repoURL, branch, msg string, changeFiles func(path string)) {
-	tmp, err := ioutil.TempDir("", "gotest-imageauto")
+	tmp, err := os.MkdirTemp("", "gotest-imageauto")
 	Expect(err).ToNot(HaveOccurred())
 	defer os.RemoveAll(tmp)
 	repo, err := git.PlainClone(tmp, false, &git.CloneOptions{

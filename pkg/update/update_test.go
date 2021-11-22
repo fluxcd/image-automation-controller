@@ -17,7 +17,6 @@ limitations under the License.
 package update
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -64,7 +63,7 @@ var _ = Describe("Update image via kyaml setters2", func() {
 	)
 
 	It("updates the image marked with the image policy (setter) ref", func() {
-		tmp, err := ioutil.TempDir("", "gotest")
+		tmp, err := os.MkdirTemp("", "gotest")
 		Expect(err).ToNot(HaveOccurred())
 		defer os.RemoveAll(tmp)
 
@@ -95,7 +94,7 @@ var _ = Describe("Update image via kyaml setters2", func() {
 	})
 
 	It("gives the result of the updates", func() {
-		tmp, err := ioutil.TempDir("", "gotest")
+		tmp, err := os.MkdirTemp("", "gotest")
 		Expect(err).ToNot(HaveOccurred())
 		defer os.RemoveAll(tmp)
 

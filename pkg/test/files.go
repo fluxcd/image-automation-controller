@@ -17,7 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -124,11 +123,11 @@ func DiffDirectories(actual, expected string) (actualonly []string, expectedonly
 
 		// both regular files
 
-		actualBytes, err := ioutil.ReadFile(actualPath)
+		actualBytes, err := os.ReadFile(actualPath)
 		if err != nil {
 			panic(err)
 		}
-		expectedBytes, err := ioutil.ReadFile(expectedPath)
+		expectedBytes, err := os.ReadFile(expectedPath)
 		if err != nil {
 			panic(err)
 		}
