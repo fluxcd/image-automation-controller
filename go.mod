@@ -10,14 +10,14 @@ require (
 	github.com/cyphar/filepath-securejoin v0.2.2
 	github.com/fluxcd/image-automation-controller/api v0.17.1
 	// If you bump this, change REFLECTOR_VER in the Makefile to match
-	github.com/fluxcd/image-reflector-controller/api v0.12.0
+	github.com/fluxcd/image-reflector-controller/api v0.14.0
 	github.com/fluxcd/pkg/apis/meta v0.10.1
 	github.com/fluxcd/pkg/gittestserver v0.4.2
 	github.com/fluxcd/pkg/runtime v0.12.1
 	github.com/fluxcd/pkg/ssh v0.1.0
 	// If you bump this, change SOURCE_VER in the Makefile to match
-	github.com/fluxcd/source-controller v0.17.2
-	github.com/fluxcd/source-controller/api v0.17.2
+	github.com/fluxcd/source-controller v0.19.0
+	github.com/fluxcd/source-controller/api v0.19.0
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v0.4.0
@@ -25,7 +25,7 @@ require (
 	github.com/libgit2/git2go/v31 v31.6.1
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.15.0
-	github.com/otiai10/copy v1.2.0
+	github.com/otiai10/copy v1.7.0
 	github.com/spf13/pflag v1.0.5
 	k8s.io/api v0.22.2
 	k8s.io/apimachinery v0.22.2
@@ -35,6 +35,7 @@ require (
 	sigs.k8s.io/kustomize/kyaml v0.10.21
 )
 
-// side-effect of depending on source-controller
-// required by https://github.com/helm/helm/blob/v3.6.0/go.mod
-replace github.com/docker/distribution => github.com/docker/distribution v0.0.0-20191216044856-a8371794149d
+// Side-effect of depending on source-controller;
+// required by https://github.com/helm/helm/blob/v3.6.3/go.mod,
+// but overwritten with a newer version due to CVE-2017-11468.
+replace github.com/docker/distribution => github.com/docker/distribution v2.7.0-rc.0+incompatible
