@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.18.0
+
+**Release date:** 2021-11-23
+
+This prerelease updates several dependencies to their latest version,
+solving an issue with `rest_client_request_latency_seconds_.*` high
+cardinality metrics.
+
+Improvements:
+* Update controller-runtime to v0.10.2
+  [#268](https://github.com/fluxcd/image-automation-controller/pull/268)
+* Update image-reflector-controller and source-controller
+  [#269](https://github.com/fluxcd/image-automation-controller/pull/269)
+
+Fixes:
+* Remove deprecated io/ioutil
+  [#267](https://github.com/fluxcd/image-automation-controller/pull/267)
+
 ## 0.17.1
 
 **Release date:** 2021-11-11
