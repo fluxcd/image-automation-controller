@@ -25,7 +25,7 @@ SOURCE_VER ?= v0.17.2
 
 # Version of the image-reflector-controller from which to get the ImagePolicy CRD.
 # Change this if you bump the image-reflector-controller/api version in go.mod.
-REFLECTOR_VER ?= v0.12.0
+REFLECTOR_VER ?= v0.14.0
 
 # Version of libgit2 the controller should depend on.
 LIBGIT2_VERSION ?= 1.1.1
