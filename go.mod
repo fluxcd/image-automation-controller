@@ -4,6 +4,8 @@ go 1.16
 
 replace github.com/fluxcd/image-automation-controller/api => ./api
 
+replace github.com/fluxcd/image-reflector-controller/api v0.14.0 => github.com/gregoirew/image-reflector-controller/api v0.14.9
+
 require (
 	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7

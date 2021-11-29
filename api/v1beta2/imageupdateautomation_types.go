@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta1
+package v1beta2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,7 +55,7 @@ type ImageUpdateAutomationSpec struct {
 
 // UpdateStrategyName is the type for names that go in
 // .update.strategy. NB the value in the const immediately below.
-// +kubebuilder:validation:Enum=Setters
+// +kubebuilder:validation:Enum=Setters;Duplicates
 type UpdateStrategyName string
 
 const (
@@ -63,6 +63,7 @@ const (
 	// uses kyaml setters. NB the value in the enum annotation for the
 	// type, above.
 	UpdateStrategySetters UpdateStrategyName = "Setters"
+	UpdateStrategyDuplicates UpdateStrategyName = "Duplicates"
 )
 
 // UpdateStrategy is a union of the various strategies for updating
@@ -119,6 +120,7 @@ func SetImageUpdateAutomationReadiness(auto *ImageUpdateAutomation, status metav
 	meta.SetResourceCondition(auto, meta.ReadyCondition, status, reason, message)
 }
 
+//+kubebuilder:storageversion
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Last run",type=string,JSONPath=`.status.lastAutomationRunTime`

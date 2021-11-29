@@ -47,13 +47,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
+	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/gittestserver"
 	"github.com/fluxcd/pkg/ssh"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
-	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta2"
 	"github.com/fluxcd/image-automation-controller/pkg/test"
 	"github.com/fluxcd/image-automation-controller/pkg/update"
 )

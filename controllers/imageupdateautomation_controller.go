@@ -54,7 +54,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
+	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/logger"
@@ -65,7 +65,7 @@ import (
 	gitlibgit2 "github.com/fluxcd/source-controller/pkg/git/libgit2"
 	gitstrat "github.com/fluxcd/source-controller/pkg/git/strategy"
 
-	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta2"
 	"github.com/fluxcd/image-automation-controller/pkg/update"
 )
 
@@ -261,22 +261,29 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	switch {
 	case auto.Spec.Update != nil && auto.Spec.Update.Strategy == imagev1.UpdateStrategySetters:
-		// For setters we first want to compile a list of _all_ the
-		// policies in the same namespace (maybe in the future this
-		// could be filtered by the automation object).
-		var policies imagev1_reflect.ImagePolicyList
-		if err := r.List(ctx, &policies, &client.ListOptions{Namespace: req.NamespacedName.Namespace}); err != nil {
+		policies, err := findPolicies(ctx, tracelog, r, req, nil)
+		if err != nil{
 			return failWithError(err)
 		}
+		debuglog.Info("updating with setters according to image policies", "count", len(policies), "manifests-path", manifestsPath)
 
-		debuglog.Info("updating with setters according to image policies", "count", len(policies.Items), "manifests-path", manifestsPath)
-		if tracelog.Enabled() {
-			for _, item := range policies.Items {
-				tracelog.Info("found policy", "namespace", item.Namespace, "name", item.Name, "latest-image", item.Status.LatestImage)
-			}
+		if result, err := updateAccordingToSetters(ctx, tracelog, manifestsPath, policies); err != nil {
+			return failWithError(err)
+		} else {
+			templateValues.Updated = result
+		}
+	case auto.Spec.Update != nil && auto.Spec.Update.Strategy == imagev1.UpdateStrategyDuplicates:
+		withDiscriminator := func (p imagev1_reflect.ImagePolicy) bool{
+			return p.Spec.FilterTags!=nil && p.Spec.FilterTags.Discriminator != ""
 		}
 
-		if result, err := updateAccordingToSetters(ctx, tracelog, manifestsPath, policies.Items); err != nil {
+		policies, err := findPolicies(ctx, tracelog, r, req, withDiscriminator)
+		if err != nil{
+			return failWithError(err)
+		}
+		debuglog.Info("updating with duplicator according to image policies", "count", len(policies), "manifests-path", manifestsPath)
+
+		if result, err := updateAccordingToDuplicator(ctx, tracelog, manifestsPath, policies); err != nil {
 			return failWithError(err)
 		} else {
 			templateValues.Updated = result
@@ -354,6 +361,34 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	interval := intervalOrDefault(&auto)
 	return ctrl.Result{RequeueAfter: interval}, nil
+}
+
+// To execute policies, we first want to compile a list of _all_ the
+// policies in the same namespace (maybe in the future this could be filtered by the automation object).
+func findPolicies(ctx context.Context, tracelog logr.Logger, r *ImageUpdateAutomationReconciler, req ctrl.Request, filter func(imagev1_reflect.ImagePolicy) bool) ([]imagev1_reflect.ImagePolicy, error) {
+	var policies imagev1_reflect.ImagePolicyList
+	if err := r.List(ctx, &policies, &client.ListOptions{Namespace: req.NamespacedName.Namespace}); err != nil {
+		return nil, err
+	}
+
+	var ret []imagev1_reflect.ImagePolicy
+
+	if filter==nil {
+		ret=policies.Items
+	} else {
+		for _, s := range policies.Items {
+			if filter(s) {
+				ret = append(ret, s)
+			}
+		}
+	}
+
+	if tracelog.Enabled() {
+		for _, item := range ret {
+			tracelog.Info("found policy", "namespace", item.Namespace, "name", item.Name, "latest-image", item.Status.LatestImage)
+		}
+	}
+	return ret, nil
 }
 
 func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager, opts ImageUpdateAutomationReconcilerOptions) error {
@@ -769,6 +804,12 @@ func (r *ImageUpdateAutomationReconciler) recordReadinessMetric(ctx context.Cont
 // the given image policies as kyaml setters.
 func updateAccordingToSetters(ctx context.Context, tracelog logr.Logger, path string, policies []imagev1_reflect.ImagePolicy) (update.Result, error) {
 	return update.UpdateWithSetters(tracelog, path, path, policies)
+}
+
+// updateAccordingToDuplicator will create/update/delete files under the root by treating
+// the given image policies as kyaml setters.
+func updateAccordingToDuplicator(ctx context.Context, tracelog logr.Logger, path string, policies []imagev1_reflect.ImagePolicy) (update.Result, error) {
+	return update.UpdateWithDuplicator(tracelog, path, path, policies)
 }
 
 func (r *ImageUpdateAutomationReconciler) recordSuspension(ctx context.Context, auto imagev1.ImageUpdateAutomation) {

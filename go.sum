@@ -347,8 +347,6 @@ github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d/go.mod h1:ZZM
 github.com/fatih/camelcase v1.0.0/go.mod h1:yN2Sb0lFhZJUdVvtELVWefmrXpuZESvPmqwoZc+/fpc=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/felixge/httpsnoop v1.0.1/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
-github.com/fluxcd/image-reflector-controller/api v0.14.0 h1:JlwwpQENkGSxtAC7VXykpOqObsupO61easXu30jpvb0=
-github.com/fluxcd/image-reflector-controller/api v0.14.0/go.mod h1:ew7uL5XzPH3QTfNxt3BAklDh9ONrR5I2m3D7ST0zE9E=
 github.com/fluxcd/pkg/apis/acl v0.0.1 h1:biCgZMjpDSv3Q4mZPikUJILx3t2MuNXR4Oa5jRQxaNQ=
 github.com/fluxcd/pkg/apis/acl v0.0.1/go.mod h1:y3qOXUFObVWk7jzOjubMnr/u18j1kCeSi6olycnxr/E=
 github.com/fluxcd/pkg/apis/meta v0.10.0/go.mod h1:CW9X9ijMTpNe7BwnokiUOrLl/h13miwVr/3abEQLbKE=
@@ -600,6 +598,8 @@ github.com/gorilla/websocket v1.4.0/go.mod h1:E7qHFY5m1UJ88s3WnNqhKjPHQ0heANvMoA
 github.com/gorilla/websocket v1.4.2/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/gosuri/uitable v0.0.4/go.mod h1:tKR86bXuXPZazfOTG1FIzvjIdXzd0mo4Vtn16vt0PJo=
 github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7/go.mod h1:FecbI9+v66THATjSRHfNgh1IVFe/9kFxbXtjV0ctIMA=
+github.com/gregoirew/image-reflector-controller/api v0.14.9 h1:yVFGMGqCfx2x7gFQv0pUrRMNH3qdZI1COUdwwuc0dqY=
+github.com/gregoirew/image-reflector-controller/api v0.14.9/go.mod h1:ew7uL5XzPH3QTfNxt3BAklDh9ONrR5I2m3D7ST0zE9E=
 github.com/grpc-ecosystem/go-grpc-middleware v1.0.0/go.mod h1:FiyG127CGDf3tlThmgyCl78X/SZQqEOJBCDaAfeWzPs=
 github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190118093823-f849b5445de4/go.mod h1:FiyG127CGDf3tlThmgyCl78X/SZQqEOJBCDaAfeWzPs=
 github.com/grpc-ecosystem/go-grpc-middleware v1.3.0/go.mod h1:z0ButlSOZa5vEBq9m2m2hlwIgKw+rp3sdCBRoJY+30Y=
