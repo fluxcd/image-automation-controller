@@ -261,7 +261,11 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	switch {
 	case auto.Spec.Update != nil && auto.Spec.Update.Strategy == imagev1.UpdateStrategySetters:
-		policies, err := findPolicies(ctx, tracelog, r, req, nil)
+		withoutDiscriminator := func (p imagev1_reflect.ImagePolicy) bool{
+			return p.Spec.FilterTags==nil || p.Spec.FilterTags.Discriminator == ""
+		}
+
+		policies, err := findPolicies(ctx, tracelog, r, req, withoutDiscriminator)
 		if err != nil{
 			return failWithError(err)
 		}
