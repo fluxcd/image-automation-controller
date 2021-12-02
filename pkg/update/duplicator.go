@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"text/template"
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
@@ -143,7 +145,8 @@ func simpleFilter(worker *duplicatorWorker, resultCallback func(file string, set
 				return nil, err
 			}
 
-			if err = worker.updateLatest(); err!=nil {
+			newNodes, err := worker.updateKubeObject()
+			if err != nil {
 				return nil, err
 			}
 
@@ -157,6 +160,7 @@ func simpleFilter(worker *duplicatorWorker, resultCallback func(file string, set
 					nodesInUpdatedFiles = append(nodesInUpdatedFiles, nodes[i])
 				}
 			}
+			nodesInUpdatedFiles = append(nodesInUpdatedFiles, newNodes...)
 			return nodesInUpdatedFiles, nil
 		})
 }
@@ -174,7 +178,7 @@ func (worker *duplicatorWorker) fillFileChanges(nodes []*yaml.RNode) (sets.Strin
 
 		listChange := []duplicatorNode{}
 
-		if err := worker.findNodeWithPolicies(nodes[i], "", &listChange); err != nil {
+		if err := worker.findNodeWithPolicies(nodes[i], &listChange); err != nil {
 			return nil, err
 		}
 
@@ -203,34 +207,34 @@ func (worker *duplicatorWorker) fillFileChanges(nodes []*yaml.RNode) (sets.Strin
 	return filesToUpdate, nil
 }
 
-func (w *duplicatorWorker) findNodeWithPolicies(object *yaml.RNode, path string, toModify *[]duplicatorNode) error{
+func (w *duplicatorWorker) findNodeWithPolicies(object *yaml.RNode, toModify *[]duplicatorNode) error {
 	// accept walks the AST and calls the visitor at each scalar node.
 	switch object.YNode().Kind {
 	case yaml.DocumentNode:
 		// Traverse the child of the document
-		return w.findNodeWithPolicies(yaml.NewRNode(object.YNode()), path, toModify)
+		return w.findNodeWithPolicies(yaml.NewRNode(object.YNode()), toModify)
 	case yaml.MappingNode:
 		return object.VisitFields(func(node *yaml.MapNode) error {
 			// Traverse each field value
-			return w.findNodeWithPolicies(node.Value, path+"."+node.Key.YNode().Value, toModify)
+			return w.findNodeWithPolicies(node.Value, toModify)
 		})
 	case yaml.SequenceNode:
 		return object.VisitElements(func(node *yaml.RNode) error {
 			// Traverse each list element
-			return w.findNodeWithPolicies(node, path, toModify)
+			return w.findNodeWithPolicies(node, toModify)
 		})
 	case yaml.ScalarNode:
-		return w.detectScalarWithPolicy(object, path, toModify)
+		return w.detectScalarWithPolicy(object, toModify)
 	}
 	return nil
 }
 
-func (w *duplicatorWorker) detectScalarWithPolicy(node *yaml.RNode, path string, toModify *[]duplicatorNode) error {
+func (w *duplicatorWorker) detectScalarWithPolicy(node *yaml.RNode, toModify *[]duplicatorNode) error {
 	comment := node.YNode().LineComment
 
 	if comment == "" {
-			return nil
-		}
+		return nil
+	}
 
 	comment = strings.TrimLeft(comment, "#")
 
@@ -250,9 +254,9 @@ func (w *duplicatorWorker) detectScalarWithPolicy(node *yaml.RNode, path string,
 	}
 
 	if _, ok := w.policies[fmt.Sprintf("%s:%s",split[0],split[1])] ; ok {
-		w.tracelog.Info("Found parametrized node", "path", path)
+		w.tracelog.Info("Found parametrized node", "path", strings.Join(node.FieldPath(), "."))
 		ref := duplicatorNode{
-			node: node,
+			node:      node,
 			parameter: input,
 		}
 		*toModify = append(*toModify, ref)
@@ -261,24 +265,12 @@ func (w *duplicatorWorker) detectScalarWithPolicy(node *yaml.RNode, path string,
 	return nil
 }
 
-
-func (worker *duplicatorWorker) updateLatest() error {
-	for path, lstObject := range worker.fileChanges {
-		var filePolicy *imagev1_reflect.ImagePolicy
-		for _, object := range lstObject {
-			for _, change := range object.changes {
-				p, err := worker.updateNode(change.node, change.parameter, true)
-				if err!=nil {
-					return err
-				}
-				if filePolicy == nil {
-					filePolicy = p
-				} else {
-					if filePolicy != filePolicy {
-						return fmt.Errorf("Policy name mismatch for file %s", path)
-					}
-				}
-			}
+func (worker *duplicatorWorker) updateKubeObject() ([]*yaml.RNode, error) {
+	var newNodes []*yaml.RNode
+	for path, _ := range worker.fileChanges {
+		filePolicy, err := worker.updateBaseFile(path)
+		if err != nil {
+			return nil, err
 		}
 		if filePolicy == nil {
 			continue
@@ -290,7 +282,7 @@ func (worker *duplicatorWorker) updateLatest() error {
 			if _, ok := filePolicy.Status.Distribution[d]; !ok {
 				_, _, fd := buildFilename(filepath.Join(worker.inpath, path), d)
 				if os.Remove(fd) != nil {
-					return fmt.Errorf("Unable to remove file %s", fd)
+					return nil, fmt.Errorf("Unable to remove file %s", fd)
 				}
 			}
 		}
@@ -298,30 +290,121 @@ func (worker *duplicatorWorker) updateLatest() error {
 		for _, d := range existingDiscriminator {
 			if _, ok := filePolicy.Status.Distribution[d]; ok {
 				_, _, fd := buildFilename(filepath.Join(worker.inpath, path), d)
-				nodes, err := kioReadFile(worker.inpath, fd)
-				if err!=nil {
-					return err
+				fdRel, err := filepath.Rel(worker.inpath, fd)
+				if err != nil {
+					return nil, err
 				}
-
+				nodes, err := kioReadFile(worker.inpath, fd)
+				if err != nil {
+					return nil, err
+				}
+				duplicatedNode, err := worker.processDuplicatedFile(path, fdRel, d, nodes)
+				if err != nil {
+					return nil, err
+				}
+				newNodes = append(newNodes, duplicatedNode...)
 			}
 		}
+
 		// Create the new discriminator file
+		existingDiscriminatorSet := sets.String{}
+		existingDiscriminatorSet.Insert(existingDiscriminator...)
+		for disc, _ := range filePolicy.Status.Distribution {
+			if existingDiscriminatorSet.Has(disc) {
+				continue
+			}
+			_, _, fd := buildFilename(path, disc)
+			duplicatedNode, err := worker.processDuplicatedFile(path, fd, disc, nil)
+			if err != nil {
+				return nil, err
+			}
+			newNodes = append(newNodes, duplicatedNode...)
+		}
 	}
-	return nil
+	return newNodes, nil
 }
 
-func (worker *duplicatorWorker) updateNode(node *yaml.RNode, parameter map[string]string, keepComment bool) (*imagev1_reflect.ImagePolicy, error) {
+func (worker *duplicatorWorker) processDuplicatedFile(path string, newFile string, disc string, previousVersion []*yaml.RNode) ([]*yaml.RNode, error) {
+	newNodes := []*yaml.RNode{}
+	lstObject := worker.fileChanges[path]
+	for index, object := range lstObject {
+		newObj := object.object.Copy()
+		if err := newObj.PipeE(yaml.SetAnnotation(kioutil.PathAnnotation, newFile)); err != nil {
+			return nil, err
+		}
+		if err := newObj.PipeE(yaml.SetAnnotation(kioutil.IndexAnnotation, strconv.Itoa(index))); err != nil {
+			return nil, err
+		}
+		newNodes = append(newNodes, newObj)
+		nodeChange := []duplicatorNode{}
+		if err := worker.findNodeWithPolicies(newObj, &nodeChange); err != nil {
+			return nil, err
+		}
+		for _, change := range nodeChange {
+			// println("node change", strings.Join(change.node.FieldPath(), "."))
+			_, err := worker.updateNode(change.node, change.parameter, disc, false)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if previousVersion != nil {
+			worker.tracelog.Info("Change for this is", reflect.DeepEqual(previousVersion[index], newObj))
+		}
+	}
+	return newNodes, nil
+}
+
+func (worker *duplicatorWorker) updateBaseFile(path string) (*imagev1_reflect.ImagePolicy, error) {
+	var filePolicy *imagev1_reflect.ImagePolicy
+	lstObject := worker.fileChanges[path]
+	for _, object := range lstObject {
+		for _, change := range object.changes {
+			p, err := worker.updateNode(change.node, change.parameter, "", true)
+			if err != nil {
+				return nil, err
+			}
+			if filePolicy == nil {
+				filePolicy = p
+			} else {
+				if filePolicy != filePolicy {
+					return nil, fmt.Errorf("Policy name mismatch for file %s", path)
+				}
+			}
+		}
+	}
+	return filePolicy, nil
+}
+
+func (worker *duplicatorWorker) updateNode(node *yaml.RNode, parameter map[string]string, discriminator string, keepComment bool) (*imagev1_reflect.ImagePolicy, error) {
 	policyFull := parameter[SetterShortHand]
 	policySplitted := strings.Split(policyFull, ":")
 	policyStr := fmt.Sprintf("%s:%s", policySplitted[0], policySplitted[1])
 	additionalTag := ""
-	if (len(policySplitted) == 3) {
+	if len(policySplitted) == 3 {
 		additionalTag = policySplitted[2]
 	}
 	policy := worker.policies[policyStr]
 
 	if policy.Status.LatestImage == "" {
 		return &policy, nil
+	}
+
+	dataDiscriminator := discriminator
+	if discriminator == "" {
+		dataDiscriminator = policy.Status.LatestDiscriminator
+	}
+
+	rawData := policy.Status.Distribution[dataDiscriminator]
+
+	data := map[string]interface{}{}
+	data["attributes"] = rawData.Attributes
+	data["image"] = rawData.Image
+	data["tag"] = rawData.Tag
+	data["discriminator"] = discriminator
+	if discriminator != "" {
+		data["optionalSeparator"] = "-"
+	} else {
+		data["optionalSeparator"] = ""
 	}
 
 	tmpl := ""
@@ -331,16 +414,14 @@ func (worker *duplicatorWorker) updateNode(node *yaml.RNode, parameter map[strin
 	if additionalTag != "" {
 		switch additionalTag {
 		case "tag":
-			tmpl = "{{.Tag}}"
+			tmpl = "{{.tag}}"
 		case "name":
-			tmpl = "{{.Image}}"
+			tmpl = "{{.image}}"
 		}
 	}
 	if tmpl == "" {
-		tmpl = "{{.Image}}:{{.Tag}}"
+		tmpl = "{{.image}}:{{.tag}}"
 	}
-
-	data := policy.Status.Distribution[policy.Status.LatestDiscriminator]
 
 	t := template.Must(template.New("").Parse(tmpl))
 	builder := &strings.Builder{}
@@ -374,7 +455,10 @@ func buildFilename(path, disc string) (string, string, string) {
 	dir, file := filepath.Split(path)
 	ext := filepath.Ext(file)
 	filename := strings.TrimSuffix(file, ext)
-	glob := dir + "/" + filename + "__"+disc+"." + ext
+	if dir != "" {
+		dir = dir + "/"
+	}
+	glob := dir + filename + "__" + disc + ext
 	return filename, ext, glob
 }
 

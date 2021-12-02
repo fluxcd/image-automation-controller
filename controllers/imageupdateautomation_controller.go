@@ -601,6 +601,12 @@ func commitChangedManifests(tracelog logr.Logger, repo *gogit.Repository, absRep
 		abspath := filepath.Join(absRepoPath, file)
 		info, err := os.Lstat(abspath)
 		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				working.Add(file)
+				changed = true
+				// file doesn't exist, so it's not a broken symlink
+				continue
+			}
 			return "", fmt.Errorf("checking if %s is a symlink: %w", file, err)
 		}
 		if info.Mode()&os.ModeSymlink > 0 {
