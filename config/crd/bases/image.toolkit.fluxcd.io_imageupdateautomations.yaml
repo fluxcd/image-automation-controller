@@ -690,6 +690,8 @@ spec:
             - sourceRef
             type: object
           status:
+            default:
+              observedGeneration: -1
             description: ImageUpdateAutomationStatus defines the observed state of
               ImageUpdateAutomation
             properties:

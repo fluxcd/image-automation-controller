@@ -129,7 +129,8 @@ type ImageUpdateAutomation struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ImageUpdateAutomationSpec   `json:"spec,omitempty"`
+	Spec ImageUpdateAutomationSpec `json:"spec,omitempty"`
+	// +kubebuilder:default={"observedGeneration":-1}
 	Status ImageUpdateAutomationStatus `json:"status,omitempty"`
 }
 
