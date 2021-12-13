@@ -47,6 +47,10 @@ endif
 
 ifeq ($(shell uname -s),Darwin)
 	LIBGIT2 := $(LIBGIT2_LIB_PATH)/libgit2.$(LIBGIT2_VERSION).dylib
+    HAS_BREW := $(shell brew --version 2>/dev/null)
+ifdef HAS_BREW
+	HAS_OPENSSL := $(shell brew --prefix openssl@1.1)
+endif
 endif
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -54,6 +58,16 @@ ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
 else
 GOBIN=$(shell go env GOBIN)
+endif
+
+ifeq ($(strip ${PKG_CONFIG_PATH}),)
+	MAKE_PKG_CONFIG_PATH = $(LIBGIT2_LIB_PATH)/pkgconfig
+else
+	MAKE_PKG_CONFIG_PATH = ${PKG_CONFIG_PATH}:$(LIBGIT2_LIB_PATH)/pkgconfig
+endif
+
+ifdef HAS_OPENSSL
+	MAKE_PKG_CONFIG_PATH := $(MAKE_PKG_CONFIG_PATH):$(HAS_OPENSSL)/lib/pkgconfig
 endif
 
 TEST_CRDS := controllers/testdata/crds
@@ -88,19 +102,39 @@ ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml:
 		-o ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml
 
 test: $(LIBGIT2) test-api test_deps generate fmt vet manifests api-docs	## Run tests
+ifeq ($(shell uname -s),Darwin)
 	LD_LIBRARY_PATH=$(LIBGIT2_LIB_PATH) \
-	PKG_CONFIG_PATH=$(LIBGIT2_LIB_PATH)/pkgconfig/:$(PKG_CONFIG_PATH) \
+	PKG_CONFIG_PATH=$(MAKE_PKG_CONFIG_PATH) \
+    CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
 	go test ./... -coverprofile cover.out
+else
+	LD_LIBRARY_PATH=$(LIBGIT2_LIB_PATH) \
+	PKG_CONFIG_PATH=$(MAKE_PKG_CONFIG_PATH) \
+	go test ./... -coverprofile cover.out
+endif
 
 test-api:	## Run api tests
 	cd api; go test ./... -coverprofile cover.out
 
 manager: $(LIBGIT2) generate fmt vet	## Build manager binary
-	PKG_CONFIG_PATH=$(LIBGIT2_LIB_PATH)/pkgconfig/:$(PKG_CONFIG_PATH) \
+ifeq ($(shell uname -s),Darwin)
+	PKG_CONFIG_PATH=$(MAKE_PKG_CONFIG_PATH) \
+    CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
 	go build -o bin/manager main.go
+else
+	PKG_CONFIG_PATH=$(MAKE_PKG_CONFIG_PATH) \
+    CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
+	go build -o bin/manager main.go
+endif
+
 
 run: $(LIBGIT2) generate fmt vet manifests	# Run against the configured Kubernetes cluster in ~/.kube/config
+ifeq ($(shell uname -s),Darwin)
+    CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
 	go run ./main.go --log-level=${LOG_LEVEL} --log-encoding=console
+else
+	go run ./main.go --log-level=${LOG_LEVEL} --log-encoding=console
+endif
 
 install: manifests	## Install CRDs into a cluster
 	kustomize build config/crd | kubectl apply -f -
@@ -133,9 +167,17 @@ fmt:	## Run go fmt against code
 	cd api; go fmt ./...
 
 vet: $(LIBGIT2)	## Run go vet against code
-	PKG_CONFIG_PATH=$(LIBGIT2_LIB_PATH)/pkgconfig:$(PKG_CONFIG_PATH) \
+ifeq ($(shell uname -s),Darwin)
+	PKG_CONFIG_PATH=$(MAKE_PKG_CONFIG_PATH) \
+    CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
 	go vet ./...
 	cd api; go vet ./...
+else
+	PKG_CONFIG_PATH=$(MAKE_PKG_CONFIG_PATH) \
+	go vet ./...
+	cd api; go vet ./...
+endif
+
 
 generate: controller-gen	## Generate code
 	cd api; $(CONTROLLER_GEN) object:headerFile="../hack/boilerplate.go.txt" paths="./..."
