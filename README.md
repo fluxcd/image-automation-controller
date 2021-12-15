@@ -27,5 +27,5 @@ locally. The version required corresponds to the version of git2go
 table](https://github.com/libgit2/git2go#which-go-version-to-use).
 
 See
-https://github.com/fluxcd/source-controller/blob/main/CONTRIBUTING.md#installing-required-dependencies
+https://github.com/fluxcd/source-controller/blob/main/DEVELOPMENT.md#installing-required-dependencies
 for instructions on how to install `libgit2`.
