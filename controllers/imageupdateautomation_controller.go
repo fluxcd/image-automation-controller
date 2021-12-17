@@ -320,14 +320,15 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	if rev, err := commitChangedManifests(tracelog, repo, tmp, signingEntity, author, message); err != nil {
-		if err == errNoChanges {
-			debuglog.Info("no changes made in working directory; no commit")
-			statusMessage = "no updates made"
-			if lastCommit, lastTime := auto.Status.LastPushCommit, auto.Status.LastPushTime; lastCommit != "" {
-				statusMessage = fmt.Sprintf("%s; last commit %s at %s", statusMessage, lastCommit[:7], lastTime.Format(time.RFC3339))
-			}
-		} else {
+		if err != errNoChanges {
 			return failWithError(err)
+		}
+
+		debuglog.Info("no changes made in working directory; no commit")
+		statusMessage = "no updates made"
+
+		if auto.Status.LastPushTime != nil && len(auto.Status.LastPushCommit) >= 7 {
+			statusMessage = fmt.Sprintf("%s; last commit %s at %s", statusMessage, auto.Status.LastPushCommit[:7], auto.Status.LastPushTime.Format(time.RFC3339))
 		}
 	} else {
 		// Use the git operations timeout for the repo.
