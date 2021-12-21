@@ -262,11 +262,11 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		manifestsPath := tmp
 		if auto.Spec.Update.Path != "" {
 			tracelog.Info("adjusting update path according to .spec.update.path", "base", tmp, "spec-path", auto.Spec.Update.Path)
-			if p, err := securejoin.SecureJoin(tmp, auto.Spec.Update.Path); err != nil {
+			p, err := securejoin.SecureJoin(tmp, auto.Spec.Update.Path)
+			if err != nil {
 				return failWithError(err)
-			} else {
-				manifestsPath = p
 			}
+			manifestsPath = p
 		}
 
 		debuglog.Info("updating with setters according to image policies", "count", len(policies.Items), "manifests-path", manifestsPath)
