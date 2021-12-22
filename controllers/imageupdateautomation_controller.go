@@ -249,16 +249,6 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		}
 	}
 
-	manifestsPath := tmp
-	if auto.Spec.Update.Path != "" {
-		tracelog.Info("adjusting update path according to .spec.update.path", "base", tmp, "spec-path", auto.Spec.Update.Path)
-		if p, err := securejoin.SecureJoin(tmp, auto.Spec.Update.Path); err != nil {
-			return failWithError(err)
-		} else {
-			manifestsPath = p
-		}
-	}
-
 	switch {
 	case auto.Spec.Update != nil && auto.Spec.Update.Strategy == imagev1.UpdateStrategySetters:
 		// For setters we first want to compile a list of _all_ the
@@ -267,6 +257,16 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		var policies imagev1_reflect.ImagePolicyList
 		if err := r.List(ctx, &policies, &client.ListOptions{Namespace: req.NamespacedName.Namespace}); err != nil {
 			return failWithError(err)
+		}
+
+		manifestsPath := tmp
+		if auto.Spec.Update.Path != "" {
+			tracelog.Info("adjusting update path according to .spec.update.path", "base", tmp, "spec-path", auto.Spec.Update.Path)
+			p, err := securejoin.SecureJoin(tmp, auto.Spec.Update.Path)
+			if err != nil {
+				return failWithError(err)
+			}
+			manifestsPath = p
 		}
 
 		debuglog.Info("updating with setters according to image policies", "count", len(policies.Items), "manifests-path", manifestsPath)
