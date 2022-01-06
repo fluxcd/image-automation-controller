@@ -54,10 +54,9 @@ type ScreeningLocalReader struct {
 // adapting lightly (mainly to leave features out).
 func (r *ScreeningLocalReader) Read() ([]*yaml.RNode, error) {
 	tracelog := r.Trace
-	if tracelog == nil {
+	if (logr.Logger{} == tracelog) {
 		tracelog = logr.Discard()
 	}
-
 	tracelog.Info("scanning files", "path", r.Path, "token", r.Token)
 
 	if r.Path == "" {

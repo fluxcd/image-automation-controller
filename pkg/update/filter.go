@@ -53,7 +53,7 @@ type SetAllCallback struct {
 }
 
 func (s *SetAllCallback) TraceOrDiscard() logr.Logger {
-	if s.Trace == nil {
+	if (logr.Logger{} == s.Trace) {
 		return logr.Discard()
 	}
 	return s.Trace

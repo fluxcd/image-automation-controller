@@ -102,7 +102,7 @@ type ImageUpdateAutomationReconcilerOptions struct {
 // +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=gitrepositories,verbs=get;list;watch
 
 func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logr.FromContext(ctx)
+	log := ctrl.LoggerFrom(ctx)
 	debuglog := log.V(logger.DebugLevel)
 	tracelog := log.V(logger.TraceLevel)
 	now := time.Now()
@@ -736,12 +736,12 @@ func (r *ImageUpdateAutomationReconciler) event(ctx context.Context, auto imagev
 	if r.ExternalEventRecorder != nil {
 		objRef, err := reference.GetReference(r.Scheme, &auto)
 		if err != nil {
-			logr.FromContext(ctx).Error(err, "unable to send event")
+			ctrl.LoggerFrom(ctx).Error(err, "unable to send event")
 			return
 		}
 
 		if err := r.ExternalEventRecorder.Eventf(*objRef, nil, severity, severity, msg); err != nil {
-			logr.FromContext(ctx).Error(err, "unable to send event")
+			ctrl.LoggerFrom(ctx).Error(err, "unable to send event")
 			return
 		}
 	}
@@ -754,7 +754,7 @@ func (r *ImageUpdateAutomationReconciler) recordReadinessMetric(ctx context.Cont
 
 	objRef, err := reference.GetReference(r.Scheme, auto)
 	if err != nil {
-		logr.FromContext(ctx).Error(err, "unable to record readiness metric")
+		ctrl.LoggerFrom(ctx).Error(err, "unable to record readiness metric")
 		return
 	}
 	if rc := apimeta.FindStatusCondition(auto.Status.Conditions, meta.ReadyCondition); rc != nil {
@@ -779,7 +779,7 @@ func (r *ImageUpdateAutomationReconciler) recordSuspension(ctx context.Context, 
 	if r.MetricsRecorder == nil {
 		return
 	}
-	log := logr.FromContext(ctx)
+	log := ctrl.LoggerFrom(ctx)
 
 	objRef, err := reference.GetReference(r.Scheme, &auto)
 	if err != nil {
