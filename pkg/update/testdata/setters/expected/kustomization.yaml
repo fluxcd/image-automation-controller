@@ -2,8 +2,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - unimportant.yaml
+- unimportant.yaml
 images:
-  - name: container
-    newName: index.repo.fake/updated # {"$imagepolicy": "automation-ns:policy:name"}
-    newTag: v1.0.1 # {"$imagepolicy": "automation-ns:policy:tag"}
+- name: container
+  newName: index.repo.fake/updated # {"$imagepolicy": "automation-ns:policy:name"}
+  newTag: v1.0.1 # {"$imagepolicy": "automation-ns:policy:tag"}

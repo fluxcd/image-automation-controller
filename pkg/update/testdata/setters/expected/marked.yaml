@@ -10,7 +10,7 @@ spec:
       template:
         spec:
           containers:
-            - name: c
-              image: index.repo.fake/updated:v1.0.1 # {"$imagepolicy": "automation-ns:policy"}
-            - name: d
-              image: image:v1.0.0 # {"$imagepolicy": "automation-ns:unchanged"}
+          - name: c
+            image: index.repo.fake/updated:v1.0.1 # {"$imagepolicy": "automation-ns:policy"}
+          - name: d
+            image: image:v1.0.0 # {"$imagepolicy": "automation-ns:unchanged"}

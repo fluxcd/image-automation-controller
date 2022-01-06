@@ -10,5 +10,5 @@ spec:
       template:
         spec:
           containers:
-            - name: c
-              image: used:v1.1.0
+          - name: c
+            image: used:v1.1.0
