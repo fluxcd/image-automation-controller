@@ -215,7 +215,11 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	if err != nil {
 		return failWithError(err)
 	}
-	defer os.RemoveAll(tmp)
+	defer func() {
+		if err := os.RemoveAll(tmp); err != nil {
+			log.Error(err, "failed to remove working directory", "path", tmp)
+		}
+	}()
 
 	// FIXME use context with deadline for at least the following ops
 
