@@ -17,6 +17,7 @@ limitations under the License.
 package update
 
 import (
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
@@ -27,6 +28,7 @@ var _ = Describe("load YAMLs with ScreeningLocalReader", func() {
 		r := ScreeningLocalReader{
 			Path:  "testdata/setters/original",
 			Token: "$imagepolicy",
+			Trace: logr.Discard(),
 		}
 		nodes, err := r.Read()
 		Expect(err).ToNot(HaveOccurred())
