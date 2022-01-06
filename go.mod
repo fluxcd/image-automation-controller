@@ -125,5 +125,5 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-// pink kyaml to prevent indent changes
-replace sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.10.21
+// pin kustomize to v4.4.1
+replace sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.13.0
