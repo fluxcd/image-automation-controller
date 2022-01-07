@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.19.0
+
+**Release date:** 2022-01-07
+
+This prerelease comes with an update to the Kubernetes and controller-runtime dependencies
+to align them with the Kubernetes 1.23 release.
+
+In addition, the controller is now built with Go 1.17.
+
+Improvements:
+* Update Go to v1.17
+  [#248](https://github.com/fluxcd/image-automation-controller/pull/248)
+* Log the error when removing the working dir fails
+  [#287](https://github.com/fluxcd/image-automation-controller/pull/287)
+
+Fixes:
+* Fix potentially broken support for macOS
+  [#278](https://github.com/fluxcd/image-automation-controller/pull/278)
+* Move Path check into switch case
+  [#284](https://github.com/fluxcd/image-automation-controller/pull/284)
+
 ## 0.18.0
 
 **Release date:** 2021-11-23

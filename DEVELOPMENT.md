@@ -75,7 +75,7 @@ followed using any other package manager, e.g. `apt`.
 ## How to run the test suite
 
 Prerequisites:
-* go >= 1.16
+* go >= 1.17
 * kubebuilder >= 2.3
 * kustomize >= 3.1
 
