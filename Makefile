@@ -47,7 +47,7 @@ endif
 
 ifeq ($(shell uname -s),Darwin)
 	LIBGIT2 := $(LIBGIT2_LIB_PATH)/libgit2.$(LIBGIT2_VERSION).dylib
-    HAS_BREW := $(shell brew --version 2>/dev/null)
+	HAS_BREW := $(shell brew --version 2>/dev/null)
 ifdef HAS_BREW
 	HAS_OPENSSL := $(shell brew --prefix openssl@1.1)
 endif
@@ -105,7 +105,7 @@ test: $(LIBGIT2) test-api test_deps generate fmt vet manifests api-docs	## Run t
 ifeq ($(shell uname -s),Darwin)
 	LD_LIBRARY_PATH=$(LIBGIT2_LIB_PATH) \
 	PKG_CONFIG_PATH=$(MAKE_PKG_CONFIG_PATH) \
-    CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
+	CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
 	go test ./... -coverprofile cover.out
 else
 	LD_LIBRARY_PATH=$(LIBGIT2_LIB_PATH) \
@@ -119,11 +119,11 @@ test-api:	## Run api tests
 manager: $(LIBGIT2) generate fmt vet	## Build manager binary
 ifeq ($(shell uname -s),Darwin)
 	PKG_CONFIG_PATH=$(MAKE_PKG_CONFIG_PATH) \
-    CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
+	CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
 	go build -o bin/manager main.go
 else
 	PKG_CONFIG_PATH=$(MAKE_PKG_CONFIG_PATH) \
-    CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
+	CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
 	go build -o bin/manager main.go
 endif
 
@@ -169,7 +169,7 @@ fmt:	## Run go fmt against code
 vet: $(LIBGIT2)	## Run go vet against code
 ifeq ($(shell uname -s),Darwin)
 	PKG_CONFIG_PATH=$(MAKE_PKG_CONFIG_PATH) \
-    CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
+	CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
 	go vet ./...
 	cd api; go vet ./...
 else
