@@ -75,6 +75,9 @@ TEST_CRDS := controllers/testdata/crds
 # Log level for `make run`
 LOG_LEVEL ?= info
 
+# Architecture to use envtest with
+ENVTEST_ARCH ?= amd64
+
 all: manager
 
 # Running the tests requires the source.toolkit.fluxcd.io CRDs
@@ -101,15 +104,18 @@ ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml:
 	curl -s --fail https://raw.githubusercontent.com/fluxcd/image-reflector-controller/${REFLECTOR_VER}/config/crd/bases/image.toolkit.fluxcd.io_imagepolicies.yaml \
 		-o ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml
 
-test: $(LIBGIT2) test-api test_deps generate fmt vet manifests api-docs	## Run tests
+KUBEBUILDER_ASSETS?="$(shell $(ENVTEST) --arch=$(ENVTEST_ARCH) use -i $(ENVTEST_KUBERNETES_VERSION) --bin-dir=$(ENVTEST_ASSETS_DIR) -p path)"
+test: $(LIBGIT2) test-api test_deps generate fmt vet manifests api-docs	install-envtest ## Run tests
 ifeq ($(shell uname -s),Darwin)
 	LD_LIBRARY_PATH=$(LIBGIT2_LIB_PATH) \
 	PKG_CONFIG_PATH=$(MAKE_PKG_CONFIG_PATH) \
 	CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
+	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) \
 	go test ./... -coverprofile cover.out
 else
 	LD_LIBRARY_PATH=$(LIBGIT2_LIB_PATH) \
 	PKG_CONFIG_PATH=$(MAKE_PKG_CONFIG_PATH) \
+	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) \
 	go test ./... -coverprofile cover.out
 endif
 
@@ -130,7 +136,7 @@ endif
 
 run: $(LIBGIT2) generate fmt vet manifests	# Run against the configured Kubernetes cluster in ~/.kube/config
 ifeq ($(shell uname -s),Darwin)
-    CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
+	CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
 	go run ./main.go --log-level=${LOG_LEVEL} --log-encoding=console
 else
 	go run ./main.go --log-level=${LOG_LEVEL} --log-encoding=console
@@ -196,35 +202,11 @@ docker-push:	## Push the Docker image
 docker-deploy:	## Set the Docker image in-cluster
 	kubectl -n flux-system set image deployment/image-automation-controller manager=$(IMG):$(TAG)
 
-controller-gen: 	## Find or download controller-gen
-ifeq (, $(shell which controller-gen))
-	@{ \
-	set -e ;\
-	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
-	cd $$CONTROLLER_GEN_TMP_DIR ;\
-	go mod init tmp ;\
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.7.0 ;\
-	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
-	}
-CONTROLLER_GEN=$(GOBIN)/controller-gen
-else
-CONTROLLER_GEN=$(shell which controller-gen)
-endif
-
-gen-crd-api-reference-docs:	## Find or download gen-crd-api-reference-docs
-ifeq (, $(shell which gen-crd-api-reference-docs))
-	@{ \
-	set -e ;\
-	API_REF_GEN_TMP_DIR=$$(mktemp -d) ;\
-	cd $$API_REF_GEN_TMP_DIR ;\
-	go mod init tmp ;\
-	go get github.com/ahmetb/gen-crd-api-reference-docs@v0.3.0 ;\
-	rm -rf $$API_REF_GEN_TMP_DIR ;\
-	}
-API_REF_GEN=$(GOBIN)/gen-crd-api-reference-docs
-else
-API_REF_GEN=$(shell which gen-crd-api-reference-docs)
-endif
+# Find or download controller-gen
+CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
+.PHONY: controller-gen
+controller-gen: ## Download controller-gen locally if necessary.
+	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.7.0)
 
 libgit2: $(LIBGIT2)  ## Detect or download libgit2 library
 
@@ -237,6 +219,37 @@ ifeq (1, $(LIBGIT2_FORCE))
 	INSTALL_PREFIX=$(LIBGIT2_PATH) make -C $(LIBGIT2_PATH) libgit2; \
 	}
 endif
+
+# Find or download gen-crd-api-reference-docs
+GEN_CRD_API_REFERENCE_DOCS = $(shell pwd)/bin/gen-crd-api-reference-docs
+.PHONY: gen-crd-api-reference-docs
+gen-crd-api-reference-docs:
+	$(call go-install-tool,$(GEN_CRD_API_REFERENCE_DOCS),github.com/ahmetb/gen-crd-api-reference-docs@v0.3.0)
+
+ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
+ENVTEST_KUBERNETES_VERSION?=latest
+install-envtest: setup-envtest
+	mkdir -p ${ENVTEST_ASSETS_DIR}
+	$(ENVTEST) use $(ENVTEST_KUBERNETES_VERSION) --arch=$(ENVTEST_ARCH) --bin-dir=$(ENVTEST_ASSETS_DIR)
+
+ENVTEST = $(shell pwd)/bin/setup-envtest
+.PHONY: envtest
+setup-envtest: ## Download envtest-setup locally if necessary.
+	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
+
+# go-install-tool will 'go install' any package $2 and install it to $1.
+PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
+define go-install-tool
+@[ -f $(1) ] || { \
+set -e ;\
+TMP_DIR=$$(mktemp -d) ;\
+cd $$TMP_DIR ;\
+go mod init tmp ;\
+echo "Downloading $(2)" ;\
+GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
+rm -rf $$TMP_DIR ;\
+}
+endef
 
 .PHONY: help
 help:  ## Display this help menu
