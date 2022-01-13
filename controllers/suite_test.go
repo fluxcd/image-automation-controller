@@ -17,6 +17,7 @@ limitations under the License.
 package controllers
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 
@@ -45,6 +46,8 @@ var k8sClient client.Client
 var k8sManager ctrl.Manager
 var imageAutoReconciler *ImageUpdateAutomationReconciler
 var testEnv *envtest.Environment
+var ctx context.Context
+var cancel context.CancelFunc
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -58,6 +61,7 @@ var _ = BeforeSuite(func(done Done) {
 	ctrl.SetLogger(
 		zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)),
 	)
+	ctx, cancel = context.WithCancel(context.TODO())
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
@@ -91,7 +95,7 @@ var _ = BeforeSuite(func(done Done) {
 
 	go func() {
 		defer GinkgoRecover()
-		err = k8sManager.Start(ctrl.SetupSignalHandler())
+		err = k8sManager.Start(ctx)
 		Expect(err).ToNot(HaveOccurred())
 	}()
 
@@ -105,6 +109,7 @@ var _ = BeforeSuite(func(done Done) {
 }, 60)
 
 var _ = AfterSuite(func() {
+	cancel()
 	By("tearing down the test environment")
 	err := testEnv.Stop()
 	Expect(err).ToNot(HaveOccurred())
