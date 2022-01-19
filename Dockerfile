@@ -69,10 +69,6 @@ FROM prepare-${BASE_VARIANT} as build
 
 FROM debian:${BASE_VARIANT}-slim as controller
 
-# Configure user
-RUN groupadd controller && \
-    useradd --gid controller --shell /bin/sh --create-home controller
-
 # Copy libgit2
 COPY --from=build /libgit2/lib/ /usr/local/lib/
 RUN ldconfig
@@ -90,5 +86,6 @@ RUN echo "deb http://deb.debian.org/debian sid main" >> /etc/apt/sources.list \
 # Copy over binary from build
 COPY --from=build /workspace/image-automation-controller /usr/local/bin/
 
-USER controller
+USER 65534:65534
+
 ENTRYPOINT [ "image-automation-controller" ]
