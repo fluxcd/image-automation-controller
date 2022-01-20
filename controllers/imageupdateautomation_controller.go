@@ -490,7 +490,15 @@ func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, rep
 }
 
 func (r repoAccess) remoteCallbacks(ctx context.Context) libgit2.RemoteCallbacks {
-	return gitlibgit2.RemoteCallbacks(ctx, r.auth)
+	callbacks := gitlibgit2.RemoteCallbacks(ctx, r.auth)
+
+	// Unset timeout related callbacks in an attempt to resolve
+	// https://github.com/fluxcd/image-automation-controller/issues/296
+	callbacks.SidebandProgressCallback = nil
+	callbacks.TransferProgressCallback = nil
+	callbacks.PushTransferProgressCallback = nil
+
+	return callbacks
 }
 
 // cloneInto clones the upstream repository at the `ref` given (which
