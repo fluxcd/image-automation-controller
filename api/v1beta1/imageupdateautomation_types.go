@@ -29,7 +29,7 @@ type ImageUpdateAutomationSpec struct {
 	// SourceRef refers to the resource giving access details
 	// to a git repository.
 	// +required
-	SourceRef SourceReference `json:"sourceRef"`
+	SourceRef CrossNamespaceSourceReference `json:"sourceRef"`
 	// GitSpec contains all the git-specific definitions. This is
 	// technically optional, but in practice mandatory until there are
 	// other kinds of source allowed.

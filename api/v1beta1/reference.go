@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Flux authors
+Copyright 2020, 2021 The Flux authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,20 +16,33 @@ limitations under the License.
 
 package v1beta1
 
-// SourceReference contains enough information to let you locate the
-// typed, referenced source object.
-type SourceReference struct {
-	// API version of the referent
+import "fmt"
+
+// CrossNamespaceSourceReference contains enough information to let you locate the
+// typed Kubernetes resource object at cluster level.
+type CrossNamespaceSourceReference struct {
+	// API version of the referent.
 	// +optional
 	APIVersion string `json:"apiVersion,omitempty"`
 
-	// Kind of the referent
+	// Kind of the referent.
 	// +kubebuilder:validation:Enum=GitRepository
 	// +kubebuilder:default=GitRepository
 	// +required
 	Kind string `json:"kind"`
 
-	// Name of the referent
+	// Name of the referent.
 	// +required
 	Name string `json:"name"`
+
+	// Namespace of the referent, defaults to the namespace of the Kubernetes resource object that contains the reference.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+}
+
+func (s *CrossNamespaceSourceReference) String() string {
+	if s.Namespace != "" {
+		return fmt.Sprintf("%s/%s/%s", s.Kind, s.Namespace, s.Name)
+	}
+	return fmt.Sprintf("%s/%s", s.Kind, s.Name)
 }

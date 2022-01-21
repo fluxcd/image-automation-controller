@@ -162,22 +162,27 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	if kind := auto.Spec.SourceRef.Kind; kind != sourcev1.GitRepositoryKind {
 		return failWithError(fmt.Errorf("source kind %q not supported", kind))
 	}
+
 	gitSpec := auto.Spec.GitSpec
 	if gitSpec == nil {
 		return failWithError(fmt.Errorf("source kind %s neccessitates field .spec.git", sourcev1.GitRepositoryKind))
 	}
 
 	var origin sourcev1.GitRepository
+	gitRepoNamespace := req.Namespace
+	if auto.Spec.SourceRef.Namespace != "" {
+		gitRepoNamespace = auto.Spec.SourceRef.Namespace
+	}
 	originName := types.NamespacedName{
 		Name:      auto.Spec.SourceRef.Name,
-		Namespace: auto.GetNamespace(),
+		Namespace: gitRepoNamespace,
 	}
 	debuglog.Info("fetching git repository", "gitrepository", originName)
 
 	if err := r.Get(ctx, originName, &origin); err != nil {
 		if client.IgnoreNotFound(err) == nil {
 			imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, imagev1.GitNotAvailableReason, "referenced git repository is missing")
-			log.Error(err, "referenced git repository does not exist")
+			log.Error(err, fmt.Sprintf("referenced git repository %s does not exist.", originName.String()))
 			if err := r.patchStatus(ctx, req, auto.Status); err != nil {
 				return ctrl.Result{Requeue: true}, err
 			}
