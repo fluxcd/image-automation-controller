@@ -22,7 +22,7 @@ require (
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v1.2.2
 	github.com/google/go-containerregistry v0.6.0
-	github.com/libgit2/git2go/v31 v31.6.1
+	github.com/libgit2/git2go/v31 v31.7.6
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.17.0
 	github.com/otiai10/copy v1.7.0

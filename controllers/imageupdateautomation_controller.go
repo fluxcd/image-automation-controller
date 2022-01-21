@@ -652,6 +652,7 @@ func fetch(ctx context.Context, path string, branch string, access repoAccess) e
 		[]string{refspec},
 		&libgit2.FetchOptions{
 			RemoteCallbacks: access.remoteCallbacks(ctx),
+			ProxyOptions:    libgit2.ProxyOptions{Type: libgit2.ProxyTypeAuto},
 		}, "",
 	)
 	if err != nil && libgit2.IsErrorCode(err, libgit2.ErrorCodeNotFound) {
@@ -689,6 +690,7 @@ func push(ctx context.Context, path, branch string, access repoAccess) error {
 	}
 	err = origin.Push([]string{fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch)}, &libgit2.PushOptions{
 		RemoteCallbacks: callbacks,
+		ProxyOptions:    libgit2.ProxyOptions{Type: libgit2.ProxyTypeAuto},
 	})
 	if err != nil {
 		return libgit2PushError(err)
