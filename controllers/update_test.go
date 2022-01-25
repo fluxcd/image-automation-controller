@@ -238,9 +238,189 @@ Images:
 				},
 				Spec: imagev1.ImageUpdateAutomationSpec{
 					Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
-					SourceRef: imagev1.SourceReference{
-						Kind: "GitRepository",
-						Name: gitRepoKey.Name,
+					SourceRef: imagev1.CrossNamespaceSourceReference{
+						Kind:      "GitRepository",
+						Name:      gitRepoKey.Name,
+						Namespace: gitRepoKey.Namespace,
+					},
+					GitSpec: &imagev1.GitSpec{
+						Checkout: &imagev1.GitCheckoutSpec{
+							Reference: sourcev1.GitRepositoryRef{
+								Branch: branch,
+							},
+						},
+						Commit: imagev1.CommitSpec{
+							MessageTemplate: commitTemplate,
+							Author: imagev1.CommitUser{
+								Name:  authorName,
+								Email: authorEmail,
+							},
+						},
+					},
+					Update: &imagev1.UpdateStrategy{
+						Strategy: imagev1.UpdateStrategySetters,
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), updateBySetters)).To(Succeed())
+			// wait for a new commit to be made by the controller
+			waitForNewHead(localRepo, branch)
+		})
+
+		AfterEach(func() {
+			Expect(k8sClient.Delete(context.Background(), namespace)).To(Succeed())
+		})
+
+		It("formats the commit message as in the template", func() {
+			head, _ := localRepo.Head()
+			commit, err := localRepo.CommitObject(head.Hash())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(commit.Message).To(Equal(commitMessage))
+		})
+
+		It("has the commit author as given", func() {
+			head, _ := localRepo.Head()
+			commit, err := localRepo.CommitObject(head.Hash())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(commit.Author).NotTo(BeNil())
+			Expect(commit.Author.Name).To(Equal(authorName))
+			Expect(commit.Author.Email).To(Equal(authorEmail))
+		})
+	})
+
+	Context("ref cross-ns GitRepository", func() {
+		var (
+			localRepo     *git.Repository
+			commitMessage string
+		)
+
+		const (
+			authorName     = "Flux B Ot"
+			authorEmail    = "fluxbot@example.com"
+			commitTemplate = `Commit summary
+
+Automation: {{ .AutomationObject }}
+
+Files:
+{{ range $filename, $_ := .Updated.Files -}}
+- {{ $filename }}
+{{ end -}}
+
+Objects:
+{{ range $resource, $_ := .Updated.Objects -}}
+{{ if eq $resource.Kind "Deployment" -}}
+- {{ $resource.Kind | lower }} {{ $resource.Name | lower }}
+{{ else -}}
+- {{ $resource.Kind }} {{ $resource.Name }}
+{{ end -}}
+{{ end -}}
+
+Images:
+{{ range .Updated.Images -}}
+- {{.}} ({{.Policy.Name}})
+{{ end -}}
+`
+			commitMessageFmt = `Commit summary
+
+Automation: %s/update-test
+
+Files:
+- deploy.yaml
+Objects:
+- deployment test
+Images:
+- helloworld:v1.0.0 (%s)
+`
+		)
+
+		BeforeEach(func() {
+			Expect(initGitRepo(gitServer, "testdata/appconfig", branch, repositoryPath)).To(Succeed())
+			repoURL := gitServer.HTTPAddressWithCredentials() + repositoryPath
+			var err error
+			localRepo, err = git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
+				URL:           repoURL,
+				RemoteName:    "origin",
+				ReferenceName: plumbing.NewBranchReferenceName(branch),
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			// A different namespace for the GitRepository.
+			gitRepoNamespace := &corev1.Namespace{}
+			gitRepoNamespace.Name = "cross-ns-git-repo" + randStringRunes(5)
+			Expect(k8sClient.Create(context.Background(), gitRepoNamespace)).To(Succeed())
+
+			gitRepoKey := types.NamespacedName{
+				Name:      "image-auto-" + randStringRunes(5),
+				Namespace: gitRepoNamespace.Name,
+			}
+			gitRepo := &sourcev1.GitRepository{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      gitRepoKey.Name,
+					Namespace: gitRepoKey.Namespace,
+				},
+				Spec: sourcev1.GitRepositorySpec{
+					URL:      repoURL,
+					Interval: metav1.Duration{Duration: time.Minute},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), gitRepo)).To(Succeed())
+			policyKey := types.NamespacedName{
+				Name:      "policy-" + randStringRunes(5),
+				Namespace: namespace.Name,
+			}
+			// NB not testing the image reflector controller; this
+			// will make a "fully formed" ImagePolicy object.
+			policy := &imagev1_reflect.ImagePolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      policyKey.Name,
+					Namespace: policyKey.Namespace,
+				},
+				Spec: imagev1_reflect.ImagePolicySpec{
+					ImageRepositoryRef: meta.NamespacedObjectReference{
+						Name: "not-expected-to-exist",
+					},
+					Policy: imagev1_reflect.ImagePolicyChoice{
+						SemVer: &imagev1_reflect.SemVerPolicy{
+							Range: "1.x",
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), policy)).To(Succeed())
+			policy.Status.LatestImage = "helloworld:v1.0.0"
+			Expect(k8sClient.Status().Update(context.Background(), policy)).To(Succeed())
+
+			// Format the expected message given the generated values
+			commitMessage = fmt.Sprintf(commitMessageFmt, namespace.Name, policyKey.Name)
+
+			// Insert a setter reference into the deployment file,
+			// before creating the automation object itself.
+			commitInRepo(repoURL, branch, "Install setter marker", func(tmp string) {
+				Expect(replaceMarker(tmp, policyKey)).To(Succeed())
+			})
+
+			// pull the head commit we just pushed, so it's not
+			// considered a new commit when checking for a commit
+			// made by automation.
+			waitForNewHead(localRepo, branch)
+
+			// now create the automation object, and let it (one
+			// hopes!) make a commit itself.
+			updateKey := types.NamespacedName{
+				Namespace: namespace.Name,
+				Name:      "update-test",
+			}
+			updateBySetters := &imagev1.ImageUpdateAutomation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      updateKey.Name,
+					Namespace: updateKey.Namespace,
+				},
+				Spec: imagev1.ImageUpdateAutomationSpec{
+					Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
+					SourceRef: imagev1.CrossNamespaceSourceReference{
+						Kind:      "GitRepository",
+						Name:      gitRepoKey.Name,
+						Namespace: gitRepoKey.Namespace,
 					},
 					GitSpec: &imagev1.GitSpec{
 						Checkout: &imagev1.GitCheckoutSpec{
@@ -380,9 +560,10 @@ Images:
 						Strategy: imagev1.UpdateStrategySetters,
 						Path:     "./yes",
 					},
-					SourceRef: imagev1.SourceReference{
-						Kind: "GitRepository",
-						Name: gitRepoKey.Name,
+					SourceRef: imagev1.CrossNamespaceSourceReference{
+						Kind:      "GitRepository",
+						Name:      gitRepoKey.Name,
+						Namespace: gitRepoKey.Namespace,
 					},
 					GitSpec: &imagev1.GitSpec{
 						Checkout: &imagev1.GitCheckoutSpec{
@@ -524,9 +705,10 @@ Images:
 					Namespace: updateKey.Namespace,
 				},
 				Spec: imagev1.ImageUpdateAutomationSpec{
-					SourceRef: imagev1.SourceReference{
-						Kind: "GitRepository",
-						Name: gitRepoKey.Name,
+					SourceRef: imagev1.CrossNamespaceSourceReference{
+						Kind:      "GitRepository",
+						Name:      gitRepoKey.Name,
+						Namespace: gitRepoKey.Namespace,
 					},
 					Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
 					GitSpec: &imagev1.GitSpec{
@@ -720,9 +902,10 @@ Images:
 
 					update = &imagev1.ImageUpdateAutomation{
 						Spec: imagev1.ImageUpdateAutomationSpec{
-							SourceRef: imagev1.SourceReference{
-								Kind: "GitRepository",
-								Name: gitRepoKey.Name,
+							SourceRef: imagev1.CrossNamespaceSourceReference{
+								Kind:      "GitRepository",
+								Name:      gitRepoKey.Name,
+								Namespace: gitRepoKey.Namespace,
 							},
 							Update: &imagev1.UpdateStrategy{
 								Strategy: imagev1.UpdateStrategySetters,
@@ -838,9 +1021,10 @@ Images:
 						},
 						Spec: imagev1.ImageUpdateAutomationSpec{
 							Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
-							SourceRef: imagev1.SourceReference{
-								Kind: "GitRepository",
-								Name: gitRepoKey.Name,
+							SourceRef: imagev1.CrossNamespaceSourceReference{
+								Kind:      "GitRepository",
+								Name:      gitRepoKey.Name,
+								Namespace: gitRepoKey.Namespace,
 							},
 							Update: &imagev1.UpdateStrategy{
 								Strategy: imagev1.UpdateStrategySetters,
@@ -960,9 +1144,10 @@ Images:
 					Namespace: key.Namespace,
 				},
 				Spec: imagev1.ImageUpdateAutomationSpec{
-					SourceRef: imagev1.SourceReference{
-						Kind: "GitRepository",
-						Name: "garbage",
+					SourceRef: imagev1.CrossNamespaceSourceReference{
+						Kind:      "GitRepository",
+						Name:      "garbage",
+						Namespace: key.Namespace,
 					},
 					Interval: metav1.Duration{Duration: 2 * time.Hour}, // this is to ensure any subsequent run should be outside the scope of the testing
 					GitSpec: &imagev1.GitSpec{

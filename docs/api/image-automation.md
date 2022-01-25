@@ -119,6 +119,74 @@ string
 </table>
 </div>
 </div>
+<h3 id="image.toolkit.fluxcd.io/v1beta1.CrossNamespaceSourceReference">CrossNamespaceSourceReference
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#image.toolkit.fluxcd.io/v1beta1.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec</a>)
+</p>
+<p>CrossNamespaceSourceReference contains enough information to let you locate the
+typed Kubernetes resource object at cluster level.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>apiVersion</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>API version of the referent.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>kind</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Kind of the referent.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>name</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Name of the referent.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>namespace</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Namespace of the referent, defaults to the namespace of the Kubernetes resource object that contains the reference.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <h3 id="image.toolkit.fluxcd.io/v1beta1.GitCheckoutSpec">GitCheckoutSpec
 </h3>
 <p>
@@ -262,8 +330,8 @@ ImageUpdateAutomationSpec
 <td>
 <code>sourceRef</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1beta1.SourceReference">
-SourceReference
+<a href="#image.toolkit.fluxcd.io/v1beta1.CrossNamespaceSourceReference">
+CrossNamespaceSourceReference
 </a>
 </em>
 </td>
@@ -370,8 +438,8 @@ ImageUpdateAutomationStatus
 <td>
 <code>sourceRef</code><br>
 <em>
-<a href="#image.toolkit.fluxcd.io/v1beta1.SourceReference">
-SourceReference
+<a href="#image.toolkit.fluxcd.io/v1beta1.CrossNamespaceSourceReference">
+CrossNamespaceSourceReference
 </a>
 </em>
 </td>
@@ -610,62 +678,6 @@ github.com/fluxcd/pkg/apis/meta.LocalObjectReference
 corresponding to the ASCII Armored file containing the GPG signing
 keypair as the value. It must be in the same namespace as the
 ImageUpdateAutomation.</p>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<h3 id="image.toolkit.fluxcd.io/v1beta1.SourceReference">SourceReference
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#image.toolkit.fluxcd.io/v1beta1.ImageUpdateAutomationSpec">ImageUpdateAutomationSpec</a>)
-</p>
-<p>SourceReference contains enough information to let you locate the
-typed, referenced source object.</p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>apiVersion</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>API version of the referent</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>kind</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Kind of the referent</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>name</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Name of the referent</p>
 </td>
 </tr>
 </tbody>
