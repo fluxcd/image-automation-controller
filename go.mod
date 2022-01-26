@@ -16,8 +16,8 @@ require (
 	github.com/fluxcd/pkg/runtime v0.12.3
 	github.com/fluxcd/pkg/ssh v0.2.0
 	// If you bump this, change SOURCE_VER in the Makefile to match
-	github.com/fluxcd/source-controller v0.20.1
-	github.com/fluxcd/source-controller/api v0.20.1
+	github.com/fluxcd/source-controller v0.21.0
+	github.com/fluxcd/source-controller/api v0.21.0
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v1.2.2
@@ -124,6 +124,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.0 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
-
-// pin kustomize to v4.4.1
-replace sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.13.0
