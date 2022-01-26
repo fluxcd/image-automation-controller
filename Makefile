@@ -8,7 +8,7 @@ CRD_OPTIONS ?= crd:crdVersions=v1
 
 # Base image used to build the Go binary
 LIBGIT2_IMG ?= ghcr.io/fluxcd/golang-with-libgit2
-LIBGIT2_TAG ?= libgit2-1.1.1-3
+LIBGIT2_TAG ?= libgit2-1.1.1-4
 
 # Allows for defining additional Docker buildx arguments,
 # e.g. '--push'.
@@ -254,7 +254,7 @@ endef
 update-attributions:
 	./hack/update-attributions.sh
 
-verify: update-attributions fmt vet manifests api-docs
+verify: update-attributions fmt
 ifneq (, $(shell git status --porcelain --untracked-files=no))
 	@{ \
 	echo "working directory is dirty:"; \
