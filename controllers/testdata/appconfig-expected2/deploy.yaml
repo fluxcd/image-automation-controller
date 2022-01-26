@@ -6,5 +6,5 @@ spec:
   template:
     spec:
       containers:
-        - name: hello
-          image: helloworld:1.2.0 # SETTER_SITE
+      - name: hello
+        image: helloworld:1.2.0 # SETTER_SITE
