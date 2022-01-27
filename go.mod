@@ -13,7 +13,7 @@ require (
 	github.com/fluxcd/image-reflector-controller/api v0.15.0
 	github.com/fluxcd/pkg/apis/meta v0.10.2
 	github.com/fluxcd/pkg/gittestserver v0.5.0
-	github.com/fluxcd/pkg/runtime v0.12.3
+	github.com/fluxcd/pkg/runtime v0.12.4
 	github.com/fluxcd/pkg/ssh v0.2.0
 	// If you bump this, change SOURCE_VER in the Makefile to match
 	github.com/fluxcd/source-controller v0.21.0

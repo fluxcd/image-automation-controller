@@ -29,6 +29,7 @@ import (
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
+	"github.com/fluxcd/pkg/runtime/acl"
 	"github.com/fluxcd/pkg/runtime/client"
 	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/leaderelection"
@@ -64,6 +65,7 @@ func main() {
 		eventsAddr            string
 		healthAddr            string
 		clientOptions         client.Options
+		aclOptions            acl.Options
 		logOptions            logger.Options
 		leaderElectionOptions leaderelection.Options
 		watchAllNamespaces    bool
@@ -79,6 +81,7 @@ func main() {
 	clientOptions.BindFlags(flag.CommandLine)
 	logOptions.BindFlags(flag.CommandLine)
 	leaderElectionOptions.BindFlags(flag.CommandLine)
+	aclOptions.BindFlags(flag.CommandLine)
 	flag.Parse()
 
 	log := logger.NewLogger(logOptions)
@@ -130,6 +133,7 @@ func main() {
 		EventRecorder:         mgr.GetEventRecorderFor(controllerName),
 		ExternalEventRecorder: eventRecorder,
 		MetricsRecorder:       metricsRecorder,
+		NoCrossNamespaceRef:   aclOptions.NoCrossNamespaceRefs,
 	}).SetupWithManager(mgr, controllers.ImageUpdateAutomationReconcilerOptions{
 		MaxConcurrentReconciles: concurrent,
 	}); err != nil {
