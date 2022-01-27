@@ -27,30 +27,23 @@ SOURCE_VER ?= v0.21.0
 # Change this if you bump the image-reflector-controller/api version in go.mod.
 REFLECTOR_VER ?= v0.15.0
 
-# Version of libgit2 the controller should depend on.
-LIBGIT2_VERSION ?= 1.1.1
-
 # Repository root based on Git metadata.
 REPOSITORY_ROOT := $(shell git rev-parse --show-toplevel)
 
-# libgit2 related magical paths
-# These are used to determine if the target libgit2 version is already available on
-# the system, or where they should be installed to
-SYSTEM_LIBGIT2_VERSION := $(shell pkg-config --modversion libgit2 2>/dev/null)
-LIBGIT2_PATH := $(REPOSITORY_ROOT)/hack/libgit2
+LIBGIT2_PATH := $(REPOSITORY_ROOT)/build/libgit2
 LIBGIT2_LIB_PATH := $(LIBGIT2_PATH)/lib
-LIBGIT2 := $(LIBGIT2_LIB_PATH)/libgit2.so.$(LIBGIT2_VERSION)
+LIBGIT2_LIB64_PATH := $(LIBGIT2_PATH)/lib64
+LIBGIT2 := $(LIBGIT2_LIB_PATH)/libgit2.a
 
-ifneq ($(LIBGIT2_VERSION),$(SYSTEM_LIBGIT2_VERSION))
-	LIBGIT2_FORCE ?= 1
-endif
+export CGO_ENABLED=1
+export LIBRARY_PATH=$(LIBGIT2_LIB_PATH):$(LIBGIT2_LIB64_PATH)
+export PKG_CONFIG_PATH=$(LIBGIT2_LIB_PATH)/pkgconfig:$(LIBGIT2_LIB64_PATH)/pkgconfig
+export CGO_CFLAGS=-I$(LIBGIT2_PATH)/include
 
 ifeq ($(shell uname -s),Darwin)
-	LIBGIT2 := $(LIBGIT2_LIB_PATH)/libgit2.$(LIBGIT2_VERSION).dylib
-	HAS_BREW := $(shell brew --version 2>/dev/null)
-ifdef HAS_BREW
-	HAS_OPENSSL := $(shell brew --prefix openssl@1.1)
-endif
+	export CGO_LDFLAGS=-L$(LIBGIT2_LIB_PATH) -lssh2 -lssl -lcrypto -lgit2
+else
+	export CGO_LDFLAGS=$(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH) pkg-config --libs --static --cflags libssh2 openssl libgit2)
 endif
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -60,15 +53,6 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-ifeq ($(strip ${PKG_CONFIG_PATH}),)
-	MAKE_PKG_CONFIG_PATH = $(LIBGIT2_LIB_PATH)/pkgconfig
-else
-	MAKE_PKG_CONFIG_PATH = ${PKG_CONFIG_PATH}:$(LIBGIT2_LIB_PATH)/pkgconfig
-endif
-
-ifdef HAS_OPENSSL
-	MAKE_PKG_CONFIG_PATH := $(MAKE_PKG_CONFIG_PATH):$(HAS_OPENSSL)/lib/pkgconfig
-endif
 
 TEST_CRDS := controllers/testdata/crds
 
@@ -106,41 +90,21 @@ ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml:
 
 KUBEBUILDER_ASSETS?="$(shell $(ENVTEST) --arch=$(ENVTEST_ARCH) use -i $(ENVTEST_KUBERNETES_VERSION) --bin-dir=$(ENVTEST_ASSETS_DIR) -p path)"
 test: $(LIBGIT2) test-api test_deps generate fmt vet manifests api-docs	install-envtest ## Run tests
-ifeq ($(shell uname -s),Darwin)
-	LD_LIBRARY_PATH=$(LIBGIT2_LIB_PATH) \
-	PKG_CONFIG_PATH=$(MAKE_PKG_CONFIG_PATH) \
-	CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
 	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) \
-	go test ./... -coverprofile cover.out
-else
-	LD_LIBRARY_PATH=$(LIBGIT2_LIB_PATH) \
-	PKG_CONFIG_PATH=$(MAKE_PKG_CONFIG_PATH) \
-	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) \
-	go test ./... -coverprofile cover.out
-endif
+	go test ./... \
+		-ldflags "-s -w" \
+		-coverprofile cover.out \
+	 	-tags 'netgo,osusergo,static_build'
 
 test-api:	## Run api tests
 	cd api; go test ./... -coverprofile cover.out
 
 manager: $(LIBGIT2) generate fmt vet	## Build manager binary
-ifeq ($(shell uname -s),Darwin)
-	PKG_CONFIG_PATH=$(MAKE_PKG_CONFIG_PATH) \
-	CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
-	go build -o bin/manager main.go
-else
-	PKG_CONFIG_PATH=$(MAKE_PKG_CONFIG_PATH) \
-	CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
-	go build -o bin/manager main.go
-endif
+	go run ./main.go
 
 
 run: $(LIBGIT2) generate fmt vet manifests	# Run against the configured Kubernetes cluster in ~/.kube/config
-ifeq ($(shell uname -s),Darwin)
-	CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
 	go run ./main.go --log-level=${LOG_LEVEL} --log-encoding=console
-else
-	go run ./main.go --log-level=${LOG_LEVEL} --log-encoding=console
-endif
 
 install: manifests	## Install CRDs into a cluster
 	kustomize build config/crd | kubectl apply -f -
@@ -173,16 +137,8 @@ fmt:	## Run go fmt against code
 	cd api; go fmt ./...
 
 vet: $(LIBGIT2)	## Run go vet against code
-ifeq ($(shell uname -s),Darwin)
-	PKG_CONFIG_PATH=$(MAKE_PKG_CONFIG_PATH) \
-	CGO_LDFLAGS="-Wl,-rpath,$(LIBGIT2_LIB_PATH)" \
 	go vet ./...
 	cd api; go vet ./...
-else
-	PKG_CONFIG_PATH=$(MAKE_PKG_CONFIG_PATH) \
-	go vet ./...
-	cd api; go vet ./...
-endif
 
 
 generate: controller-gen	## Generate code
@@ -211,14 +167,7 @@ controller-gen: ## Download controller-gen locally if necessary.
 libgit2: $(LIBGIT2)  ## Detect or download libgit2 library
 
 $(LIBGIT2):
-ifeq (1, $(LIBGIT2_FORCE))
-	@{ \
-	set -e; \
-	mkdir -p $(LIBGIT2_PATH); \
-	curl -sL https://raw.githubusercontent.com/fluxcd/golang-with-libgit2/$(LIBGIT2_TAG)/hack/Makefile -o $(LIBGIT2_PATH)/Makefile; \
-	INSTALL_PREFIX=$(LIBGIT2_PATH) make -C $(LIBGIT2_PATH) libgit2; \
-	}
-endif
+	IMG_TAG=$(LIBGIT2_IMG):$(LIBGIT2_TAG) ./hack/extract-libraries.sh
 
 # Find or download gen-crd-api-reference-docs
 GEN_CRD_API_REFERENCE_DOCS = $(shell pwd)/bin/gen-crd-api-reference-docs
