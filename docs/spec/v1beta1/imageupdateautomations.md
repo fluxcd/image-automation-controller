@@ -32,7 +32,7 @@ type ImageUpdateAutomationSpec struct {
 	// SourceRef refers to the resource giving access details
 	// to a git repository.
 	// +required
-	SourceRef SourceReference `json:"sourceRef"`
+	SourceRef CrossNamespaceSourceReference `json:"sourceRef"`
 	// GitSpec contains all the git-specific definitions. This is
 	// technically optional, but in practice mandatory until there are
 	// other kinds of source allowed.
@@ -62,24 +62,50 @@ repository to be updated. The `kind` field in the reference currently only suppo
 `GitRepository`, which is the default.
 
 ```go
-// SourceReference contains enough information to let you locate the
-// typed, referenced source object.
-type SourceReference struct {
-	// API version of the referent
+// CrossNamespaceSourceReference contains enough information to let you locate the
+// typed Kubernetes resource object at cluster level.
+type CrossNamespaceSourceReference struct {
+	// API version of the referent.
 	// +optional
 	APIVersion string `json:"apiVersion,omitempty"`
 
-	// Kind of the referent
+	// Kind of the referent.
 	// +kubebuilder:validation:Enum=GitRepository
 	// +kubebuilder:default=GitRepository
 	// +required
 	Kind string `json:"kind"`
 
-	// Name of the referent
+	// Name of the referent.
 	// +required
 	Name string `json:"name"`
+
+	// Namespace of the referent, defaults to the namespace of the Kubernetes resource object that contains the reference.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
 }
 ```
+
+### Cross-namespace references
+
+A ImageUpdateAutomation can refer to a GitRepository from a different namespace with
+`spec.sourceRef.namespace` e.g.:
+
+```yaml
+apiVersion: image.toolkit.fluxcd.io/v1beta1
+kind: ImageUpdateAutomation
+metadata:
+  name: webapp
+  namespace: apps
+spec:
+  interval: 5m
+  sourceRef:
+    kind: GitRepository # the only valid value, but good practice to be explicit here
+    name: apps
+    namespace: flux-system
+```
+
+On multi-tenant clusters, platform admins can disable cross-namespace references with the
+`--no-cross-namespace-refs=true` flag.
 
 To be able to commit changes back, the referenced `GitRepository` object must refer to credentials
 with write access; e.g., if using a GitHub deploy key, "Allow write access" should be checked when
