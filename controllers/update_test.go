@@ -30,6 +30,7 @@ import (
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/armor"
+	"github.com/fluxcd/pkg/apis/acl"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -268,6 +269,7 @@ Images:
 		})
 
 		AfterEach(func() {
+			imageAutoReconciler.NoCrossNamespaceRef = false
 			Expect(k8sClient.Delete(context.Background(), namespace)).To(Succeed())
 		})
 
@@ -290,8 +292,9 @@ Images:
 
 	Context("ref cross-ns GitRepository", func() {
 		var (
-			localRepo     *git.Repository
-			commitMessage string
+			localRepo       *git.Repository
+			commitMessage   string
+			updateBySetters *imagev1.ImageUpdateAutomation
 		)
 
 		const (
@@ -410,7 +413,7 @@ Images:
 				Namespace: namespace.Name,
 				Name:      "update-test",
 			}
-			updateBySetters := &imagev1.ImageUpdateAutomation{
+			updateBySetters = &imagev1.ImageUpdateAutomation{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      updateKey.Name,
 					Namespace: updateKey.Namespace,
@@ -464,6 +467,28 @@ Images:
 			Expect(commit.Author).NotTo(BeNil())
 			Expect(commit.Author.Name).To(Equal(authorName))
 			Expect(commit.Author.Email).To(Equal(authorEmail))
+		})
+
+		It("fails to reconcile if cross-namespace flag is set", func() {
+			imageAutoReconciler.NoCrossNamespaceRef = true
+
+			// trigger reconcile
+			var updatePatch imagev1.ImageUpdateAutomation
+			Expect(k8sClient.Get(context.TODO(), client.ObjectKeyFromObject(updateBySetters), &updatePatch)).To(Succeed())
+			updatePatch.Spec.Interval = metav1.Duration{Duration: 5 * time.Minute}
+			Expect(k8sClient.Patch(context.Background(), &updatePatch, client.Merge)).To(Succeed())
+
+			resultAuto := &imagev1.ImageUpdateAutomation{}
+			var readyCondition *metav1.Condition
+
+			Eventually(func() bool {
+				_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(updateBySetters), resultAuto)
+				readyCondition = apimeta.FindStatusCondition(resultAuto.Status.Conditions, meta.ReadyCondition)
+				return apimeta.IsStatusConditionFalse(resultAuto.Status.Conditions, meta.ReadyCondition)
+			}, timeout, time.Second).Should(BeTrue())
+
+			Expect(readyCondition).ToNot(BeNil())
+			Expect(readyCondition.Reason).To(Equal(acl.AccessDeniedReason))
 		})
 	})
 

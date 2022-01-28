@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
-
 	gogit "github.com/go-git/go-git/v5"
 	libgit2 "github.com/libgit2/git2go/v31"
 
@@ -55,7 +54,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
+	apiacl "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/acl"
 	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/metrics"
@@ -91,6 +92,7 @@ type ImageUpdateAutomationReconciler struct {
 	EventRecorder         kuberecorder.EventRecorder
 	ExternalEventRecorder *events.Recorder
 	MetricsRecorder       *metrics.Recorder
+	NoCrossNamespaceRef   bool
 }
 
 type ImageUpdateAutomationReconcilerOptions struct {
@@ -178,6 +180,19 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		Namespace: gitRepoNamespace,
 	}
 	debuglog.Info("fetching git repository", "gitrepository", originName)
+
+	if r.NoCrossNamespaceRef && gitRepoNamespace != auto.GetNamespace() {
+		err := acl.AccessDeniedError(fmt.Sprintf("can't access '%s/%s', cross-namespace references have been blocked",
+			auto.Spec.SourceRef.Kind, originName))
+		log.Error(err, "access denied to cross-namespaced resource")
+		imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, apiacl.AccessDeniedReason,
+			err.Error())
+		if err := r.patchStatus(ctx, req, auto.Status); err != nil {
+			return ctrl.Result{Requeue: true}, err
+		}
+		r.event(ctx, auto, events.EventSeverityError, err.Error())
+		return ctrl.Result{}, nil
+	}
 
 	if err := r.Get(ctx, originName, &origin); err != nil {
 		if client.IgnoreNotFound(err) == nil {
