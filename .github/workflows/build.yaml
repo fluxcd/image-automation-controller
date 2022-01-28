@@ -1,5 +1,4 @@
 name: build
-
 on:
   pull_request:
   push:
@@ -10,11 +9,15 @@ permissions:
   contents: read # for actions/checkout to fetch code
 
 jobs:
-  test:
+  test-linux-amd64:
     runs-on: ubuntu-latest
     steps:
     - name: checkout
       uses: actions/checkout@v2
+    - name: Setup Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.17.x
     - name: Restore go cache
       uses: actions/cache@v1
       with:
@@ -24,13 +27,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-
     - name: Run tests
-      uses: ./.github/actions/run-tests
-      env:
-        GOPATH: /github/home/go
-    - name: Check if working tree is dirty
-      run: |
-        if [[ $(git diff --stat) != '' ]]; then
-          git --no-pager diff
-          echo 'run make test and commit changes'
-          exit 1
-        fi
+      run: make test
+    - name: Verify
+      run: make verify
