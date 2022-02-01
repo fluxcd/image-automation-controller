@@ -2,13 +2,15 @@
 
 set -euxo pipefail
 
-IMG_TAG="${IMG_TAG:-.}"
+IMG="${IMG:-}"
+TAG="${TAG:-}"
+IMG_TAG="${IMG}:${TAG}"
 
 function extract(){
     PLATFORM=$1
     DIR=$2
 
-    id=$(docker create --platform="${PLATFORM}" "${IMG_TAG}")
+    id=$(docker create --platform="${PLATFORM}" "${IMG_TAG}" sh)
     docker cp "${id}":/usr/local - > output.tar.gz
     docker rm -v "${id}"
 
@@ -22,16 +24,14 @@ function setup() {
 
     extract "${PLATFORM}" "${DIR}"
    
-    NEW_DIR="$(/bin/pwd)/build/libgit2"
+    NEW_DIR="$(/bin/pwd)/build/libgit2/${TAG}"
     INSTALLED_DIR="/usr/local/${DIR}"
 
-    mkdir -p "./build"
+    mkdir -p "./build/libgit2"
 
-    # Make a few movements to account for the change in
-    # behaviour in tar between MacOS and Linux
-    mv "local/${DIR}/" "libgit2"
+    mv "local/${DIR}" "${TAG}"
     rm -rf "local"
-    mv "libgit2/" "./build/"
+    mv "${TAG}/" "./build/libgit2"
 
     # Update the prefix paths included in the .pc files.
     # This will make it easier to update to the location in which they will be used.
@@ -44,7 +44,7 @@ function setup() {
 }
 
 function setup_current() {
-    if [ -d "./build/libgit2" ]; then
+    if [ -d "./build/libgit2/${TAG}" ]; then
         echo "Skipping libgit2 setup as it already exists"
         exit 0
     fi

@@ -7,8 +7,8 @@ TAG ?= latest
 CRD_OPTIONS ?= crd:crdVersions=v1
 
 # Base image used to build the Go binary
-LIBGIT2_IMG ?= ghcr.io/fluxcd/golang-with-libgit2
-LIBGIT2_TAG ?= libgit2-1.1.1-4
+LIBGIT2_IMG ?= quay.io/paulinhu/golang-with-libgit2
+LIBGIT2_TAG ?= libgit2-1.1.1-5
 
 # Allows for defining additional Docker buildx arguments,
 # e.g. '--push'.
@@ -30,20 +30,36 @@ REFLECTOR_VER ?= v0.16.0
 # Repository root based on Git metadata.
 REPOSITORY_ROOT := $(shell git rev-parse --show-toplevel)
 
-LIBGIT2_PATH := $(REPOSITORY_ROOT)/build/libgit2
+LIBGIT2_PATH := $(REPOSITORY_ROOT)/build/libgit2/$(LIBGIT2_TAG)
 LIBGIT2_LIB_PATH := $(LIBGIT2_PATH)/lib
 LIBGIT2_LIB64_PATH := $(LIBGIT2_PATH)/lib64
 LIBGIT2 := $(LIBGIT2_LIB_PATH)/libgit2.a
+MUSL-CC =
 
 export CGO_ENABLED=1
-export LIBRARY_PATH=$(LIBGIT2_LIB_PATH):$(LIBGIT2_LIB64_PATH)
 export PKG_CONFIG_PATH=$(LIBGIT2_LIB_PATH)/pkgconfig:$(LIBGIT2_LIB64_PATH)/pkgconfig
-export CGO_CFLAGS=-I$(LIBGIT2_PATH)/include
+export LIBRARY_PATH=$(LIBGIT2_LIB_PATH):$(LIBGIT2_LIB64_PATH)
+export CGO_CFLAGS=-I$(LIBGIT2_PATH)/include -I$(LIBGIT2_PATH)/include/openssl
 
 ifeq ($(shell uname -s),Darwin)
 	export CGO_LDFLAGS=-L$(LIBGIT2_LIB_PATH) -lssh2 -lssl -lcrypto -lgit2
 else
 	export CGO_LDFLAGS=$(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH) pkg-config --libs --static --cflags libssh2 openssl libgit2)
+endif
+
+ifeq ($(shell uname -s),Linux)
+ifeq ($(shell uname -m),x86_64)
+# Linux x86_64 seem to be able to cope with the static libraries 
+# by having only musl-dev installed, without the need of using musl toolchain.
+	GO_STATIC_FLAGS=-ldflags "-s -w" -tags 'netgo,osusergo,static_build'
+else
+	MUSL-PREFIX=$(REPOSITORY_ROOT)/build/musl/$(shell uname -m)-linux-musl-native/bin/$(shell uname -m)-linux-musl
+	MUSL-CC=$(MUSL-PREFIX)-gcc
+	export CC=$(MUSL-PREFIX)-gcc
+	export CXX=$(MUSL-PREFIX)-g++
+	export AR=$(MUSL-PREFIX)-ar
+	GO_STATIC_FLAGS=-ldflags "-s -w -extldflags \"-static\"" -tags 'netgo,osusergo,static_build'
+endif
 endif
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -60,7 +76,11 @@ TEST_CRDS := controllers/testdata/crds
 LOG_LEVEL ?= info
 
 # Architecture to use envtest with
+ifeq ($(shell uname -m),x86_64)
 ENVTEST_ARCH ?= amd64
+else
+ENVTEST_ARCH ?= arm64
+endif
 
 all: manager
 
@@ -166,8 +186,13 @@ controller-gen: ## Download controller-gen locally if necessary.
 
 libgit2: $(LIBGIT2)  ## Detect or download libgit2 library
 
-$(LIBGIT2):
-	IMG_TAG=$(LIBGIT2_IMG):$(LIBGIT2_TAG) ./hack/extract-libraries.sh
+$(LIBGIT2): $(MUSL-CC)
+	IMG=$(LIBGIT2_IMG) TAG=$(LIBGIT2_TAG) ./hack/install-libraries.sh
+
+$(MUSL-CC):
+ifneq ($(shell uname -s),Darwin)
+	./hack/download-musl.sh
+endif
 
 # Find or download gen-crd-api-reference-docs
 GEN_CRD_API_REFERENCE_DOCS = $(shell pwd)/bin/gen-crd-api-reference-docs
