@@ -30,3 +30,28 @@ jobs:
       run: make test
     - name: Verify
       run: make verify
+
+
+  test-linux-arm64:
+    # Hosted on Equinix
+    # Docs: https://github.com/fluxcd/flux2/tree/main/.github/runners
+    runs-on: [self-hosted, Linux, ARM64, equinix]
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+    - name: Setup Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.17.x
+    - name: Restore go cache
+      uses: actions/cache@v1
+      with:
+        # the ff is mounted into the container as ~/go/pkg/mod
+        path: /home/runner/work/_temp/_github_home/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+    - name: Run tests
+      run: make test
+    - name: Verify
+      run: make verify
