@@ -8,9 +8,10 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7
 	github.com/cyphar/filepath-securejoin v0.2.2
-	github.com/fluxcd/image-automation-controller/api v0.19.0
+	github.com/fluxcd/image-automation-controller/api v0.20.0
 	// If you bump this, change REFLECTOR_VER in the Makefile to match
-	github.com/fluxcd/image-reflector-controller/api v0.15.0
+	github.com/fluxcd/image-reflector-controller/api v0.16.0
+	github.com/fluxcd/pkg/apis/acl v0.0.3
 	github.com/fluxcd/pkg/apis/meta v0.10.2
 	github.com/fluxcd/pkg/gittestserver v0.5.0
 	github.com/fluxcd/pkg/runtime v0.12.4
@@ -49,7 +50,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emirpasic/gods v1.12.0 // indirect
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
-	github.com/fluxcd/pkg/apis/acl v0.0.3 // indirect
 	github.com/fluxcd/pkg/gitutil v0.1.0 // indirect
 	github.com/fluxcd/pkg/version v0.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect

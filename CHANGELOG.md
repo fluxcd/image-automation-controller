@@ -1,5 +1,52 @@
 # Changelog
 
+## 0.20.0
+
+**Release date:** 2022-02-01
+
+This prerelease comes with support for referencing `GitRepositories` from another namespace
+using the `spec.sourceRef.namespace` field in `ImageUpdateAutomations`.
+
+Platform admins can disable cross-namespace references with the
+`--no-cross-namespace-refs=true` flag. When this flag is set,
+automations can only refer to Git repositories in the same namespace
+as the automation object, preventing tenants from accessing another tenant's repositories.
+
+The controller is now statically built and includes libgit2 along with
+its main dependencies. The base image used to build and
+run the controller, was changed from Debian Unstable (Sid) to Alpine 3.15.
+
+The controller container images are signed with
+[Cosign and GitHub OIDC](https://github.com/sigstore/cosign/blob/22007e56aee419ae361c9f021869a30e9ae7be03/KEYLESS.md),
+and a Software Bill of Materials in [SPDX format](https://spdx.dev) has been published on the release page.
+
+Starting with this version, the controller deployment conforms to the
+Kubernetes [restricted pod security standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted):
+- all Linux capabilities were dropped
+- the root filesystem was set to read-only
+- the seccomp profile was set to the runtime default
+- run as non-root was enabled
+- the user and group ID was set to 65534
+
+**Breaking changes**:
+- The use of new seccomp API requires Kubernetes 1.19.
+- The controller container is now executed under 65534:65534 (userid:groupid).
+  This change may break deployments that hard-coded the user ID of 'controller' in their PodSecurityPolicy.
+
+Features:
+- Add support for cross-namespace sourceRef in ImageUpdateAutomation
+  [#299](https://github.com/fluxcd/image-automation-controller/pull/299)
+- Allow disabling cross-namespace references
+  [#305](https://github.com/fluxcd/image-automation-controller/pull/305)
+
+Improvements:
+- Publish SBOM and sign release artifacts
+  [#302](https://github.com/fluxcd/image-automation-controller/pull/302)
+- Drop capabilities, enable seccomp and enforce runAsNonRoot
+  [#295](https://github.com/fluxcd/image-automation-controller/pull/295)
+- Statically build using musl toolchain and target alpine
+  [#303](https://github.com/fluxcd/image-automation-controller/pull/303)
+
 ## 0.19.0
 
 **Release date:** 2022-01-07
