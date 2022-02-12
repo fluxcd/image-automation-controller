@@ -8,7 +8,7 @@ CRD_OPTIONS ?= crd:crdVersions=v1
 
 # Base image used to build the Go binary
 LIBGIT2_IMG ?= ghcr.io/fluxcd/golang-with-libgit2
-LIBGIT2_TAG ?= libgit2-1.1.1-6
+LIBGIT2_TAG ?= libgit2-1.1.1-7
 
 # Allows for defining additional Docker buildx arguments,
 # e.g. '--push'.
@@ -235,6 +235,25 @@ ENVTEST = $(GOBIN)/setup-envtest
 .PHONY: envtest
 setup-envtest: ## Download envtest-setup locally if necessary.
 	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
+
+# Build fuzzers
+fuzz-build: $(LIBGIT2)
+	rm -rf $(shell pwd)/build/fuzz/
+	mkdir -p $(shell pwd)/build/fuzz/out/
+
+	docker build . --tag local-fuzzing:latest -f tests/fuzz/Dockerfile.builder
+	docker run --rm \
+		-e FUZZING_LANGUAGE=go -e SANITIZER=address \
+		-e CIFUZZ_DEBUG='True' -e OSS_FUZZ_PROJECT_NAME=fluxcd \
+		-v "$(shell pwd)/build/fuzz/out":/out \
+		local-fuzzing:latest
+
+fuzz-smoketest: fuzz-build
+	docker run --rm \
+		-v "$(shell pwd)/build/fuzz/out":/out \
+		-v "$(shell pwd)/tests/fuzz/oss_fuzz_run.sh":/runner.sh \
+		local-fuzzing:latest \
+		bash -c "/runner.sh"
 
 # go-install-tool will 'go install' any package $2 and install it to $1.
 define go-install-tool
