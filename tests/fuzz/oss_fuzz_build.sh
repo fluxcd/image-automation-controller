@@ -21,9 +21,7 @@ GOPATH="${GOPATH:-/root/go}"
 GO_SRC="${GOPATH}/src"
 PROJECT_PATH="github.com/fluxcd/image-automation-controller"
 
-cd "${GO_SRC}"
-
-pushd "${PROJECT_PATH}"
+pushd "${GO_SRC}/${PROJECT_PATH}"
 
 export TARGET_DIR="$(/bin/pwd)/build/libgit2/${LIBGIT2_TAG}"
 
@@ -50,7 +48,6 @@ fi
 
 apt-get update && apt-get install -y pkg-config
 
-export TARGET_DIR="$(/bin/pwd)/build/libgit2/${LIBGIT2_TAG}"
 export CGO_ENABLED=1
 export LIBRARY_PATH="${TARGET_DIR}/lib:${TARGET_DIR}/lib64"
 export PKG_CONFIG_PATH="${TARGET_DIR}/lib/pkgconfig:${TARGET_DIR}/lib64/pkgconfig"
@@ -59,9 +56,7 @@ export CGO_LDFLAGS="$(pkg-config --libs --static --cflags libssh2 openssl libgit
 
 go mod tidy -compat=1.17
 
-popd
-
-pushd "${PROJECT_PATH}/tests/fuzz"
+pushd "tests/fuzz"
 
 # Version of the source-controller from which to get the GitRepository CRD.
 # Change this if you bump the source-controller/api version in go.mod.
@@ -86,25 +81,31 @@ fi
 
 go mod tidy -compat=1.17
 
-# ref: https://github.com/google/oss-fuzz/blob/master/infra/base-images/base-builder/compile_go_fuzzer
-go-fuzz -tags gofuzz -func=FuzzImageUpdateReconciler -o fuzz_image_update_reconciler.a .
-clang -o /out/fuzz_image_update_reconciler \
-    fuzz_image_update_reconciler.a \
-    "${TARGET_DIR}/lib/libgit2.a" \
-    "${TARGET_DIR}/lib/libssh2.a" \
-    "${TARGET_DIR}/lib/libz.a" \
-    "${TARGET_DIR}/lib64/libssl.a" \
-    "${TARGET_DIR}/lib64/libcrypto.a" \
-    -fsanitize=fuzzer
+# Using compile_go_fuzzer to compile fails when statically linking libgit2 dependencies
+# via CFLAGS/CXXFLAGS.
+function go_compile(){
+    function=$1
+    fuzzer=$2
 
-go-fuzz -tags gofuzz -func=FuzzUpdateWithSetters -o fuzz_update_with_setters.a .
-clang -o /out/fuzz_update_with_setters \
-    fuzz_update_with_setters.a \
-    "${TARGET_DIR}/lib/libgit2.a" \
-    "${TARGET_DIR}/lib/libssh2.a" \
-    "${TARGET_DIR}/lib/libz.a" \
-    "${TARGET_DIR}/lib64/libssl.a" \
-    "${TARGET_DIR}/lib64/libcrypto.a" \
-    -fsanitize=fuzzer
+    if [[ $SANITIZER = *coverage* ]]; then
+        # ref: https://github.com/google/oss-fuzz/blob/master/infra/base-images/base-builder/compile_go_fuzzer
+        compile_go_fuzzer "${PROJECT_PATH}/tests/fuzz" "${function}" "${fuzzer}"
+    else
+        go-fuzz -tags gofuzz -func="${function}" -o "${fuzzer}.a" .
+        ${CXX} ${CXXFLAGS} ${LIB_FUZZING_ENGINE} -o "${OUT}/${fuzzer}" \
+            "${fuzzer}.a" \
+            "${TARGET_DIR}/lib/libgit2.a" "${TARGET_DIR}/lib/libssh2.a" \
+            "${TARGET_DIR}/lib/libz.a" "${TARGET_DIR}/lib64/libssl.a" \
+            "${TARGET_DIR}/lib64/libcrypto.a" \
+            -fsanitize="${SANITIZER}"
+    fi
+}
 
+go_compile FuzzImageUpdateReconciler fuzz_image_update_reconciler
+go_compile FuzzUpdateWithSetters fuzz_update_with_setters
+
+# By now testdata is embedded in the binaries and no longer needed.
+rm -rf testdata/
+
+popd
 popd
