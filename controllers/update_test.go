@@ -28,9 +28,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ProtonMail/go-crypto/openpgp"
-	"github.com/ProtonMail/go-crypto/openpgp/armor"
 	"github.com/fluxcd/pkg/apis/acl"
+	git2go "github.com/libgit2/git2go/v33"
+	"golang.org/x/crypto/openpgp"
+	"golang.org/x/crypto/openpgp/armor"
+
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -61,9 +63,15 @@ import (
 
 const timeout = 10 * time.Second
 
-// Copied from
-// https://github.com/fluxcd/source-controller/blob/master/controllers/suite_test.go
-var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz1234567890")
+var (
+	// Copied from
+	// https://github.com/fluxcd/source-controller/blob/master/controllers/suite_test.go
+	letterRunes = []rune("abcdefghijklmnopqrstuvwxyz1234567890")
+
+	gitServer *gittestserver.GitServer
+
+	repositoryPath string
+)
 
 func randStringRunes(n int) string {
 	b := make([]rune, n)
@@ -76,10 +84,8 @@ func randStringRunes(n int) string {
 var _ = Describe("ImageUpdateAutomation", func() {
 	var (
 		branch             string
-		repositoryPath     string
 		namespace          *corev1.Namespace
 		username, password string
-		gitServer          *gittestserver.GitServer
 	)
 
 	// Start the git server
@@ -782,7 +788,7 @@ Images:
 			// verify commit
 			ent, err := commit.Verify(b.String())
 			Expect(err).ToNot(HaveOccurred())
-			Expect(ent.PrimaryKey.Fingerprint).To(Equal(pgpEntity.PrimaryKey.Fingerprint))
+			Expect(ent.PrimaryKey.Fingerprint).To(Equal(pgpEntity.PrimaryKey.Fingerprint[:]))
 		})
 	})
 
@@ -1353,11 +1359,27 @@ func initGitRepo(gitServer *gittestserver.GitServer, fixture, branch, repository
 		return err
 	}
 
-	return remote.Push(&git.PushOptions{
+	err = remote.Push(&git.PushOptions{
 		RefSpecs: []config.RefSpec{
 			config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch)),
 		},
 	})
+	if err != nil {
+		return err
+	}
+
+	// Adhoc fix to a bug in which most clone operations during test fail.
+	// This started with the upgrade from libgit2 1.1.1 to 1.3.0, and
+	// requires further investigation as to why repositories created and
+	// amended by go-git stopped working for libgit2 clone operations.
+	repo2, err := git2go.OpenRepository(gitServer.Root() + repositoryPath)
+	if err != nil {
+		return err
+	}
+	defer repo2.Free()
+	_, err = commitFile(repo2, "branch", "init", time.Now())
+
+	return err
 }
 
 func checkoutBranch(repo *git.Repository, branch string) error {
@@ -1412,4 +1434,78 @@ func mergeBranchIntoHead(repo *git.Repository, pushBranch string) {
 		RemoteName: originRemote,
 	})
 	Expect(err).NotTo(HaveOccurred())
+}
+
+// copied from source-controller/pkg/git/libgit2/checkout.go
+func commitFile(repo *git2go.Repository, path, content string, time time.Time) (*git2go.Oid, error) {
+	var parentC []*git2go.Commit
+	head, err := headCommit(repo)
+	if err == nil {
+		defer head.Free()
+		parentC = append(parentC, head)
+	}
+
+	index, err := repo.Index()
+	if err != nil {
+		return nil, err
+	}
+	defer index.Free()
+
+	blobOID, err := repo.CreateBlobFromBuffer([]byte(content))
+	if err != nil {
+		return nil, err
+	}
+
+	entry := &git2go.IndexEntry{
+		Mode: git2go.FilemodeBlob,
+		Id:   blobOID,
+		Path: path,
+	}
+
+	if err := index.Add(entry); err != nil {
+		return nil, err
+	}
+	if err := index.Write(); err != nil {
+		return nil, err
+	}
+
+	treeID, err := index.WriteTree()
+	if err != nil {
+		return nil, err
+	}
+
+	tree, err := repo.LookupTree(treeID)
+	if err != nil {
+		return nil, err
+	}
+	defer tree.Free()
+
+	c, err := repo.CreateCommit("HEAD", mockSignature(time), mockSignature(time), "Committing "+path, tree, parentC...)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+// copied from source-controller/pkg/git/libgit2/checkout.go
+func mockSignature(time time.Time) *git2go.Signature {
+	return &git2go.Signature{
+		Name:  "Jane Doe",
+		Email: "author@example.com",
+		When:  time,
+	}
+}
+
+// copied from source-controller/pkg/git/libgit2/checkout.go
+func headCommit(repo *git2go.Repository) (*git2go.Commit, error) {
+	head, err := repo.Head()
+	if err != nil {
+		return nil, err
+	}
+	defer head.Free()
+	c, err := repo.LookupCommit(head.Target())
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
 }

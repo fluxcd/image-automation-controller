@@ -271,6 +271,19 @@ update-attributions:
 	./hack/update-attributions.sh
 
 verify: update-attributions fmt
+ifneq ($(shell grep -o 'LIBGIT2_IMG ?= \w.*' Makefile | cut -d ' ' -f 3):$(shell grep -o 'LIBGIT2_TAG ?= \w.*' Makefile | cut -d ' ' -f 3), \
+		$(shell grep -o "LIBGIT2_IMG=\w.*" Dockerfile | cut -d'=' -f2):$(shell grep -o "LIBGIT2_TAG=\w.*" Dockerfile | cut -d'=' -f2))
+	@{ \
+	echo "LIBGIT2_IMG and LIBGIT2_TAG must match in both Makefile and Dockerfile"; \
+	exit 1; \
+	}
+endif
+ifneq ($(shell grep -o 'LIBGIT2_TAG ?= \w.*' Makefile | cut -d ' ' -f 3), $(shell grep -o "LIBGIT2_TAG=.*" tests/fuzz/oss_fuzz_build.sh | sed 's;LIBGIT2_TAG="$${LIBGIT2_TAG:-;;g' | sed 's;}";;g'))
+	@{ \
+	echo "LIBGIT2_TAG must match in both Makefile and tests/fuzz/oss_fuzz_build.sh"; \
+	exit 1; \
+	}
+endif
 ifneq (, $(shell git status --porcelain --untracked-files=no))
 	@{ \
 	echo "working directory is dirty:"; \
