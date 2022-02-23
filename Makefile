@@ -144,8 +144,7 @@ test-api:	## Run api tests
 	cd api; go test ./... -coverprofile cover.out
 
 manager: $(LIBGIT2) generate fmt vet	## Build manager binary
-	go run ./main.go
-
+	go build ./main.go
 
 run: $(LIBGIT2) generate fmt vet manifests	# Run against the configured Kubernetes cluster in ~/.kube/config
 	go run $(GO_STATIC_FLAGS) ./main.go --log-level=${LOG_LEVEL} --log-encoding=console
