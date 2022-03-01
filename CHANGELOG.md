@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.20.1
+
+**Release date:** 2022-03-01
+
+This prerelease comes with improvements to the libgit2 OpenSSL build dependency,
+which fixes some issues related to git server connection leaks.
+
+In addition, `github.com/prometheus/client_golang` was updated to `v1.11.1`
+to please static analysers and fix warnings for CVE-2022-21698.
+
+Improvements:
+* Upgrade libgit2 and fix static builds
+  [#311](https://github.com/fluxcd/image-automation-controller/pull/311)
+* Add support for fuzzing tests using oss-fuzz-build.
+  [#314](https://github.com/fluxcd/image-automation-controller/pull/314)
+* Add support for multiple fuzz sanitizers
+  [#317](https://github.com/fluxcd/image-automation-controller/pull/317)
+* Update dependencies (fix CVE-2022-21698)
+  [#319](https://github.com/fluxcd/image-automation-controller/pull/319)
+
 ## 0.20.0
 
 **Release date:** 2022-02-01

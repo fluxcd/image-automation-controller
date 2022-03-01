@@ -8,7 +8,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7
 	github.com/cyphar/filepath-securejoin v0.2.2
-	github.com/fluxcd/image-automation-controller/api v0.20.0
+	github.com/fluxcd/image-automation-controller/api v0.20.1
 	// If you bump this, change REFLECTOR_VER in the Makefile to match
 	github.com/fluxcd/image-reflector-controller/api v0.16.0
 	github.com/fluxcd/pkg/apis/acl v0.0.3
