@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/go-git/go-billy/v5/memfs"
 	gogit "github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/go-logr/logr"
@@ -144,18 +144,11 @@ func TestPushRejected(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tmp, err := os.MkdirTemp("", "gotest-imageauto-git")
-	if err != nil {
-		t.Fatal(err)
-	}
-	repoURL := gitServer.HTTPAddress() + "/appconfig.git"
-	repo, err := gogit.PlainClone(tmp, false, &gogit.CloneOptions{
-		URL:           repoURL,
-		ReferenceName: plumbing.NewBranchReferenceName("main"),
-	})
+	repoURL := gitServer.HTTPAddressWithCredentials() + "/appconfig.git"
+	repo, err := clone(repoURL, "origin", "main")
 
 	// This is here to guard against push in general being broken
-	err = push(context.TODO(), tmp, "main", repoAccess{
+	err = push(context.TODO(), repo.Workdir(), "main", repoAccess{
 		url:  repoURL,
 		auth: nil,
 	})
@@ -164,13 +157,13 @@ func TestPushRejected(t *testing.T) {
 	}
 
 	// This is not under test, but needed for the next bit
-	if err = switchBranch(repo, branch); err != nil {
+	if err = repo.SetHead(fmt.Sprintf("refs/heads/%s", branch)); err != nil {
 		t.Fatal(err)
 	}
 
 	// This is supposed to fail, because the hook rejects the branch
 	// pushed to.
-	err = push(context.TODO(), tmp, branch, repoAccess{
+	err = push(context.TODO(), repo.Workdir(), branch, repoAccess{
 		url:  repoURL,
 		auth: nil,
 	})
