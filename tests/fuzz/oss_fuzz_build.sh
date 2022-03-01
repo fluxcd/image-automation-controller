@@ -70,6 +70,16 @@ REFLECTOR_VER=v0.16.0
 mkdir -p testdata/crds
 cp ../../config/crd/bases/*.yaml testdata/crds/
 
+# Use main go.mod in order to conserve the same version across all dependencies.
+cp ../../go.mod .
+cp ../../go.sum .
+
+sed -i 's;module .*;module github.com/fluxcd/image-automation-controller/tests/fuzz;g' go.mod
+sed -i 's;api => ./api;api => ../../api;g' go.mod
+echo "replace github.com/fluxcd/image-automation-controller => ../../" >> go.mod
+
+go mod download
+
 if [ -d "../../controllers/testdata/crds" ]; then
     cp ../../controllers/testdata/crds/*.yaml testdata/crds
 # Fetch the CRDs if not present since we need them when running fuzz tests on CI.
