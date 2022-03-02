@@ -8,7 +8,7 @@ CRD_OPTIONS ?= crd:crdVersions=v1
 
 # Base image used to build the Go binary
 LIBGIT2_IMG ?= ghcr.io/fluxcd/golang-with-libgit2
-LIBGIT2_TAG ?= libgit2-1.1.1-7
+LIBGIT2_TAG ?= libgit2-1.3.0-2
 
 # Allows for defining additional Docker buildx arguments,
 # e.g. '--push'.
@@ -144,8 +144,7 @@ test-api:	## Run api tests
 	cd api; go test ./... -coverprofile cover.out
 
 manager: $(LIBGIT2) generate fmt vet	## Build manager binary
-	go run ./main.go
-
+	go build ./main.go
 
 run: $(LIBGIT2) generate fmt vet manifests	# Run against the configured Kubernetes cluster in ~/.kube/config
 	go run $(GO_STATIC_FLAGS) ./main.go --log-level=${LOG_LEVEL} --log-encoding=console
@@ -272,6 +271,19 @@ update-attributions:
 	./hack/update-attributions.sh
 
 verify: update-attributions fmt
+ifneq ($(shell grep -o 'LIBGIT2_IMG ?= \w.*' Makefile | cut -d ' ' -f 3):$(shell grep -o 'LIBGIT2_TAG ?= \w.*' Makefile | cut -d ' ' -f 3), \
+		$(shell grep -o "LIBGIT2_IMG=\w.*" Dockerfile | cut -d'=' -f2):$(shell grep -o "LIBGIT2_TAG=\w.*" Dockerfile | cut -d'=' -f2))
+	@{ \
+	echo "LIBGIT2_IMG and LIBGIT2_TAG must match in both Makefile and Dockerfile"; \
+	exit 1; \
+	}
+endif
+ifneq ($(shell grep -o 'LIBGIT2_TAG ?= \w.*' Makefile | cut -d ' ' -f 3), $(shell grep -o "LIBGIT2_TAG=.*" tests/fuzz/oss_fuzz_build.sh | sed 's;LIBGIT2_TAG="$${LIBGIT2_TAG:-;;g' | sed 's;}";;g'))
+	@{ \
+	echo "LIBGIT2_TAG must match in both Makefile and tests/fuzz/oss_fuzz_build.sh"; \
+	exit 1; \
+	}
+endif
 ifneq (, $(shell git status --porcelain --untracked-files=no))
 	@{ \
 	echo "working directory is dirty:"; \

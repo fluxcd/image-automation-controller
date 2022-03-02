@@ -16,7 +16,7 @@
 
 set -euxo pipefail
 
-LIBGIT2_TAG="${LIBGIT2_TAG:-libgit2-1.1.1-7}"
+LIBGIT2_TAG="${LIBGIT2_TAG:-libgit2-1.3.0-2}"
 GOPATH="${GOPATH:-/root/go}"
 GO_SRC="${GOPATH}/src"
 PROJECT_PATH="github.com/fluxcd/image-automation-controller"

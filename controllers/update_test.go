@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"net/url"
 	"os"
@@ -28,9 +29,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ProtonMail/go-crypto/openpgp"
-	"github.com/ProtonMail/go-crypto/openpgp/armor"
+	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/fluxcd/pkg/apis/acl"
+	git2go "github.com/libgit2/git2go/v33"
+	"golang.org/x/crypto/openpgp"
+	"golang.org/x/crypto/openpgp/armor"
+
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -61,9 +65,15 @@ import (
 
 const timeout = 10 * time.Second
 
-// Copied from
-// https://github.com/fluxcd/source-controller/blob/master/controllers/suite_test.go
-var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz1234567890")
+var (
+	// Copied from
+	// https://github.com/fluxcd/source-controller/blob/master/controllers/suite_test.go
+	letterRunes = []rune("abcdefghijklmnopqrstuvwxyz1234567890")
+
+	gitServer *gittestserver.GitServer
+
+	repositoryPath string
+)
 
 func randStringRunes(n int) string {
 	b := make([]rune, n)
@@ -76,10 +86,8 @@ func randStringRunes(n int) string {
 var _ = Describe("ImageUpdateAutomation", func() {
 	var (
 		branch             string
-		repositoryPath     string
 		namespace          *corev1.Namespace
 		username, password string
-		gitServer          *gittestserver.GitServer
 	)
 
 	// Start the git server
@@ -782,7 +790,7 @@ Images:
 			// verify commit
 			ent, err := commit.Verify(b.String())
 			Expect(err).ToNot(HaveOccurred())
-			Expect(ent.PrimaryKey.Fingerprint).To(Equal(pgpEntity.PrimaryKey.Fingerprint))
+			Expect(ent.PrimaryKey.Fingerprint).To(Equal(pgpEntity.PrimaryKey.Fingerprint[:]))
 		})
 	})
 
@@ -1323,41 +1331,170 @@ func commitInRepo(repoURL, branch, msg string, changeFiles func(path string)) {
 
 // Initialise a git server with a repo including the files in dir.
 func initGitRepo(gitServer *gittestserver.GitServer, fixture, branch, repositoryPath string) error {
-	fs := memfs.New()
-	repo, err := git.Init(memory.NewStorage(), fs)
+	workDir, err := securejoin.SecureJoin(gitServer.Root(), repositoryPath)
 	if err != nil {
 		return err
 	}
 
-	err = populateRepoFromFixture(repo, fixture)
+	repo, err := initGitRepoPlain(fixture, workDir)
 	if err != nil {
 		return err
 	}
 
-	working, err := repo.Worktree()
-	if err != nil {
-		return err
-	}
-	if err = working.Checkout(&git.CheckoutOptions{
-		Branch: plumbing.NewBranchReferenceName(branch),
-		Create: true,
-	}); err != nil {
-		return err
-	}
-
-	remote, err := repo.CreateRemote(&config.RemoteConfig{
-		Name: "origin",
-		URLs: []string{gitServer.HTTPAddressWithCredentials() + repositoryPath},
-	})
+	commitID, err := headCommit(repo)
 	if err != nil {
 		return err
 	}
 
-	return remote.Push(&git.PushOptions{
-		RefSpecs: []config.RefSpec{
-			config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch)),
-		},
-	})
+	_, err = repo.CreateBranch(branch, commitID, false)
+	if err != nil {
+		return err
+	}
+
+	return repo.Remotes.AddPush("origin", branchRefName(branch))
+}
+
+func initGitRepoPlain(fixture, repositoryPath string) (*git2go.Repository, error) {
+	repo, err := git2go.InitRepository(repositoryPath, false)
+	if err != nil {
+		return nil, err
+	}
+
+	err = copyDir(fixture, repositoryPath)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = commitWorkDir(repo, "main")
+	if err != nil {
+		return nil, err
+	}
+
+	return repo, nil
+}
+
+func headFromBranch(repo *git2go.Repository, branchName string) (*git2go.Commit, error) {
+	branch, err := repo.LookupBranch(branchName, git2go.BranchAll)
+	if err != nil {
+		return nil, err
+	}
+	defer branch.Free()
+
+	return repo.LookupCommit(branch.Reference.Target())
+}
+
+func commitWorkDir(repo *git2go.Repository, branchName string) (*git2go.Oid, error) {
+	var parentC []*git2go.Commit
+	head, err := headFromBranch(repo, branchName)
+	if err == nil {
+		defer head.Free()
+		parentC = append(parentC, head)
+	}
+
+	index, err := repo.Index()
+	if err != nil {
+		return nil, err
+	}
+	defer index.Free()
+
+	// add to index any files that are not within .git/
+	if err = filepath.Walk(repo.Workdir(),
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			rel, err := filepath.Rel(repo.Workdir(), path)
+			if err != nil {
+				return err
+			}
+			f, err := os.Stat(path)
+			if err != nil {
+				return err
+			}
+			if f.IsDir() || strings.HasPrefix(rel, ".git") || rel == "." {
+				return nil
+			}
+			if err := index.AddByPath(rel); err != nil {
+				return err
+			}
+			return nil
+		}); err != nil {
+		return nil, err
+	}
+
+	if err := index.Write(); err != nil {
+		return nil, err
+	}
+
+	treeID, err := index.WriteTree()
+	if err != nil {
+		return nil, err
+	}
+
+	tree, err := repo.LookupTree(treeID)
+	if err != nil {
+		return nil, err
+	}
+	defer tree.Free()
+
+	sig := mockSignature(time.Now())
+	c, err := repo.CreateCommit("HEAD", sig, sig, "Committing "+repo.Workdir(), tree, parentC...)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+func copyDir(src string, dest string) error {
+	file, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if !file.IsDir() {
+		return fmt.Errorf("source %q must be a directory", file.Name())
+	}
+
+	if err = os.MkdirAll(dest, 0o755); err != nil {
+		return err
+	}
+
+	files, err := ioutil.ReadDir(src)
+	if err != nil {
+		return err
+	}
+
+	for _, f := range files {
+		srcFile := filepath.Join(src, f.Name())
+		destFile := filepath.Join(dest, f.Name())
+
+		if f.IsDir() {
+			if err = copyDir(srcFile, destFile); err != nil {
+				return err
+			}
+		}
+
+		if !f.IsDir() {
+			// ignore symlinks
+			if f.Mode()&os.ModeSymlink == os.ModeSymlink {
+				continue
+			}
+
+			content, err := ioutil.ReadFile(srcFile)
+			if err != nil {
+				return err
+			}
+
+			if err = ioutil.WriteFile(destFile, content, 0o755); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func branchRefName(branch string) string {
+	return fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch)
 }
 
 func checkoutBranch(repo *git.Repository, branch string) error {
@@ -1412,4 +1549,101 @@ func mergeBranchIntoHead(repo *git.Repository, pushBranch string) {
 		RemoteName: originRemote,
 	})
 	Expect(err).NotTo(HaveOccurred())
+}
+
+// copied from source-controller/pkg/git/libgit2/checkout.go
+func commitFile(repo *git2go.Repository, path, content string, time time.Time) (*git2go.Oid, error) {
+	var parentC []*git2go.Commit
+	head, err := headCommit(repo)
+	if err == nil {
+		defer head.Free()
+		parentC = append(parentC, head)
+	}
+
+	index, err := repo.Index()
+	if err != nil {
+		return nil, err
+	}
+	defer index.Free()
+
+	blobOID, err := repo.CreateBlobFromBuffer([]byte(content))
+	if err != nil {
+		return nil, err
+	}
+
+	entry := &git2go.IndexEntry{
+		Mode: git2go.FilemodeBlob,
+		Id:   blobOID,
+		Path: path,
+	}
+
+	if err := index.Add(entry); err != nil {
+		return nil, err
+	}
+	if err := index.Write(); err != nil {
+		return nil, err
+	}
+
+	treeID, err := index.WriteTree()
+	if err != nil {
+		return nil, err
+	}
+
+	tree, err := repo.LookupTree(treeID)
+	if err != nil {
+		return nil, err
+	}
+	defer tree.Free()
+
+	c, err := repo.CreateCommit("HEAD", mockSignature(time), mockSignature(time), "Committing "+path, tree, parentC...)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+// copied from source-controller/pkg/git/libgit2/checkout.go
+func mockSignature(time time.Time) *git2go.Signature {
+	return &git2go.Signature{
+		Name:  "Jane Doe",
+		Email: "author@example.com",
+		When:  time,
+	}
+}
+
+// copied from source-controller/pkg/git/libgit2/checkout.go
+func headCommit(repo *git2go.Repository) (*git2go.Commit, error) {
+	head, err := repo.Head()
+	if err != nil {
+		return nil, err
+	}
+	defer head.Free()
+	c, err := repo.LookupCommit(head.Target())
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+func clone(repoURL, remoteName, branchName string) (*git2go.Repository, error) {
+	dir, err := os.MkdirTemp("", "iac-clone-*")
+	if err != nil {
+		return nil, err
+	}
+	opts := &git2go.CloneOptions{
+		Bare:           false,
+		CheckoutBranch: branchName,
+		CheckoutOptions: git2go.CheckoutOptions{
+			Strategy: git2go.CheckoutForce,
+		},
+		FetchOptions: git2go.FetchOptions{
+			RemoteCallbacks: git2go.RemoteCallbacks{
+				CertificateCheckCallback: func(cert *git2go.Certificate, valid bool, hostname string) error {
+					return nil
+				},
+			},
+		},
+	}
+
+	return git2go.Clone(repoURL, dir, opts)
 }
