@@ -29,13 +29,11 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
-	gogit "github.com/go-git/go-git/v5"
 	libgit2 "github.com/libgit2/git2go/v33"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
+	"github.com/ProtonMail/go-crypto/openpgp/packet"
 	securejoin "github.com/cyphar/filepath-securejoin"
-	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
@@ -253,10 +251,11 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	// Use the git operations timeout for the repo.
 	cloneCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
 	defer cancel()
-	var repo *gogit.Repository
+	var repo *libgit2.Repository
 	if repo, err = cloneInto(cloneCtx, access, ref, tmp); err != nil {
 		return failWithError(err)
 	}
+	defer repo.Free()
 
 	// When there's a push spec, the pushed-to branch is where commits
 	// shall be made
@@ -333,13 +332,13 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	// The status message depends on what happens next. Since there's
 	// more than one way to succeed, there's some if..else below, and
 	// early returns only on failure.
-	author := &object.Signature{
+	signature := &libgit2.Signature{
 		Name:  gitSpec.Commit.Author.Name,
 		Email: gitSpec.Commit.Author.Email,
 		When:  time.Now(),
 	}
 
-	if rev, err := commitChangedManifests(tracelog, repo, tmp, signingEntity, author, message); err != nil {
+	if rev, err := commitChangedManifests(tracelog, repo, tmp, signingEntity, signature, message); err != nil {
 		if err != errNoChanges {
 			return failWithError(err)
 		}
@@ -514,9 +513,9 @@ func (r repoAccess) remoteCallbacks(ctx context.Context) libgit2.RemoteCallbacks
 }
 
 // cloneInto clones the upstream repository at the `ref` given (which
-// can be `nil`). It returns a `*gogit.Repository` since that is used
+// can be `nil`). It returns a `*libgit2.Repository` since that is used
 // for committing changes.
-func cloneInto(ctx context.Context, access repoAccess, ref *sourcev1.GitRepositoryRef, path string) (*gogit.Repository, error) {
+func cloneInto(ctx context.Context, access repoAccess, ref *sourcev1.GitRepositoryRef, path string) (*libgit2.Repository, error) {
 	opts := git.CheckoutOptions{}
 	if ref != nil {
 		opts.Tag = ref.Tag
@@ -532,90 +531,164 @@ func cloneInto(ctx context.Context, access repoAccess, ref *sourcev1.GitReposito
 		return nil, err
 	}
 
-	return gogit.PlainOpen(path)
+	return libgit2.OpenRepository(path)
 }
 
 // switchBranch switches the repo from the current branch to the
 // branch given. If the branch does not exist, it is created using the
 // head as the starting point.
-func switchBranch(repo *gogit.Repository, pushBranch string) error {
-	localBranch := plumbing.NewBranchReferenceName(pushBranch)
+func switchBranch(repo *libgit2.Repository, pushBranch string) error {
+	if err := repo.SetHead(fmt.Sprintf("refs/heads/%s", pushBranch)); err != nil {
+		head, err := headCommit(repo)
+		if err != nil {
+			return err
+		}
+		defer head.Free()
 
-	// is the branch already present?
-	_, err := repo.Reference(localBranch, true)
-	var create bool
-	switch {
-	case err == plumbing.ErrReferenceNotFound:
-		// make a new branch, starting at HEAD
-		create = true
-	case err != nil:
+		_, err = repo.CreateBranch(pushBranch, head, false)
 		return err
-	default:
-		// local branch found, great
-		break
 	}
 
-	tree, err := repo.Worktree()
+	return nil
+}
+
+func headCommit(repo *libgit2.Repository) (*libgit2.Commit, error) {
+	head, err := repo.Head()
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	return tree.Checkout(&gogit.CheckoutOptions{
-		Branch: localBranch,
-		Create: create,
-	})
+	defer head.Free()
+	c, err := repo.LookupCommit(head.Target())
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
 }
 
 var errNoChanges error = errors.New("no changes made to working directory")
 
-func commitChangedManifests(tracelog logr.Logger, repo *gogit.Repository, absRepoPath string, ent *openpgp.Entity, author *object.Signature, message string) (string, error) {
-	working, err := repo.Worktree()
+func commitChangedManifests(tracelog logr.Logger, repo *libgit2.Repository, absRepoPath string, ent *openpgp.Entity, sig *libgit2.Signature, message string) (string, error) {
+	sl, err := repo.StatusList(&libgit2.StatusOptions{
+		Show: libgit2.StatusShowIndexAndWorkdir,
+	})
 	if err != nil {
 		return "", err
 	}
-	status, err := working.Status()
+	defer sl.Free()
+
+	count, err := sl.EntryCount()
 	if err != nil {
 		return "", err
 	}
 
-	// go-git has [a bug](https://github.com/go-git/go-git/issues/253)
-	// whereby it thinks broken symlinks to absolute paths are
-	// modified. There's no circumstance in which we want to commit a
-	// change to a broken symlink: so, detect and skip those.
-	var changed bool
-	for file, _ := range status {
-		abspath := filepath.Join(absRepoPath, file)
-		info, err := os.Lstat(abspath)
-		if err != nil {
-			return "", fmt.Errorf("checking if %s is a symlink: %w", file, err)
-		}
-		if info.Mode()&os.ModeSymlink > 0 {
-			// symlinks are OK; broken symlinks are probably a result
-			// of the bug mentioned above, but not of interest in any
-			// case.
-			if _, err := os.Stat(abspath); os.IsNotExist(err) {
-				tracelog.Info("apparently broken symlink found; ignoring", "path", abspath)
-				continue
-			}
-		}
-		tracelog.Info("adding file", "file", file)
-		working.Add(file)
-		changed = true
-	}
-
-	if !changed {
+	if count == 0 {
 		return "", errNoChanges
 	}
 
-	var rev plumbing.Hash
-	if rev, err = working.Commit(message, &gogit.CommitOptions{
-		Author:  author,
-		SignKey: ent,
-	}); err != nil {
+	var parentC []*libgit2.Commit
+	head, err := headCommit(repo)
+	if err == nil {
+		defer head.Free()
+		parentC = append(parentC, head)
+	}
+
+	index, err := repo.Index()
+	if err != nil {
+		return "", err
+	}
+	defer index.Free()
+
+	// add to index any files that are not within .git/
+	if err = filepath.Walk(repo.Workdir(),
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			rel, err := filepath.Rel(repo.Workdir(), path)
+			if err != nil {
+				return err
+			}
+			f, err := os.Stat(path)
+			if err != nil {
+				return err
+			}
+			if f.IsDir() || strings.HasPrefix(rel, ".git") || rel == "." {
+				return nil
+			}
+			if err := index.AddByPath(rel); err != nil {
+				tracelog.Info("adding file", "file", rel)
+				return err
+			}
+			return nil
+		}); err != nil {
 		return "", err
 	}
 
-	return rev.String(), nil
+	if err := index.Write(); err != nil {
+		return "", err
+	}
+
+	treeID, err := index.WriteTree()
+	if err != nil {
+		return "", err
+	}
+
+	tree, err := repo.LookupTree(treeID)
+	if err != nil {
+		return "", err
+	}
+	defer tree.Free()
+
+	commitID, err := repo.CreateCommit("HEAD", sig, sig, message, tree, parentC...)
+	if err != nil {
+		return "", err
+	}
+
+	// return unsigned commit if pgp entity is not provided
+	if ent == nil {
+		return commitID.String(), nil
+	}
+
+	commit, err := repo.LookupCommit(commitID)
+	if err != nil {
+		return "", err
+	}
+
+	signedCommitID, err := commit.WithSignatureUsing(func(commitContent string) (string, string, error) {
+		cipherText := new(bytes.Buffer)
+		err := openpgp.ArmoredDetachSignText(cipherText, ent, strings.NewReader(commitContent), &packet.Config{})
+		if err != nil {
+			return "", "", errors.New("error signing payload")
+		}
+
+		return cipherText.String(), "", nil
+	})
+	if err != nil {
+		return "", err
+	}
+	signedCommit, err := repo.LookupCommit(signedCommitID)
+	if err != nil {
+		return "", err
+	}
+	defer signedCommit.Free()
+
+	newHead, err := repo.Head()
+	if err != nil {
+		return "", err
+	}
+	defer newHead.Free()
+
+	_, err = repo.References.Create(
+		newHead.Name(),
+		signedCommit.Id(),
+		true,
+		"repoint to signed commit",
+	)
+	if err != nil {
+		return "", err
+	}
+
+	return signedCommitID.String(), nil
 }
 
 // getSigningEntity retrieves an OpenPGP entity referenced by the
@@ -683,8 +756,8 @@ func fetch(ctx context.Context, path string, branch string, access repoAccess) e
 
 // push pushes the branch given to the origin using the git library
 // indicated by `impl`. It's passed both the path to the repo and a
-// gogit.Repository value, since the latter may as well be used if the
-// implementation is GoGit.
+// libgit2.Repository value, since the latter may as well be used if the
+// implementation is libgit2.
 func push(ctx context.Context, path, branch string, access repoAccess) error {
 	repo, err := libgit2.OpenRepository(path)
 	if err != nil {
