@@ -8,28 +8,23 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-git/go-billy/v5/memfs"
-	gogit "github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/go-logr/logr"
+	libgit2 "github.com/libgit2/git2go/v33"
 
 	"github.com/fluxcd/pkg/gittestserver"
 )
 
-func populateRepoFromFixture(repo *gogit.Repository, fixture string) error {
-	working, err := repo.Worktree()
+func populateRepoFromFixture(repo *libgit2.Repository, fixture string) error {
+	absFixture, err := filepath.Abs(fixture)
 	if err != nil {
 		return err
 	}
-	fs := working.Filesystem
-
-	if err = filepath.Walk(fixture, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(absFixture, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if info.IsDir() {
-			return fs.MkdirAll(fs.Join(path[len(fixture):]), info.Mode())
+			return os.MkdirAll(filepath.Join(path[len(fixture):]), info.Mode())
 		}
 		// copy symlinks as-is, so I can test what happens with broken symlinks
 		if info.Mode()&os.ModeSymlink > 0 {
@@ -37,7 +32,7 @@ func populateRepoFromFixture(repo *gogit.Repository, fixture string) error {
 			if err != nil {
 				return err
 			}
-			return fs.Symlink(target, path[len(fixture):])
+			return os.Symlink(target, path[len(fixture):])
 		}
 
 		fileBytes, err := os.ReadFile(path)
@@ -45,7 +40,7 @@ func populateRepoFromFixture(repo *gogit.Repository, fixture string) error {
 			return err
 		}
 
-		ff, err := fs.Create(path[len(fixture):])
+		ff, err := os.Create(path[len(fixture):])
 		if err != nil {
 			return err
 		}
@@ -57,18 +52,13 @@ func populateRepoFromFixture(repo *gogit.Repository, fixture string) error {
 		return err
 	}
 
-	_, err = working.Add(".")
-	if err != nil {
-		return err
+	sig := &libgit2.Signature{
+		Name:  "Testbot",
+		Email: "test@example.com",
+		When:  time.Now(),
 	}
 
-	if _, err = working.Commit("Initial revision from "+fixture, &gogit.CommitOptions{
-		Author: &object.Signature{
-			Name:  "Testbot",
-			Email: "test@example.com",
-			When:  time.Now(),
-		},
-	}); err != nil {
+	if _, err := commitWorkDir(repo, "main", "Initial revision from "+fixture, sig); err != nil {
 		return err
 	}
 
@@ -76,15 +66,17 @@ func populateRepoFromFixture(repo *gogit.Repository, fixture string) error {
 }
 
 func TestRepoForFixture(t *testing.T) {
-	repo, err := gogit.Init(memory.NewStorage(), memfs.New())
+	tmp, err := os.MkdirTemp("", "flux-test")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.RemoveAll(tmp)
 
-	err = populateRepoFromFixture(repo, "testdata/pathconfig")
+	repo, err := initGitRepoPlain("testdata/pathconfig", tmp)
 	if err != nil {
 		t.Error(err)
 	}
+	repo.Free()
 }
 
 func TestIgnoreBrokenSymlink(t *testing.T) {
@@ -95,11 +87,7 @@ func TestIgnoreBrokenSymlink(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	repo, err := gogit.PlainInit(tmp, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = populateRepoFromFixture(repo, "testdata/brokenlink")
+	repo, err := initGitRepoPlain("testdata/brokenlink", tmp)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -19,8 +19,6 @@ require (
 	// If you bump this, change SOURCE_VER in the Makefile to match
 	github.com/fluxcd/source-controller v0.21.3-0.20220222161537-bd3d7817d0cf
 	github.com/fluxcd/source-controller/api v0.21.3-0.20220222161537-bd3d7817d0cf
-	github.com/go-git/go-billy/v5 v5.3.1
-	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v1.2.2
 	github.com/google/go-containerregistry v0.6.0
 	github.com/libgit2/git2go/v33 v33.0.7
@@ -55,6 +53,8 @@ require (
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
+	github.com/go-git/go-billy/v5 v5.3.1 // indirect
+	github.com/go-git/go-git/v5 v5.4.2 // indirect
 	github.com/go-logr/zapr v1.2.0 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.19.5 // indirect
