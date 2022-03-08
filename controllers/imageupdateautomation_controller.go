@@ -544,7 +544,8 @@ func switchBranch(repo *libgit2.Repository, pushBranch string) error {
 		}
 		defer head.Free()
 
-		_, err = repo.CreateBranch(pushBranch, head, false)
+		branch, err := repo.CreateBranch(pushBranch, head, false)
+		defer branch.Free()
 		return err
 	}
 
@@ -652,6 +653,7 @@ func commitChangedManifests(tracelog logr.Logger, repo *libgit2.Repository, absR
 	if err != nil {
 		return "", err
 	}
+	defer commit.Free()
 
 	signedCommitID, err := commit.WithSignatureUsing(func(commitContent string) (string, string, error) {
 		cipherText := new(bytes.Buffer)
@@ -677,7 +679,7 @@ func commitChangedManifests(tracelog logr.Logger, repo *libgit2.Repository, absR
 	}
 	defer newHead.Free()
 
-	_, err = repo.References.Create(
+	ref, err := repo.References.Create(
 		newHead.Name(),
 		signedCommit.Id(),
 		true,
@@ -686,6 +688,7 @@ func commitChangedManifests(tracelog logr.Logger, repo *libgit2.Repository, absR
 	if err != nil {
 		return "", err
 	}
+	defer ref.Free()
 
 	return signedCommitID.String(), nil
 }
