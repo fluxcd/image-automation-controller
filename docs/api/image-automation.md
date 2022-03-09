@@ -207,9 +207,7 @@ string
 <td>
 <code>ref</code><br>
 <em>
-<a href="https://godoc.org/github.com/fluxcd/source-controller/api/v1beta1#GitRepositoryRef">
-Source /v1beta1.GitRepositoryRef
-</a>
+Source /v1beta2.GitRepositoryRef
 </em>
 </td>
 <td>
