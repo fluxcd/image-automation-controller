@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
 	// +kubebuilder:scaffold:imports
@@ -87,9 +87,11 @@ var _ = BeforeSuite(func(done Done) {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
+	controllerName := "image-automation-controller"
 	imageAutoReconciler = &ImageUpdateAutomationReconciler{
-		Client: k8sManager.GetClient(),
-		Scheme: scheme.Scheme,
+		Client:        k8sManager.GetClient(),
+		Scheme:        scheme.Scheme,
+		EventRecorder: k8sManager.GetEventRecorderFor(controllerName),
 	}
 	Expect(imageAutoReconciler.SetupWithManager(k8sManager, ImageUpdateAutomationReconcilerOptions{})).To(Succeed())
 
