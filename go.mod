@@ -10,7 +10,7 @@ require (
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/fluxcd/image-automation-controller/api v0.20.1
 	// If you bump this, change REFLECTOR_VER in the Makefile to match
-	github.com/fluxcd/image-reflector-controller/api v0.16.0
+	github.com/fluxcd/image-reflector-controller/api v0.17.0
 	github.com/fluxcd/pkg/apis/acl v0.0.3
 	github.com/fluxcd/pkg/apis/meta v0.12.1
 	github.com/fluxcd/pkg/gittestserver v0.5.1
@@ -127,5 +127,3 @@ require (
 	cloud.google.com/go/compute v1.5.0 // indirect
 	github.com/gofrs/uuid v4.2.0+incompatible // indirect
 )
-
-replace github.com/fluxcd/image-reflector-controller/api => github.com/fluxcd/image-reflector-controller/api v0.16.1-0.20220317184018-b696275eb6c7
