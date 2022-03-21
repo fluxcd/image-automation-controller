@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha2
 
 import (
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -116,7 +117,13 @@ const (
 // SetImageUpdateAutomationReadiness sets the ready condition with the given status, reason and message.
 func SetImageUpdateAutomationReadiness(auto *ImageUpdateAutomation, status metav1.ConditionStatus, reason, message string) {
 	auto.Status.ObservedGeneration = auto.ObjectMeta.Generation
-	meta.SetResourceCondition(auto, meta.ReadyCondition, status, reason, message)
+	newCondition := metav1.Condition{
+		Type:    meta.ReadyCondition,
+		Status:  status,
+		Reason:  reason,
+		Message: message,
+	}
+	apimeta.SetStatusCondition(auto.GetStatusConditions(), newCondition)
 }
 
 //+kubebuilder:object:root=true

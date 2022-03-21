@@ -59,7 +59,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/predicates"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/fluxcd/source-controller/pkg/git"
 	gitlibgit2 "github.com/fluxcd/source-controller/pkg/git/libgit2"
 	gitstrat "github.com/fluxcd/source-controller/pkg/git/strategy"
@@ -86,11 +86,10 @@ type TemplateData struct {
 // ImageUpdateAutomationReconciler reconciles a ImageUpdateAutomation object
 type ImageUpdateAutomationReconciler struct {
 	client.Client
-	Scheme                *runtime.Scheme
-	EventRecorder         kuberecorder.EventRecorder
-	ExternalEventRecorder *events.Recorder
-	MetricsRecorder       *metrics.Recorder
-	NoCrossNamespaceRef   bool
+	Scheme              *runtime.Scheme
+	EventRecorder       kuberecorder.EventRecorder
+	MetricsRecorder     *metrics.Recorder
+	NoCrossNamespaceRef bool
 }
 
 type ImageUpdateAutomationReconcilerOptions struct {
@@ -149,7 +148,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	// failWithError is a helper for bailing on the reconciliation.
 	failWithError := func(err error) (ctrl.Result, error) {
 		r.event(ctx, auto, events.EventSeverityError, err.Error())
-		imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, meta.ReconciliationFailedReason, err.Error())
+		imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, imagev1.ReconciliationFailedReason, err.Error())
 		if err := r.patchStatus(ctx, req, auto.Status); err != nil {
 			log.Error(err, "failed to reconcile")
 		}
@@ -366,7 +365,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	// Getting to here is a successful run.
 	auto.Status.LastAutomationRunTime = &metav1.Time{Time: now}
-	imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionTrue, meta.ReconciliationSucceededReason, statusMessage)
+	imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionTrue, imagev1.ReconciliationSucceededReason, statusMessage)
 	if err := r.patchStatus(ctx, req, auto.Status); err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
@@ -826,21 +825,11 @@ func libgit2PushError(err error) error {
 // --- events, metrics
 
 func (r *ImageUpdateAutomationReconciler) event(ctx context.Context, auto imagev1.ImageUpdateAutomation, severity, msg string) {
-	if r.EventRecorder != nil {
-		r.EventRecorder.Event(&auto, "Normal", severity, msg)
+	eventtype := "Normal"
+	if severity == events.EventSeverityError {
+		eventtype = "Warning"
 	}
-	if r.ExternalEventRecorder != nil {
-		objRef, err := reference.GetReference(r.Scheme, &auto)
-		if err != nil {
-			ctrl.LoggerFrom(ctx).Error(err, "unable to send event")
-			return
-		}
-
-		if err := r.ExternalEventRecorder.Eventf(*objRef, nil, severity, severity, msg); err != nil {
-			ctrl.LoggerFrom(ctx).Error(err, "unable to send event")
-			return
-		}
-	}
+	r.EventRecorder.Eventf(&auto, eventtype, severity, msg)
 }
 
 func (r *ImageUpdateAutomationReconciler) recordReadinessMetric(ctx context.Context, auto *imagev1.ImageUpdateAutomation) {

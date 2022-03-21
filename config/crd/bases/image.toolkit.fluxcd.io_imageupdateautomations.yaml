@@ -55,7 +55,7 @@ spec:
                       details to a git repository to update files in.
                     properties:
                       name:
-                        description: Name of the referent
+                        description: Name of the referent.
                         type: string
                     required:
                     - name
@@ -91,7 +91,7 @@ spec:
                           be in the same namespace as the ImageUpdateAutomation.
                         properties:
                           name:
-                            description: Name of the referent
+                            description: Name of the referent.
                             type: string
                         required:
                         - name
@@ -228,7 +228,8 @@ spec:
                 type: string
               lastHandledReconcileAt:
                 description: LastHandledReconcileAt holds the value of the most recent
-                  reconcile request value, so a change can be detected.
+                  reconcile request value, so a change of the annotation value can
+                  be detected.
                 type: string
               lastPushCommit:
                 description: LastPushCommit records the SHA1 of the last commit made
@@ -340,7 +341,7 @@ spec:
                               value. It must be in the same namespace as the ImageUpdateAutomation.
                             properties:
                               name:
-                                description: Name of the referent
+                                description: Name of the referent.
                                 type: string
                             required:
                             - name
@@ -499,7 +500,8 @@ spec:
                 type: string
               lastHandledReconcileAt:
                 description: LastHandledReconcileAt holds the value of the most recent
-                  reconcile request value, so a change can be detected.
+                  reconcile request value, so a change of the annotation value can
+                  be detected.
                 type: string
               lastPushCommit:
                 description: LastPushCommit records the SHA1 of the last commit made
@@ -559,19 +561,24 @@ spec:
                           from the Git repository.
                         properties:
                           branch:
-                            description: The Git branch to checkout, defaults to master.
+                            description: "Branch to check out, defaults to 'master'
+                              if no other field is defined. \n When GitRepositorySpec.GitImplementation
+                              is set to 'go-git', a shallow clone of the specified
+                              branch is performed."
                             type: string
                           commit:
-                            description: The Git commit SHA to checkout, if specified
-                              Tag filters will be ignored.
+                            description: "Commit SHA to check out, takes precedence
+                              over all reference fields. \n When GitRepositorySpec.GitImplementation
+                              is set to 'go-git', this can be combined with Branch
+                              to shallow clone the branch, in which the commit is
+                              expected to exist."
                             type: string
                           semver:
-                            description: The Git tag semver expression, takes precedence
-                              over Tag.
+                            description: SemVer tag expression to check out, takes
+                              precedence over Tag.
                             type: string
                           tag:
-                            description: The Git tag to checkout, takes precedence
-                              over Branch.
+                            description: Tag to check out, takes precedence over Branch.
                             type: string
                         type: object
                     required:
@@ -611,7 +618,7 @@ spec:
                               value. It must be in the same namespace as the ImageUpdateAutomation.
                             properties:
                               name:
-                                description: Name of the referent
+                                description: Name of the referent.
                                 type: string
                             required:
                             - name
@@ -776,7 +783,8 @@ spec:
                 type: string
               lastHandledReconcileAt:
                 description: LastHandledReconcileAt holds the value of the most recent
-                  reconcile request value, so a change can be detected.
+                  reconcile request value, so a change of the annotation value can
+                  be detected.
                 type: string
               lastPushCommit:
                 description: LastPushCommit records the SHA1 of the last commit made

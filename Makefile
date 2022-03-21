@@ -21,11 +21,11 @@ CACHE := cache
 
 # Version of the source-controller from which to get the GitRepository CRD.
 # Change this if you bump the source-controller/api version in go.mod.
-SOURCE_VER ?= v0.21.1
+SOURCE_VER ?= v0.22.0
 
 # Version of the image-reflector-controller from which to get the ImagePolicy CRD.
 # Change this if you bump the image-reflector-controller/api version in go.mod.
-REFLECTOR_VER ?= v0.16.0
+REFLECTOR_VER ?= v0.17.0
 
 # Repository root based on Git metadata.
 REPOSITORY_ROOT := $(shell git rev-parse --show-toplevel)
@@ -136,7 +136,7 @@ ifeq ($(shell uname -s),Darwin)
 endif
 
 KUBEBUILDER_ASSETS?="$(shell $(ENVTEST) --arch=$(ENVTEST_ARCH) use -i $(ENVTEST_KUBERNETES_VERSION) --bin-dir=$(ENVTEST_ASSETS_DIR) -p path)"
-test: $(LIBGIT2) test-api test_deps generate fmt vet manifests api-docs	install-envtest ## Run tests
+test: $(LIBGIT2) tidy test-api test_deps generate fmt vet manifests api-docs install-envtest ## Run tests
 	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) \
 	go test $(GO_STATIC_FLAGS) ./... -coverprofile cover.out
 
@@ -144,7 +144,7 @@ test-api:	## Run api tests
 	cd api; go test ./... -coverprofile cover.out
 
 manager: $(LIBGIT2) generate fmt vet	## Build manager binary
-	go build ./main.go
+	go build -o $(BUILD_DIR)/bin/manager ./main.go
 
 run: $(LIBGIT2) generate fmt vet manifests	# Run against the configured Kubernetes cluster in ~/.kube/config
 	go run $(GO_STATIC_FLAGS) ./main.go --log-level=${LOG_LEVEL} --log-encoding=console
@@ -172,8 +172,8 @@ api-docs: gen-crd-api-reference-docs	## Generate API reference documentation
 	$(GEN_CRD_API_REFERENCE_DOCS) -api-dir=./api/v1beta1 -config=./hack/api-docs/config.json -template-dir=./hack/api-docs/template -out-file=./docs/api/image-automation.md
 
 tidy:	## Run go mod tidy
-	cd api; rm -f go.sum; go mod tidy
-	rm -f go.sum; go mod tidy
+	cd api; rm -f go.sum; go mod tidy -compat=1.17
+	rm -f go.sum; go mod tidy -compat=1.17
 
 fmt:	## Run go fmt against code
 	go fmt ./...

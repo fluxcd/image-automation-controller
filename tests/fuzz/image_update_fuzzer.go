@@ -56,7 +56,7 @@ import (
 
 	image_automationv1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
 	image_reflectv1 "github.com/fluxcd/image-reflector-controller/api/v1beta1"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
