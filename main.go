@@ -40,6 +40,8 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
+	"github.com/fluxcd/source-controller/pkg/git/libgit2/managed"
+
 	// +kubebuilder:scaffold:imports
 	"github.com/fluxcd/image-automation-controller/controllers"
 )
@@ -136,6 +138,10 @@ func main() {
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
+
+	if managed.Enabled() {
+		managed.InitManagedTransport()
+	}
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

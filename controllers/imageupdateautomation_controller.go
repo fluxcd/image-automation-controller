@@ -62,6 +62,7 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/fluxcd/source-controller/pkg/git"
 	gitlibgit2 "github.com/fluxcd/source-controller/pkg/git/libgit2"
+	"github.com/fluxcd/source-controller/pkg/git/libgit2/managed"
 	gitstrat "github.com/fluxcd/source-controller/pkg/git/strategy"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
@@ -245,6 +246,34 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	access, err := r.getRepoAccess(ctx, &origin)
 	if err != nil {
 		return failWithError(err)
+	}
+
+	repositoryURL := origin.Spec.URL
+	if managed.Enabled() {
+		// At present only HTTP connections have the ability to define remote options.
+		// Although this can be easily extended by ensuring that the fake URL below uses the
+		// target ssh scheme, and the libgit2/managed/ssh.go pulls that information accordingly.
+		//
+		// This is due to the fact the key libgit2 remote callbacks do not take place for HTTP
+		// whilst most still work for SSH.
+		if strings.HasPrefix(repositoryURL, "http") {
+			if access.auth != nil && len(access.auth.CAFile) > 0 {
+				// Due to the lack of the callback feature, a fake target URL is created to allow
+				// for the smart sub transport be able to pick the options specific for this
+				// GitRepository object.
+				// The URL should use unique information that do not collide in a multi tenant
+				// deployment.
+				repositoryURL = fmt.Sprintf("http://%s/%s/%d", auto.Name, auto.UID, auto.Generation)
+				managed.AddTransportOptions(repositoryURL,
+					managed.TransportOptions{
+						TargetURL: repositoryURL,
+						CABundle:  access.auth.CAFile,
+					})
+
+				// We remove the options from memory, to avoid accumulating unused options over time.
+				defer managed.RemoveTransportOptions(repositoryURL)
+			}
+		}
 	}
 
 	// Use the git operations timeout for the repo.
@@ -470,12 +499,6 @@ func (r *ImageUpdateAutomationReconciler) automationsForImagePolicy(obj client.O
 	return reqs
 }
 
-// --- git ops
-
-// Note: libgit2 is always used for network operations; for cloning,
-// it will do a non-shallow clone, and for anything else, it doesn't
-// matter what is used.
-
 type repoAccess struct {
 	auth *git.AuthOptions
 	url  string
@@ -544,7 +567,8 @@ func switchBranch(repo *libgit2.Repository, pushBranch string) error {
 		}
 		defer head.Free()
 
-		_, err = repo.CreateBranch(pushBranch, head, false)
+		branch, err := repo.CreateBranch(pushBranch, head, false)
+		defer branch.Free()
 		return err
 	}
 
@@ -652,6 +676,7 @@ func commitChangedManifests(tracelog logr.Logger, repo *libgit2.Repository, absR
 	if err != nil {
 		return "", err
 	}
+	defer commit.Free()
 
 	signedCommitID, err := commit.WithSignatureUsing(func(commitContent string) (string, string, error) {
 		cipherText := new(bytes.Buffer)
@@ -677,7 +702,7 @@ func commitChangedManifests(tracelog logr.Logger, repo *libgit2.Repository, absR
 	}
 	defer newHead.Free()
 
-	_, err = repo.References.Create(
+	ref, err := repo.References.Create(
 		newHead.Name(),
 		signedCommit.Id(),
 		true,
@@ -686,6 +711,7 @@ func commitChangedManifests(tracelog logr.Logger, repo *libgit2.Repository, absR
 	if err != nil {
 		return "", err
 	}
+	defer ref.Free()
 
 	return signedCommitID.String(), nil
 }
