@@ -136,7 +136,7 @@ ifeq ($(shell uname -s),Darwin)
 endif
 
 KUBEBUILDER_ASSETS?="$(shell $(ENVTEST) --arch=$(ENVTEST_ARCH) use -i $(ENVTEST_KUBERNETES_VERSION) --bin-dir=$(ENVTEST_ASSETS_DIR) -p path)"
-test: $(LIBGIT2) test-api test_deps generate fmt vet manifests api-docs	install-envtest ## Run tests
+test: $(LIBGIT2) tidy test-api test_deps generate fmt vet manifests api-docs install-envtest ## Run tests
 	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) \
 	go test $(GO_STATIC_FLAGS) ./... -coverprofile cover.out
 
