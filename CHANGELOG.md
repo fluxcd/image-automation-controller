@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.21.0
+
+**Release date:** 2022-03-22
+
+This prerelease further improves Git operations' stability, upgrades source
+controller to `v0.22` and prepares the code base for more standardized 
+controller runtime operations.
+
+The source-controller dependency was updated to version `v0.22` which 
+introduces API `v1beta2`. This requires the source-controller running in
+the same cluster to be `v0.22.0` or greater.
+
+Git operations using `go-git` have been migrated away to `git2go`, which is now
+the only framework this controller uses for interacting with repositories.
+
+A new experimental transport has been added to improve reliability, adding
+timeout enforcement for Git network operations.
+Opt-in by setting the environment variable `EXPERIMENTAL_GIT_TRANSPORT` to
+`true` in the controller's Deployment. This will result in the low-level
+transport being handled by the controller, instead of `libgit2`. It may result
+in an increased number of timeout messages in the logs, however it will resolve
+the bug in which Git operations can make the controllers hang indefinitely.
+
+Improvements:
+* Update libgit2 to 1.3.0
+  [#321](https://github.com/fluxcd/image-automation-controller/pull/321)
+* Remove direct dependency to go-git
+  [#324](https://github.com/fluxcd/image-automation-controller/pull/324)
+* Update `pkg/runtime` and `apis/meta`
+  [#325](https://github.com/fluxcd/image-automation-controller/pull/325)
+* Add experimental managed transport for libgit2 operations
+  [#326](https://github.com/fluxcd/image-automation-controller/pull/326)
+
+Fixes:
+* Update libgit2 to 1.3.0
+  [#320](https://github.com/fluxcd/image-automation-controller/issues/320)
+* Consolidate use of libgit2 for git operations
+  [#323](https://github.com/fluxcd/image-automation-controller/issues/323)
+* unable to clone: Certificate
+  [#298](https://github.com/fluxcd/image-automation-controller/issues/298)
+* Controller stops reconciling, needs restart
+  [#282](https://github.com/fluxcd/image-automation-controller/issues/282)
+* image-automation-controller not reconnecting after operation timed out
+  [#209](https://github.com/fluxcd/image-automation-controller/issues/209)
+
 ## 0.20.1
 
 **Release date:** 2022-03-01
