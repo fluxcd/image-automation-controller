@@ -17,6 +17,8 @@ limitations under the License.
 package v1beta1
 
 import (
+	"time"
+
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -141,6 +143,24 @@ type ImageUpdateAutomation struct {
 	Status ImageUpdateAutomationStatus `json:"status,omitempty"`
 }
 
+// GetRequeueAfter returns the duration after which the ImageUpdateAutomation
+// must be reconciled again.
+func (auto ImageUpdateAutomation) GetRequeueAfter() time.Duration {
+	return auto.Spec.Interval.Duration
+}
+
+// GetConditions returns the status conditions of the object.
+func (auto ImageUpdateAutomation) GetConditions() []metav1.Condition {
+	return auto.Status.Conditions
+}
+
+// SetConditions sets the status conditions on the object.
+func (auto *ImageUpdateAutomation) SetConditions(conditions []metav1.Condition) {
+	auto.Status.Conditions = conditions
+}
+
+// GetStatusConditions returns a pointer to the Status.Conditions slice.
+// Deprecated: use GetConditions instead.
 func (auto *ImageUpdateAutomation) GetStatusConditions() *[]metav1.Condition {
 	return &auto.Status.Conditions
 }
