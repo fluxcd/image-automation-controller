@@ -17,8 +17,8 @@ require (
 	github.com/fluxcd/pkg/runtime v0.13.2
 	github.com/fluxcd/pkg/ssh v0.3.2
 	// If you bump this, change SOURCE_VER in the Makefile to match
-	github.com/fluxcd/source-controller v0.22.0
-	github.com/fluxcd/source-controller/api v0.22.0
+	github.com/fluxcd/source-controller v0.22.2
+	github.com/fluxcd/source-controller/api v0.22.2
 	github.com/go-logr/logr v1.2.2
 	github.com/google/go-containerregistry v0.6.0
 	github.com/libgit2/git2go/v33 v33.0.9

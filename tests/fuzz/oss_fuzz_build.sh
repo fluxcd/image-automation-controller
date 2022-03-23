@@ -60,7 +60,7 @@ pushd "tests/fuzz"
 
 # Version of the source-controller from which to get the GitRepository CRD.
 # Change this if you bump the source-controller/api version in go.mod.
-SOURCE_VER=v0.22.0
+SOURCE_VER=v0.22.2
 
 # Version of the image-reflector-controller from which to get the ImagePolicy CRD.
 # Change this if you bump the image-reflector-controller/api version in go.mod.
