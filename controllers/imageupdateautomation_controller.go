@@ -160,7 +160,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	// only GitRepository objects are supported for now
 	if kind := auto.Spec.SourceRef.Kind; kind != sourcev1.GitRepositoryKind {
-		return failWithError(fmt.Errorf("source kind %q not supported", kind))
+		return failWithError(fmt.Errorf("source kind '%s' not supported", kind))
 	}
 
 	gitSpec := auto.Spec.GitSpec
@@ -292,10 +292,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		// Use the git operations timeout for the repo.
 		fetchCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
 		defer cancel()
-		if err := fetch(fetchCtx, tmp, pushBranch, access); err != nil && err != errRemoteBranchMissing {
-			return failWithError(err)
-		}
-		if err = switchBranch(repo, pushBranch); err != nil {
+		if err := switchToBranch(repo, fetchCtx, pushBranch, access); err != nil && err != errRemoteBranchMissing {
 			return failWithError(err)
 		}
 	}
@@ -556,25 +553,6 @@ func cloneInto(ctx context.Context, access repoAccess, ref *sourcev1.GitReposito
 	return libgit2.OpenRepository(path)
 }
 
-// switchBranch switches the repo from the current branch to the
-// branch given. If the branch does not exist, it is created using the
-// head as the starting point.
-func switchBranch(repo *libgit2.Repository, pushBranch string) error {
-	if err := repo.SetHead(fmt.Sprintf("refs/heads/%s", pushBranch)); err != nil {
-		head, err := headCommit(repo)
-		if err != nil {
-			return err
-		}
-		defer head.Free()
-
-		branch, err := repo.CreateBranch(pushBranch, head, false)
-		defer branch.Free()
-		return err
-	}
-
-	return nil
-}
-
 func headCommit(repo *libgit2.Repository) (*libgit2.Commit, error) {
 	head, err := repo.Head()
 	if err != nil {
@@ -748,35 +726,65 @@ func (r *ImageUpdateAutomationReconciler) getSigningEntity(ctx context.Context, 
 
 var errRemoteBranchMissing = errors.New("remote branch missing")
 
-// fetch gets the remote branch given and updates the local branch
-// head of the same name, so it can be switched to. If the fetch
-// completes, it returns nil; if the remote branch is missing, it
-// returns errRemoteBranchMissing (this is to work in sympathy with
-// `switchBranch`, which will create the branch if it doesn't
-// exist). For any other problem it will return the error.
-func fetch(ctx context.Context, path string, branch string, access repoAccess) error {
-	refspec := fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch)
-	repo, err := libgit2.OpenRepository(path)
-	if err != nil {
+// switchToBranch switches to a branch after fetching latest from upstream.
+// If the branch does not exist, it is created using the head as the starting point.
+func switchToBranch(repo *libgit2.Repository, ctx context.Context, branch string, access repoAccess) error {
+	checkoutOpts := &libgit2.CheckoutOpts{
+		// the remote branch should take precedence if it exists at this point in time.
+		Strategy: libgit2.CheckoutForce,
+	}
+
+	branchRef := fmt.Sprintf("origin/%s", branch)
+	remoteBranch, err := repo.LookupBranch(branchRef, libgit2.BranchRemote)
+	if err != nil && !libgit2.IsErrorCode(err, libgit2.ErrorCodeNotFound) {
 		return err
 	}
-	defer repo.Free()
-	origin, err := repo.Remotes.Lookup(originRemote)
+	if remoteBranch != nil {
+		defer remoteBranch.Free()
+	}
+	err = nil
+
+	var commit *libgit2.Commit
+	// tries to get tip commit from remote branch, if it exists.
+	// otherwise gets the commit that local head is pointing to.
+	if remoteBranch != nil {
+		commit, err = repo.LookupCommit(remoteBranch.Target())
+	} else {
+		head, err := repo.Head()
+		if err != nil {
+			return fmt.Errorf("cannot get repo head: %w", err)
+		}
+		commit, err = repo.LookupCommit(head.Target())
+	}
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot find the head commit: %w", err)
 	}
-	defer origin.Free()
-	err = origin.Fetch(
-		[]string{refspec},
-		&libgit2.FetchOptions{
-			RemoteCallbacks: access.remoteCallbacks(ctx),
-			ProxyOptions:    libgit2.ProxyOptions{Type: libgit2.ProxyTypeAuto},
-		}, "",
-	)
-	if err != nil && libgit2.IsErrorCode(err, libgit2.ErrorCodeNotFound) {
-		return errRemoteBranchMissing
+	defer commit.Free()
+
+	localBranch, err := repo.LookupBranch(branch, libgit2.BranchLocal)
+	if err != nil && !libgit2.IsErrorCode(err, libgit2.ErrorCodeNotFound) {
+		return fmt.Errorf("cannot lookup branch '%s': %w", branch, err)
 	}
-	return err
+	if localBranch == nil {
+		localBranch, err = repo.CreateBranch(branch, commit, false)
+	}
+	if localBranch == nil {
+		return fmt.Errorf("cannot create local branch '%s': %w", branch, err)
+	}
+	defer localBranch.Free()
+
+	tree, err := repo.LookupTree(commit.TreeId())
+	if err != nil {
+		return fmt.Errorf("cannot lookup tree for branch '%s': %w", branch, err)
+	}
+	defer tree.Free()
+
+	err = repo.CheckoutTree(tree, checkoutOpts)
+	if err != nil {
+		return fmt.Errorf("cannot checkout tree for branch '%s': %w", branch, err)
+	}
+
+	return repo.SetHead("refs/heads/" + branch)
 }
 
 // push pushes the branch given to the origin using the git library

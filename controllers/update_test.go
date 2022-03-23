@@ -990,6 +990,10 @@ Images:
 				})
 
 				It("creates and pushes the push branch", func() {
+					initialHead, err := headFromBranch(localRepo, branch)
+					Expect(err).ToNot(HaveOccurred())
+					defer initialHead.Free()
+
 					// pull the head commit we just pushed, so it's not
 					// considered a new commit when checking for a commit
 					// made by automation.
@@ -1003,9 +1007,19 @@ Images:
 					Expect(err).ToNot(HaveOccurred())
 					defer commit.Free()
 					Expect(commit.Message()).To(Equal(commitMessage))
+
+					// previous commits should still exist in the tree.
+					// regression check to ensure previous commits were not squashed.
+					oldCommit, err := localRepo.LookupCommit(initialHead.Id())
+					Expect(err).ToNot(HaveOccurred())
+					Expect(oldCommit).ToNot(BeNil())
 				})
 
 				It("pushes another commit to the existing push branch", func() {
+					initialHead, err := headFromBranch(localRepo, branch)
+					Expect(err).ToNot(HaveOccurred())
+					defer initialHead.Free()
+
 					// pull the head commit we just pushed, so it's not
 					// considered a new commit when checking for a commit
 					// made by automation.
@@ -1027,9 +1041,19 @@ Images:
 					head, err = getRemoteHead(localRepo, pushBranch)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(head.String()).NotTo(Equal(headHash))
+
+					// previous commits should still exist in the tree.
+					// regression check to ensure previous commits were not squashed.
+					oldCommit, err := localRepo.LookupCommit(initialHead.Id())
+					Expect(err).ToNot(HaveOccurred())
+					Expect(oldCommit).ToNot(BeNil())
 				})
 
 				It("still pushes to the push branch after it's merged", func() {
+					initialHead, err := headFromBranch(localRepo, branch)
+					Expect(err).ToNot(HaveOccurred())
+					defer initialHead.Free()
+
 					preChangeCommitId := commitIdFromBranch(localRepo, branch)
 
 					// observe the first commit
@@ -1057,6 +1081,12 @@ Images:
 					head, err = getRemoteHead(localRepo, pushBranch)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(head.String()).NotTo(Equal(headHash))
+
+					// previous commits should still exist in the tree.
+					// regression check to ensure previous commits were not squashed.
+					oldCommit, err := localRepo.LookupCommit(initialHead.Id())
+					Expect(err).ToNot(HaveOccurred())
+					Expect(oldCommit).ToNot(BeNil())
 				})
 
 				AfterEach(func() {
@@ -1731,6 +1761,10 @@ func rebase(repo *git2go.Repository, sourceBranch, targetBranch string) (*git2go
 
 		// Check operation index is correct
 		rebaseOperationIndex, err = rebase.CurrentOperationIndex()
+		if err != nil {
+			return nil, err
+		}
+
 		if int(rebaseOperationIndex) != op {
 			return nil, errors.New("Bad operation index")
 		}

@@ -134,6 +134,9 @@ func TestPushRejected(t *testing.T) {
 
 	repoURL := gitServer.HTTPAddressWithCredentials() + "/appconfig.git"
 	repo, err := clone(repoURL, "origin", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// This is here to guard against push in general being broken
 	err = push(context.TODO(), repo.Workdir(), "main", repoAccess{
