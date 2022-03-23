@@ -64,7 +64,7 @@ SOURCE_VER=v0.22.0
 
 # Version of the image-reflector-controller from which to get the ImagePolicy CRD.
 # Change this if you bump the image-reflector-controller/api version in go.mod.
-REFLECTOR_VER=v0.17.0
+REFLECTOR_VER=v0.17.1
 
 # Setup files to be embedded into controllers_fuzzer.go's testFiles variable.
 mkdir -p testdata/crds
