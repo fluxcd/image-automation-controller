@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.21.1
+
+**Release date:** 2022-03-23
+
+This prerelease fixes a bug introduced in `v0.21.0`, where pushes into a branch
+different from the origin branch would squash all historical commits into one.
+
+In addition, it ensures the API objects fully adhere to newly introduced
+interfaces, allowing them to work in combination with e.g. the
+[`conditions`](https://pkg.go.dev/github.com/fluxcd/pkg/runtime@v0.13.2/conditions)
+package.
+
+Improvements:
+- Implement `meta.ObjectWithConditions` interfaces
+  [#328](https://github.com/fluxcd/image-automation-controller/pull/328)
+- Update image-reflector-controller API to v0.17.1
+  [#331](https://github.com/fluxcd/image-automation-controller/pull/331)
+- Update source-controller to v0.22.2
+  [#333](https://github.com/fluxcd/image-automation-controller/pull/333)
+
+Fixes:
+- Fix bug when pushing into different branch
+  [#330](https://github.com/fluxcd/image-automation-controller/pull/330)
+
 ## 0.21.0
 
 **Release date:** 2022-03-22
