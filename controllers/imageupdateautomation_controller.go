@@ -729,11 +729,6 @@ var errRemoteBranchMissing = errors.New("remote branch missing")
 // switchToBranch switches to a branch after fetching latest from upstream.
 // If the branch does not exist, it is created using the head as the starting point.
 func switchToBranch(repo *libgit2.Repository, ctx context.Context, branch string, access repoAccess) error {
-	checkoutOpts := &libgit2.CheckoutOpts{
-		// the remote branch should take precedence if it exists at this point in time.
-		Strategy: libgit2.CheckoutForce,
-	}
-
 	branchRef := fmt.Sprintf("origin/%s", branch)
 	remoteBranch, err := repo.LookupBranch(branchRef, libgit2.BranchRemote)
 	if err != nil && !libgit2.IsErrorCode(err, libgit2.ErrorCodeNotFound) {
@@ -754,6 +749,7 @@ func switchToBranch(repo *libgit2.Repository, ctx context.Context, branch string
 		if err != nil {
 			return fmt.Errorf("cannot get repo head: %w", err)
 		}
+		defer head.Free()
 		commit, err = repo.LookupCommit(head.Target())
 	}
 	if err != nil {
@@ -779,7 +775,10 @@ func switchToBranch(repo *libgit2.Repository, ctx context.Context, branch string
 	}
 	defer tree.Free()
 
-	err = repo.CheckoutTree(tree, checkoutOpts)
+	err = repo.CheckoutTree(tree, &libgit2.CheckoutOpts{
+		// the remote branch should take precedence if it exists at this point in time.
+		Strategy: libgit2.CheckoutForce,
+	})
 	if err != nil {
 		return fmt.Errorf("cannot checkout tree for branch '%s': %w", branch, err)
 	}

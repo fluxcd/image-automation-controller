@@ -17,8 +17,8 @@ require (
 	github.com/fluxcd/pkg/runtime v0.13.2
 	github.com/fluxcd/pkg/ssh v0.3.2
 	// If you bump this, change SOURCE_VER in the Makefile to match
-	github.com/fluxcd/source-controller v0.22.2
-	github.com/fluxcd/source-controller/api v0.22.2
+	github.com/fluxcd/source-controller v0.22.4
+	github.com/fluxcd/source-controller/api v0.22.4
 	github.com/go-logr/logr v1.2.2
 	github.com/google/go-containerregistry v0.6.0
 	github.com/libgit2/git2go/v33 v33.0.9
@@ -77,7 +77,7 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
-	github.com/mitchellh/mapstructure v1.4.1 // indirect
+	github.com/mitchellh/mapstructure v1.4.3 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
@@ -99,7 +99,7 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
-	golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd
+	golang.org/x/crypto v0.0.0-20220321153916-2c7772ba3064
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f // indirect
 	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a // indirect
 	golang.org/x/sys v0.0.0-20220310020820-b874c991c1a5 // indirect
@@ -126,4 +126,5 @@ require (
 require (
 	cloud.google.com/go/compute v1.5.0 // indirect
 	github.com/gofrs/uuid v4.2.0+incompatible // indirect
+	github.com/hashicorp/go-hclog v1.0.0 // indirect
 )
