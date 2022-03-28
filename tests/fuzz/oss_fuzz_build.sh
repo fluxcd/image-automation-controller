@@ -54,7 +54,7 @@ export PKG_CONFIG_PATH="${TARGET_DIR}/lib/pkgconfig:${TARGET_DIR}/lib64/pkgconfi
 export CGO_CFLAGS="-I${TARGET_DIR}/include -I${TARGET_DIR}/include/openssl"
 export CGO_LDFLAGS="$(pkg-config --libs --static --cflags libssh2 openssl libgit2)"
 
-go mod tidy -compat=1.17
+go get -d github.com/AdaLogics/go-fuzz-headers
 
 pushd "tests/fuzz"
 
@@ -89,7 +89,8 @@ else
     curl -s --fail https://raw.githubusercontent.com/fluxcd/image-reflector-controller/${REFLECTOR_VER}/config/crd/bases/image.toolkit.fluxcd.io_imagepolicies.yaml -o testdata/crds/imagepolicies.yaml
 fi
 
-go mod tidy -compat=1.17
+go get -d github.com/AdaLogics/go-fuzz-headers
+go get github.com/fluxcd/image-automation-controller
 
 # Using compile_go_fuzzer to compile fails when statically linking libgit2 dependencies
 # via CFLAGS/CXXFLAGS.
