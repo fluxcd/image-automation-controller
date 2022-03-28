@@ -140,7 +140,7 @@ func main() {
 	// +kubebuilder:scaffold:builder
 
 	if managed.Enabled() {
-		managed.InitManagedTransport()
+		managed.InitManagedTransport(ctrl.Log.WithName("managed-transport"))
 	}
 
 	setupLog.Info("starting manager")
