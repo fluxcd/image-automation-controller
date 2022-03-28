@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.21.2
+
+**Release date:** 2022-03-28
+
+This prerelease improves on the experimental managed transport's overall
+stability. Changes of note:
+- SSH connections now being reused across git operations.
+- Leaked HTTP connections are now fixed.
+- The long-standing SSH intermittent errors are addressed by the cached connections.
+
+Fixes:
+- Update source controller to v0.22.4
+  [#337](https://github.com/fluxcd/image-automation-controller/pull/337)
+
 ## 0.21.1
 
 **Release date:** 2022-03-23
