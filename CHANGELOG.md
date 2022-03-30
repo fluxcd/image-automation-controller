@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.21.3
+
+**Release date:** 2022-03-30
+
+This prerelease comes with general stability improvements in the libgit2
+experimental management transport and updates various dependencies to their
+latest versions.
+
+Improvements:
+- Update dependencies
+  [#340](https://github.com/fluxcd/image-automation-controller/pull/340)
+
 ## 0.21.2
 
 **Release date:** 2022-03-28
