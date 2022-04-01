@@ -591,8 +591,8 @@ spec:
       branch: auto
 ```
 
-[image-auto-guide]: https://toolkit.fluxcd.io/guides/image-update/#configure-image-update-for-custom-resources
-[git-repo-ref]: https://toolkit.fluxcd.io/components/source/gitrepositories/#specification
+[image-auto-guide]: https://fluxcd.io/docs/guides/image-update/#configure-image-update-for-custom-resources
+[git-repo-ref]: https://fluxcd.io/docs/components/source/gitrepositories/#specification
 [durations]: https://godoc.org/time#ParseDuration
-[source-docs]: https://toolkit.fluxcd.io/components/source/gitrepositories/#git-implementation
+[source-docs]: https://fluxcd.io/docs/components/source/gitrepositories/#git-implementation
 [go-text-template]: https://golang.org/pkg/text/template/
