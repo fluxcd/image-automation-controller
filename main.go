@@ -31,6 +31,7 @@ import (
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
 	"github.com/fluxcd/pkg/runtime/acl"
 	"github.com/fluxcd/pkg/runtime/client"
+	helper "github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/leaderelection"
 	"github.com/fluxcd/pkg/runtime/logger"
@@ -70,6 +71,7 @@ func main() {
 		aclOptions            acl.Options
 		logOptions            logger.Options
 		leaderElectionOptions leaderelection.Options
+		rateLimiterOptions    helper.RateLimiterOptions
 		watchAllNamespaces    bool
 		concurrent            int
 	)
@@ -84,6 +86,7 @@ func main() {
 	logOptions.BindFlags(flag.CommandLine)
 	leaderElectionOptions.BindFlags(flag.CommandLine)
 	aclOptions.BindFlags(flag.CommandLine)
+	rateLimiterOptions.BindFlags(flag.CommandLine)
 	flag.Parse()
 
 	log := logger.NewLogger(logOptions)
@@ -133,6 +136,7 @@ func main() {
 		NoCrossNamespaceRef: aclOptions.NoCrossNamespaceRefs,
 	}).SetupWithManager(mgr, controllers.ImageUpdateAutomationReconcilerOptions{
 		MaxConcurrentReconciles: concurrent,
+		RateLimiter:             helper.GetRateLimiter(rateLimiterOptions),
 	}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ImageUpdateAutomation")
 		os.Exit(1)
