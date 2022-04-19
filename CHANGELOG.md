@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.22.0
+
+**Release date:** 2022-04-19
+
+This prerelease comes with further stability improvements in the `libgit2`
+experimental management transport, brings ways to configure Key Exchange
+Algorithms, plus some extra housekeeping awesomeness.
+
+Managed Transport for `libgit2` now introduces self-healing capabilities,
+to recover from failure when long-running connections become stale.
+
+The Key Exchange Algorithms used when establishing SSH connections are
+based on the defaults configured upstream in `go-git` and `golang.org/x/crypto`.
+Now this can be overriden with the flag `--ssh-kex-algos`. Note this applies
+to the `go-git` gitImplementation or the `libgit2` gitImplementation but
+_only_ when Managed Transport is being used.
+
+The exponential back-off retry can be configured with the new flags:
+`--min-retry-delay` (default: `750ms`) and `--max-retry-delay`
+(default: `15min`). Previously the defaults were set to `5ms` and `1000s`,
+which in some cases impaired the controller's ability to self-heal 
+(e.g. retrying failing SSH connections).
+
+Improvements:
+- Update source controller to improve managed transport
+  [#346](https://github.com/fluxcd/image-automation-controller/pull/346)
+- Add flags to configure exponential back-off retry
+  [#348](https://github.com/fluxcd/image-automation-controller/pull/348)
+- Update libgit2 to 1.3.1
+  [#350](https://github.com/fluxcd/image-automation-controller/pull/350)
+- Add flag to allow configuration of ssh kex algos
+  [#351](https://github.com/fluxcd/image-automation-controller/pull/351)
+- Update dependencies
+  [#352](https://github.com/fluxcd/image-automation-controller/pull/352)
+  [#353](https://github.com/fluxcd/image-automation-controller/pull/353)
+  [#354](https://github.com/fluxcd/image-automation-controller/pull/354)
+
 ## 0.21.3
 
 **Release date:** 2022-03-30
