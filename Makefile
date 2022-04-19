@@ -20,12 +20,12 @@ BUILD_PLATFORMS ?= linux/amd64,linux/arm64,linux/arm/v7
 CACHE := cache
 
 # Version of the source-controller from which to get the GitRepository CRD.
-# Change this if you bump the source-controller/api version in go.mod.
-SOURCE_VER ?= v0.22.5
+# Pulls source-controller/api's version set in go.mod.
+SOURCE_VER ?= $(shell go list -m github.com/fluxcd/source-controller/api | awk '{print $$2}')
 
 # Version of the image-reflector-controller from which to get the ImagePolicy CRD.
-# Change this if you bump the image-reflector-controller/api version in go.mod.
-REFLECTOR_VER ?= v0.17.1
+# Pulls image-reflector-controller/api's version set in go.mod.
+REFLECTOR_VER ?= $(shell go list -m github.com/fluxcd/image-reflector-controller/api | awk '{print $$2}')
 
 # Repository root based on Git metadata.
 REPOSITORY_ROOT := $(shell git rev-parse --show-toplevel)
