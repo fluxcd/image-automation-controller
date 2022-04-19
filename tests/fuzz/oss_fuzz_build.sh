@@ -58,14 +58,6 @@ go get -d github.com/AdaLogics/go-fuzz-headers
 
 pushd "tests/fuzz"
 
-# Version of the source-controller from which to get the GitRepository CRD.
-# Change this if you bump the source-controller/api version in go.mod.
-SOURCE_VER=v0.22.2
-
-# Version of the image-reflector-controller from which to get the ImagePolicy CRD.
-# Change this if you bump the image-reflector-controller/api version in go.mod.
-REFLECTOR_VER=v0.17.1
-
 # Setup files to be embedded into controllers_fuzzer.go's testFiles variable.
 mkdir -p testdata/crds
 cp ../../config/crd/bases/*.yaml testdata/crds/
@@ -77,6 +69,14 @@ cp ../../go.sum .
 sed -i 's;module .*;module github.com/fluxcd/image-automation-controller/tests/fuzz;g' go.mod
 sed -i 's;api => ./api;api => ../../api;g' go.mod
 echo "replace github.com/fluxcd/image-automation-controller => ../../" >> go.mod
+
+# Version of the source-controller from which to get the GitRepository CRD.
+# Pulls source-controller/api's version set in go.mod.
+SOURCE_VER=$(go list -m github.com/fluxcd/source-controller/api | awk '{print $2}')
+
+# Version of the image-reflector-controller from which to get the ImagePolicy CRD.
+# Pulls image-reflector-controller/api's version set in go.mod.
+REFLECTOR_VER=$(go list -m github.com/fluxcd/image-reflector-controller/api | awk '{print $2}')
 
 go mod download
 
@@ -90,7 +90,7 @@ else
 fi
 
 go get -d github.com/AdaLogics/go-fuzz-headers
-go get github.com/fluxcd/image-automation-controller
+go get -d github.com/fluxcd/image-automation-controller
 
 # Using compile_go_fuzzer to compile fails when statically linking libgit2 dependencies
 # via CFLAGS/CXXFLAGS.

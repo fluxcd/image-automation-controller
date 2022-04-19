@@ -359,8 +359,8 @@ github.com/fatih/color v1.9.0/go.mod h1:eQcE1qtQxscV5RaZvpXrrb8Drkc3/DdQ+uUYCNjL
 github.com/fatih/color v1.13.0 h1:8LOYc1KYPPmyKMuN8QV2DNRWNbLo6LZ0iLs8+mlH53w=
 github.com/fatih/color v1.13.0/go.mod h1:kLAiJbzzSOZDVNGyDpeOxJ47H46qBXwg5ILebYFFOfk=
 github.com/felixge/httpsnoop v1.0.1/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
-github.com/fluxcd/image-reflector-controller/api v0.17.1 h1:0eWE26PmCo3ZQBnDkNA6wiHhAEsTtUG4oz59enqIzsQ=
-github.com/fluxcd/image-reflector-controller/api v0.17.1/go.mod h1:Lg8A+MUcke0Orp6C6UQkf9I3pc8M/B3XS3TOI+YxVBY=
+github.com/fluxcd/image-reflector-controller/api v0.17.2 h1:QQl9YBhz+7lwKejG92StCa9Vxswph6+7O7TmkVNNoSw=
+github.com/fluxcd/image-reflector-controller/api v0.17.2/go.mod h1:PwmjD9DeA6yBdGnMVzUB+5n2hVqsKTGroFlN/oR4RkI=
 github.com/fluxcd/pkg/apis/acl v0.0.3 h1:Lw0ZHdpnO4G7Zy9KjrzwwBmDZQuy4qEjaU/RvA6k1lc=
 github.com/fluxcd/pkg/apis/acl v0.0.3/go.mod h1:XPts6lRJ9C9fIF9xVWofmQwftvhY25n1ps7W9xw0XLU=
 github.com/fluxcd/pkg/apis/meta v0.12.2 h1:AiKAZxLyPtV150y63WC+mL1Qm4x5qWQmW6r4mLy1i8c=
