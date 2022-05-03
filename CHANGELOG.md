@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.22.1
+
+**Release date:** 2022-05-03
+
+This prerelease comes with dependency updates, including an update of
+`image-reflector-controller` to `v0.18.0`.
+
+Improvements:
+- Update dependencies
+  [#359](https://github.com/fluxcd/image-automation-controller/pull/359)
+
+Other notable changes:
+- Rewrite all the tests to testenv with gomega
+  [#356](https://github.com/fluxcd/image-automation-controller/pull/356)
+
 ## 0.22.0
 
 **Release date:** 2022-04-19
