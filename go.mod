@@ -9,32 +9,30 @@ require (
 	github.com/ProtonMail/go-crypto v0.0.0-20220407094043-a94812496cf5
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/fluxcd/image-automation-controller/api v0.22.0
-	// If you bump this, change REFLECTOR_VER in the Makefile to match
-	github.com/fluxcd/image-reflector-controller/api v0.17.2
+	github.com/fluxcd/image-reflector-controller/api v0.18.0
 	github.com/fluxcd/pkg/apis/acl v0.0.3
-	github.com/fluxcd/pkg/apis/meta v0.12.2
+	github.com/fluxcd/pkg/apis/meta v0.13.0
 	github.com/fluxcd/pkg/gittestserver v0.5.2
-	github.com/fluxcd/pkg/runtime v0.14.1
+	github.com/fluxcd/pkg/runtime v0.14.2
 	github.com/fluxcd/pkg/ssh v0.3.2
-	// If you bump this, change SOURCE_VER in the Makefile to match
-	github.com/fluxcd/source-controller v0.24.0
-	github.com/fluxcd/source-controller/api v0.24.0
+	github.com/fluxcd/source-controller v0.24.4
+	github.com/fluxcd/source-controller/api v0.24.4
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-containerregistry v0.8.0
 	github.com/libgit2/git2go/v33 v33.0.9
 	github.com/onsi/gomega v1.19.0
 	github.com/otiai10/copy v1.7.0
 	github.com/spf13/pflag v1.0.5
-	k8s.io/api v0.23.5
-	k8s.io/apimachinery v0.23.5
-	k8s.io/client-go v0.23.5
+	k8s.io/api v0.23.6
+	k8s.io/apimachinery v0.23.6
+	k8s.io/client-go v0.23.6
 	k8s.io/kube-openapi v0.0.0-20220124234850-424119656bbf
 	sigs.k8s.io/controller-runtime v0.11.2
 	sigs.k8s.io/kustomize/kyaml v0.13.6
 )
 
 require (
-	cloud.google.com/go/compute v1.5.0 // indirect
+	cloud.google.com/go/compute v1.6.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.1.1 // indirect
 	github.com/Microsoft/go-winio v0.5.2 // indirect
@@ -99,10 +97,10 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
-	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
-	golang.org/x/net v0.0.0-20220325170049-de3da57026de // indirect
-	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a // indirect
-	golang.org/x/sys v0.0.0-20220328115105-d36c6a25d886 // indirect
+	golang.org/x/crypto v0.0.0-20220427172511-eb4f295cb31f
+	golang.org/x/net v0.0.0-20220412020605-290c469a71a5 // indirect
+	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5 // indirect
+	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
