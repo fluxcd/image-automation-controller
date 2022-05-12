@@ -13,7 +13,7 @@ require (
 	github.com/fluxcd/pkg/apis/acl v0.0.3
 	github.com/fluxcd/pkg/apis/meta v0.13.0
 	github.com/fluxcd/pkg/gittestserver v0.5.2
-	github.com/fluxcd/pkg/runtime v0.14.2
+	github.com/fluxcd/pkg/runtime v0.15.1
 	github.com/fluxcd/pkg/ssh v0.3.2
 	github.com/fluxcd/source-controller v0.24.4
 	github.com/fluxcd/source-controller/api v0.24.4
@@ -68,6 +68,7 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.0 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
+	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -91,6 +92,7 @@ require (
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/sosedoff/gitkit v0.3.0 // indirect
 	github.com/spf13/cast v1.4.1 // indirect
+	github.com/spf13/cobra v1.4.0 // indirect
 	github.com/stretchr/testify v1.7.1 // indirect
 	github.com/xanzy/ssh-agent v0.3.1 // indirect
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca // indirect
