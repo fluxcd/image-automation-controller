@@ -33,6 +33,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/client"
 	helper "github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/events"
+	feathelper "github.com/fluxcd/pkg/runtime/features"
 	"github.com/fluxcd/pkg/runtime/leaderelection"
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/metrics"
@@ -41,6 +42,7 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
+	"github.com/fluxcd/image-automation-controller/internal/features"
 	"github.com/fluxcd/source-controller/pkg/git"
 	"github.com/fluxcd/source-controller/pkg/git/libgit2/managed"
 
@@ -73,6 +75,7 @@ func main() {
 		logOptions            logger.Options
 		leaderElectionOptions leaderelection.Options
 		rateLimiterOptions    helper.RateLimiterOptions
+		featureGates          feathelper.FeatureGates
 		watchAllNamespaces    bool
 		concurrent            int
 		kexAlgos              []string
@@ -86,15 +89,25 @@ func main() {
 	flag.IntVar(&concurrent, "concurrent", 4, "The number of concurrent resource reconciles.")
 	flag.StringSliceVar(&kexAlgos, "ssh-kex-algos", []string{},
 		"The list of key exchange algorithms to use for ssh connections, arranged from most preferred to the least.")
+
 	clientOptions.BindFlags(flag.CommandLine)
 	logOptions.BindFlags(flag.CommandLine)
 	leaderElectionOptions.BindFlags(flag.CommandLine)
 	aclOptions.BindFlags(flag.CommandLine)
 	rateLimiterOptions.BindFlags(flag.CommandLine)
+	featureGates.BindFlags(flag.CommandLine)
+
 	flag.Parse()
 
 	log := logger.NewLogger(logOptions)
 	ctrl.SetLogger(log)
+
+	err := featureGates.WithLogger(setupLog).
+		SupportedFeatures(features.FeatureGates())
+	if err != nil {
+		setupLog.Error(err, "unable to load feature gates")
+		os.Exit(1)
+	}
 
 	metricsRecorder := metrics.NewRecorder()
 	ctrlmetrics.Registry.MustRegister(metricsRecorder.Collectors()...)
@@ -147,9 +160,10 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	if managed.Enabled() {
+	if enabled, _ := features.Enabled(features.GitManagedTransport); enabled {
 		managed.InitManagedTransport(ctrl.Log.WithName("managed-transport"))
 	}
+
 	setPreferredKexAlgos(kexAlgos)
 
 	setupLog.Info("starting manager")
