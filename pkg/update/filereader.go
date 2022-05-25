@@ -118,8 +118,9 @@ func (r *ScreeningLocalReader) Read() ([]*yaml.RNode, error) {
 
 		tracelog.Info("reading file", "path", path)
 		rdr := &kio.ByteReader{
-			Reader:         bytes.NewBuffer(filebytes),
-			SetAnnotations: annotations,
+			Reader:            bytes.NewBuffer(filebytes),
+			SetAnnotations:    annotations,
+			PreserveSeqIndent: true,
 		}
 
 		nodes, err := rdr.Read()
