@@ -1593,7 +1593,7 @@ func createSSHIdentitySecret(kClient client.Client, name, namespace, repoURL str
 	if err != nil {
 		return err
 	}
-	knownhosts, err := ssh.ScanHostKey(url.Host, 5*time.Second)
+	knownhosts, err := ssh.ScanHostKey(url.Host, 5*time.Second, []string{}, false)
 	if err != nil {
 		return err
 	}

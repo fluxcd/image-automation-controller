@@ -72,6 +72,7 @@ WORKDIR /workspace
 COPY main.go main.go
 COPY controllers/ controllers/
 COPY pkg/ pkg/
+COPY internal/ internal/
 
 COPY --from=musl-tool-chain /workspace/build /workspace/build
 
