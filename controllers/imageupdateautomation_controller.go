@@ -735,6 +735,12 @@ var errRemoteBranchMissing = errors.New("remote branch missing")
 // switchToBranch switches to a branch after fetching latest from upstream.
 // If the branch does not exist, it is created using the head as the starting point.
 func switchToBranch(repo *libgit2.Repository, ctx context.Context, branch string, access repoAccess) error {
+	origin, err := repo.Remotes.Lookup(originRemote)
+	if err != nil {
+		return fmt.Errorf("cannot lookup remote: %w", err)
+	}
+	defer origin.Free()
+
 	callbacks := access.remoteCallbacks(ctx)
 	if managed.Enabled() {
 		// Override callbacks with dummy ones as they are not needed within Managed Transport.
@@ -743,6 +749,14 @@ func switchToBranch(repo *libgit2.Repository, ctx context.Context, branch string
 	}
 
 	branchRef := fmt.Sprintf("origin/%s", branch)
+	// Force the fetching of the remote branch.
+	err = origin.Fetch([]string{branch}, &libgit2.FetchOptions{
+		RemoteCallbacks: callbacks,
+	}, "")
+	if err != nil {
+		return fmt.Errorf("cannot fetch remote branch: %w", err)
+	}
+
 	remoteBranch, err := repo.LookupBranch(branchRef, libgit2.BranchRemote)
 	if err != nil && !libgit2.IsErrorCode(err, libgit2.ErrorCodeNotFound) {
 		return err
