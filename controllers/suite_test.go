@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -31,6 +32,7 @@ import (
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
 	"github.com/fluxcd/pkg/runtime/testenv"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	"github.com/fluxcd/source-controller/pkg/git/libgit2/managed"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
 	// +kubebuilder:scaffold:imports
@@ -60,6 +62,8 @@ func TestMain(m *testing.M) {
 		filepath.Join("..", "config", "crd", "bases"),
 		filepath.Join("testdata", "crds"),
 	))
+
+	managed.InitManagedTransport(logr.Discard())
 
 	controllerName := "image-automation-controller"
 	if err := (&ImageUpdateAutomationReconciler{

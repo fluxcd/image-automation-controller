@@ -12,6 +12,7 @@ import (
 	libgit2 "github.com/libgit2/git2go/v33"
 
 	"github.com/fluxcd/pkg/gittestserver"
+	"github.com/fluxcd/source-controller/pkg/git/libgit2/managed"
 )
 
 func populateRepoFromFixture(repo *libgit2.Repository, fixture string) error {
@@ -128,21 +129,26 @@ func TestPushRejected(t *testing.T) {
 	}
 
 	// this is currently defined in update_test.go, but handy right here ..
-	if err = initGitRepo(gitServer, "testdata/appconfig", "main", "/appconfig.git"); err != nil {
+	if err = initGitRepo(gitServer, "testdata/appconfig", "master", "/appconfig.git"); err != nil {
 		t.Fatal(err)
 	}
 
 	repoURL := gitServer.HTTPAddressWithCredentials() + "/appconfig.git"
-	repo, err := clone(repoURL, "origin", "main")
+	repo, err := clone(repoURL, "master")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer repo.Free()
+
+	transportOptsURL := "http://" + randStringRunes(5)
+	managed.AddTransportOptions(transportOptsURL, managed.TransportOptions{
+		TargetURL: repoURL,
+	})
+	defer managed.RemoveTransportOptions(transportOptsURL)
+	repo.Remotes.SetUrl("origin", transportOptsURL)
 
 	// This is here to guard against push in general being broken
-	err = push(context.TODO(), repo.Workdir(), "main", repoAccess{
-		url:  repoURL,
-		auth: nil,
-	})
+	err = push(context.TODO(), repo.Workdir(), "master", repoAccess{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,10 +160,7 @@ func TestPushRejected(t *testing.T) {
 
 	// This is supposed to fail, because the hook rejects the branch
 	// pushed to.
-	err = push(context.TODO(), repo.Workdir(), branch, repoAccess{
-		url:  repoURL,
-		auth: nil,
-	})
+	err = push(context.TODO(), repo.Workdir(), branch, repoAccess{})
 	if err == nil {
 		t.Error("push to a forbidden branch is expected to fail, but succeeded")
 	}

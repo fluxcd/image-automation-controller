@@ -510,6 +510,7 @@ type repoAccess struct {
 func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, repository *sourcev1.GitRepository) (repoAccess, error) {
 	var access repoAccess
 	access.url = repository.Spec.URL
+	access.auth = &git.AuthOptions{}
 
 	if repository.Spec.SecretRef != nil {
 		name := types.NamespacedName{
