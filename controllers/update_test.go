@@ -54,6 +54,7 @@ import (
 	"github.com/fluxcd/pkg/gittestserver"
 	"github.com/fluxcd/pkg/ssh"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	"github.com/fluxcd/source-controller/pkg/git/libgit2/managed"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
 	"github.com/fluxcd/image-automation-controller/pkg/test"
@@ -405,10 +406,9 @@ func TestImageAutomationReconciler_signedCommit(t *testing.T) {
 }
 
 func TestImageAutomationReconciler_e2e(t *testing.T) {
-	gitImpls := []string{sourcev1.GoGitImplementation, sourcev1.LibGit2Implementation}
 	protos := []string{"http", "ssh"}
 
-	testFunc := func(t *testing.T, proto string, impl string) {
+	testFunc := func(t *testing.T, proto string) {
 		g := NewWithT(t)
 
 		const latestImage = "helloworld:1.0.1"
@@ -462,10 +462,10 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 			// in a secret.
 			err = createSSHIdentitySecret(testEnv, gitSecretName, namespace, repoURL)
 			g.Expect(err).ToNot(HaveOccurred())
-			err = createGitRepository(testEnv, gitRepoName, namespace, impl, repoURL, gitSecretName)
+			err = createGitRepository(testEnv, gitRepoName, namespace, repoURL, gitSecretName)
 			g.Expect(err).ToNot(HaveOccurred())
 		} else {
-			err = createGitRepository(testEnv, gitRepoName, namespace, impl, repoURL, "")
+			err = createGitRepository(testEnv, gitRepoName, namespace, repoURL, "")
 			g.Expect(err).ToNot(HaveOccurred())
 		}
 
@@ -480,8 +480,12 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 
 		t.Run("PushSpec", func(t *testing.T) {
 			// Clone the repo locally.
-			localRepo, err := clone(cloneLocalRepoURL, "origin", branch)
+			localRepo, err := clone(cloneLocalRepoURL, branch)
 			g.Expect(err).ToNot(HaveOccurred(), "failed to clone git repo")
+			defer localRepo.Free()
+			origin, err := localRepo.Remotes.Lookup("origin")
+			g.Expect(err).ToNot(HaveOccurred(), "failed to clone git repo")
+			defer origin.Free()
 
 			// NB not testing the image reflector controller; this
 			// will make a "fully formed" ImagePolicy object.
@@ -613,8 +617,9 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 			// test helper. When switching branches, the localRepo seems to get
 			// stuck in one particular branch. As a workaround, create a
 			// separate localRepo.
-			localRepo, err := clone(cloneLocalRepoURL, "origin", branch)
+			localRepo, err := clone(cloneLocalRepoURL, branch)
 			g.Expect(err).ToNot(HaveOccurred(), "failed to clone git repo")
+			defer localRepo.Free()
 
 			g.Expect(checkoutBranch(localRepo, branch)).ToNot(HaveOccurred())
 			err = createImagePolicyWithLatestImage(testEnv, imagePolicyName, namespace, "not-expected-to-exist", "1.x", latestImage)
@@ -736,13 +741,10 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 		})
 	}
 
-	// Run the protocol based e2e tests against the git implementations.
-	for _, gitImpl := range gitImpls {
-		for _, proto := range protos {
-			t.Run(fmt.Sprintf("%s_%s", gitImpl, proto), func(t *testing.T) {
-				testFunc(t, proto, gitImpl)
-			})
-		}
+	for _, proto := range protos {
+		t.Run(fmt.Sprintf("%s", proto), func(t *testing.T) {
+			testFunc(t, proto)
+		})
 	}
 }
 
@@ -861,8 +863,9 @@ func compareRepoWithExpected(g *WithT, repoURL, branch, fixture string, changeFi
 	copy.Copy(fixture, expected)
 	changeFixture(expected)
 
-	repo, err := clone(repoURL, "origin", branch)
+	repo, err := clone(repoURL, branch)
 	g.Expect(err).ToNot(HaveOccurred())
+	defer repo.Free()
 	// NOTE: The workdir contains a trailing /. Clean it to not confuse the
 	// DiffDirectories().
 	actual := filepath.Clean(repo.Workdir())
@@ -872,10 +875,39 @@ func compareRepoWithExpected(g *WithT, repoURL, branch, fixture string, changeFi
 	test.ExpectMatchingDirectories(g, actual, expected)
 }
 
+// configureManagedTransportOptions registers the transport options for this repository
+// and sets the remote url of origin to the transport options url. If repoURL is empty
+// it tries to figure it out by looking at the remote url of origin. It returns a function
+// which removes the transport options for this repo and sets the remote url of the origin
+// back to the actual url. Callers are expected to call this function in a deferred manner.
+func configureManagedTransportOptions(repo *libgit2.Repository, repoURL string) (func(), error) {
+	if repoURL == "" {
+		origin, err := repo.Remotes.Lookup(originRemote)
+		if err != nil {
+			return nil, err
+		}
+		defer origin.Free()
+		repoURL = origin.Url()
+	}
+	transportOptsURL := "http://" + randStringRunes(5)
+	managed.AddTransportOptions(transportOptsURL, managed.TransportOptions{
+		TargetURL: repoURL,
+	})
+
+	err := repo.Remotes.SetUrl(originRemote, transportOptsURL)
+	if err != nil {
+		return nil, fmt.Errorf("could not set remote origin url: %v", err)
+	}
+	return func() {
+		managed.RemoveTransportOptions(transportOptsURL)
+		repo.Remotes.SetUrl(originRemote, repoURL)
+	}, nil
+}
+
 func commitInRepo(g *WithT, repoURL, branch, msg string, changeFiles func(path string)) {
-	originRemote := "origin"
-	repo, err := clone(repoURL, originRemote, branch)
+	repo, err := clone(repoURL, branch)
 	g.Expect(err).ToNot(HaveOccurred())
+	defer repo.Free()
 
 	changeFiles(repo.Workdir())
 
@@ -887,6 +919,11 @@ func commitInRepo(g *WithT, repoURL, branch, msg string, changeFiles func(path s
 	_, err = commitWorkDir(repo, branch, msg, sig)
 	g.Expect(err).ToNot(HaveOccurred())
 
+	cleanup, err := configureManagedTransportOptions(repo, repoURL)
+	if err != nil {
+		panic(err)
+	}
+	defer cleanup()
 	origin, err := repo.Remotes.Lookup(originRemote)
 	if err != nil {
 		panic(fmt.Errorf("cannot find origin: %v", err))
@@ -941,7 +978,7 @@ func initGitRepoPlain(fixture, repositoryPath string) (*git2go.Repository, error
 }
 
 func headFromBranch(repo *git2go.Repository, branchName string) (*git2go.Commit, error) {
-	branch, err := repo.LookupBranch(branchName, git2go.BranchAll)
+	branch, err := repo.LookupBranch(branchName, git2go.BranchLocal)
 	if err != nil {
 		return nil, err
 	}
@@ -1123,40 +1160,53 @@ func mockSignature(time time.Time) *git2go.Signature {
 	}
 }
 
-func clone(repoURL, remoteName, branchName string) (*git2go.Repository, error) {
+func clone(repoURL, branchName string) (*git2go.Repository, error) {
 	dir, err := os.MkdirTemp("", "iac-clone-*")
 	if err != nil {
 		return nil, err
 	}
+	transportOptsURL := "http://" + randStringRunes(5)
+	managed.AddTransportOptions(transportOptsURL, managed.TransportOptions{
+		TargetURL: repoURL,
+	})
+	defer managed.RemoveTransportOptions(transportOptsURL)
+
 	opts := &git2go.CloneOptions{
 		Bare:           false,
 		CheckoutBranch: branchName,
 		CheckoutOptions: git2go.CheckoutOptions{
 			Strategy: git2go.CheckoutForce,
 		},
-		FetchOptions: git2go.FetchOptions{
-			RemoteCallbacks: git2go.RemoteCallbacks{
-				CertificateCheckCallback: func(cert *git2go.Certificate, valid bool, hostname string) error {
-					return nil
-				},
-			},
-		},
 	}
+	repo, err := git2go.Clone(transportOptsURL, dir, opts)
 
-	return git2go.Clone(repoURL, dir, opts)
+	// set the origin remote url to the actual repo url, since
+	// the origin remote will have transportOptsURl as the it's url
+	// because that's the url used to clone the repo.
+	err = repo.Remotes.SetUrl("origin", repoURL)
+	if err != nil {
+		return nil, err
+	}
+	return repo, nil
 }
 
 func waitForNewHead(g *WithT, repo *git2go.Repository, branch, preChangeHash string) {
 	var commitToResetTo *git2go.Commit
 
+	cleanup, err := configureManagedTransportOptions(repo, "")
+	if err != nil {
+		panic(err)
+	}
+	defer cleanup()
+
+	origin, err := repo.Remotes.Lookup("origin")
+	if err != nil {
+		panic("origin not set")
+	}
+	defer origin.Free()
+
 	// Now try to fetch new commits from that remote branch
 	g.Eventually(func() bool {
-		origin, err := repo.Remotes.Lookup("origin")
-		if err != nil {
-			panic("origin not set")
-		}
-		defer origin.Free()
-
 		if err := origin.Fetch(
 			[]string{branchRefName(branch)},
 			&libgit2.FetchOptions{}, "",
@@ -1205,6 +1255,12 @@ func commitIdFromBranch(repo *git2go.Repository, branchName string) string {
 }
 
 func getRemoteHead(repo *git2go.Repository, branchName string) (*git2go.Oid, error) {
+	cleanup, err := configureManagedTransportOptions(repo, "")
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
+
 	remote, err := repo.Remotes.Lookup("origin")
 	if err != nil {
 		return nil, err
@@ -1385,11 +1441,17 @@ func testWithCustomRepoAndImagePolicy(
 
 	// Clone the repo.
 	repoURL := gitServer.HTTPAddressWithCredentials() + repositoryPath
-	localRepo, err := clone(repoURL, "origin", args.branch)
+	localRepo, err := clone(repoURL, args.branch)
 	g.Expect(err).ToNot(HaveOccurred(), "failed to clone git repo")
+	defer localRepo.Free()
+
+	origin, err := localRepo.Remotes.Lookup("origin")
+	g.Expect(err).ToNot(HaveOccurred(), "failed to look up remote origin")
+	defer origin.Free()
+	localRepo.Remotes.SetUrl("origin", repoURL)
 
 	// Create GitRepository resource for the above repo.
-	err = createGitRepository(kClient, args.gitRepoName, args.gitRepoNamespace, "", repoURL, "")
+	err = createGitRepository(kClient, args.gitRepoName, args.gitRepoNamespace, repoURL, "")
 	g.Expect(err).ToNot(HaveOccurred(), "failed to create GitRepository resource")
 
 	// Create ImagePolicy with populated latest image in the status.
@@ -1440,7 +1502,7 @@ func createNamespace(kClient client.Client, name string) (cleanup, error) {
 	return cleanup, nil
 }
 
-func createGitRepository(kClient client.Client, name, namespace, impl, repoURL, secretRef string) error {
+func createGitRepository(kClient client.Client, name, namespace, repoURL, secretRef string) error {
 	gitRepo := &sourcev1.GitRepository{
 		Spec: sourcev1.GitRepositorySpec{
 			URL:      repoURL,
@@ -1452,9 +1514,7 @@ func createGitRepository(kClient client.Client, name, namespace, impl, repoURL, 
 	if secretRef != "" {
 		gitRepo.Spec.SecretRef = &meta.LocalObjectReference{Name: secretRef}
 	}
-	if impl != "" {
-		gitRepo.Spec.GitImplementation = impl
-	}
+	gitRepo.Spec.GitImplementation = sourcev1.LibGit2Implementation
 	return kClient.Create(context.Background(), gitRepo)
 }
 
