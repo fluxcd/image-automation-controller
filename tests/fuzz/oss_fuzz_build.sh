@@ -54,8 +54,6 @@ export PKG_CONFIG_PATH="${TARGET_DIR}/lib/pkgconfig:${TARGET_DIR}/lib64/pkgconfi
 export CGO_CFLAGS="-I${TARGET_DIR}/include -I${TARGET_DIR}/include/openssl"
 export CGO_LDFLAGS="$(pkg-config --libs --static --cflags libssh2 openssl libgit2)"
 
-go get -d github.com/AdaLogics/go-fuzz-headers
-
 pushd "tests/fuzz"
 
 # Setup files to be embedded into controllers_fuzzer.go's testFiles variable.
@@ -79,6 +77,8 @@ SOURCE_VER=$(go list -m github.com/fluxcd/source-controller/api | awk '{print $2
 REFLECTOR_VER=$(go list -m github.com/fluxcd/image-reflector-controller/api | awk '{print $2}')
 
 go mod download
+go get -d github.com/fluxcd/image-automation-controller
+go get -d github.com/AdaLogics/go-fuzz-headers
 
 if [ -d "../../controllers/testdata/crds" ]; then
     cp ../../controllers/testdata/crds/*.yaml testdata/crds
@@ -88,9 +88,6 @@ else
 
     curl -s --fail https://raw.githubusercontent.com/fluxcd/image-reflector-controller/${REFLECTOR_VER}/config/crd/bases/image.toolkit.fluxcd.io_imagepolicies.yaml -o testdata/crds/imagepolicies.yaml
 fi
-
-go get -d github.com/AdaLogics/go-fuzz-headers
-go get -d github.com/fluxcd/image-automation-controller
 
 # Using compile_go_fuzzer to compile fails when statically linking libgit2 dependencies
 # via CFLAGS/CXXFLAGS.
