@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.23.0
+
+**Release date:** 2022-06-02
+
+This prerelease comes with a new flag `--feature-gate` to disable/enable
+experimental features. It works in a similar manner to [Kubernetes feature gates](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/).
+
+The libgit2 managed transport feature has been enabled by default. Furthermore,
+a few changes have been made to make the feature more stable and enable quicker
+clones. Users that want to opt out and use the unmanaged transports may do so
+by passing the flag `--feature-gate=GitManagedTransport=false`, but please note
+that we encourage users not to do so.
+
+A regression that was introduced in PR [#330](https://github.com/fluxcd/image-automation-controller/pull/330)
+which made the controller fail when it tried to push commits to a branch that
+already existed on remote, has been fixed.
+
+Improvements:
+- Update dependencies
+  [#368](https://github.com/fluxcd/image-automation-controller/pull/368)
+- Enable Managed Transport by default
+  [#369](https://github.com/fluxcd/image-automation-controller/pull/369)
+- Update dependencies
+  [#374](https://github.com/fluxcd/image-automation-controller/pull/374)
+- Update source-controller with libgit2 race fixes
+  [#376](https://github.com/fluxcd/image-automation-controller/pull/376)
+
+Fixes:
+- Instruct kyaml/kio to retain sequence indentation style
+  [#366](https://github.com/fluxcd/image-automation-controller/pull/366)
+- git: refactor tests to use managed transports and fix switchToBranch
+  [#374](https://github.com/fluxcd/image-automation-controller/pull/374)
+
 ## 0.22.1
 
 **Release date:** 2022-05-03
