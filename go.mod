@@ -15,8 +15,8 @@ require (
 	github.com/fluxcd/pkg/gittestserver v0.5.4
 	github.com/fluxcd/pkg/runtime v0.16.1
 	github.com/fluxcd/pkg/ssh v0.4.1
-	github.com/fluxcd/source-controller v0.25.0
-	github.com/fluxcd/source-controller/api v0.25.0
+	github.com/fluxcd/source-controller v0.25.1
+	github.com/fluxcd/source-controller/api v0.25.1
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-containerregistry v0.9.0
 	github.com/libgit2/git2go/v33 v33.0.9

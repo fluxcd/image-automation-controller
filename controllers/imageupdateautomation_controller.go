@@ -542,9 +542,7 @@ func (r repoAccess) remoteCallbacks(ctx context.Context) libgit2.RemoteCallbacks
 // can be `nil`). It returns a `*libgit2.Repository` since that is used
 // for committing changes.
 func cloneInto(ctx context.Context, access repoAccess, ref *sourcev1.GitRepositoryRef,
-	path string) (_ *libgit2.Repository, err error) {
-	defer recoverPanic(&err)
-
+	path string) (*libgit2.Repository, error) {
 	opts := git.CheckoutOptions{}
 	if ref != nil {
 		opts.Tag = ref.Tag
@@ -982,10 +980,4 @@ func templateMsg(messageTemplate string, templateValues *TemplateData) (string, 
 		return "", fmt.Errorf("failed to run template from spec: %w", err)
 	}
 	return b.String(), nil
-}
-
-func recoverPanic(err *error) {
-	if r := recover(); r != nil {
-		*err = fmt.Errorf("recovered from git2go panic: %v", r)
-	}
 }
