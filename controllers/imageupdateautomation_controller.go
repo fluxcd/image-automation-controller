@@ -510,6 +510,7 @@ type repoAccess struct {
 func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, repository *sourcev1.GitRepository) (repoAccess, error) {
 	var access repoAccess
 	access.url = repository.Spec.URL
+	access.auth = &git.AuthOptions{}
 
 	if repository.Spec.SecretRef != nil {
 		name := types.NamespacedName{
@@ -540,12 +541,15 @@ func (r repoAccess) remoteCallbacks(ctx context.Context) libgit2.RemoteCallbacks
 // cloneInto clones the upstream repository at the `ref` given (which
 // can be `nil`). It returns a `*libgit2.Repository` since that is used
 // for committing changes.
-func cloneInto(ctx context.Context, access repoAccess, ref *sourcev1.GitRepositoryRef, path string) (*libgit2.Repository, error) {
+func cloneInto(ctx context.Context, access repoAccess, ref *sourcev1.GitRepositoryRef,
+	path string) (_ *libgit2.Repository, err error) {
+	defer recoverPanic(&err)
+
 	opts := git.CheckoutOptions{}
 	if ref != nil {
 		opts.Tag = ref.Tag
 		opts.SemVer = ref.SemVer
-		opts.Tag = ref.Tag
+		opts.Commit = ref.Commit
 		opts.Branch = ref.Branch
 	}
 	checkoutStrat, err := gitstrat.CheckoutStrategyForImplementation(ctx, sourcev1.LibGit2Implementation, opts)
@@ -748,7 +752,6 @@ func switchToBranch(repo *libgit2.Repository, ctx context.Context, branch string
 		callbacks = managed.RemoteCallbacks()
 	}
 
-	branchRef := fmt.Sprintf("origin/%s", branch)
 	// Force the fetching of the remote branch.
 	err = origin.Fetch([]string{branch}, &libgit2.FetchOptions{
 		RemoteCallbacks: callbacks,
@@ -757,7 +760,7 @@ func switchToBranch(repo *libgit2.Repository, ctx context.Context, branch string
 		return fmt.Errorf("cannot fetch remote branch: %w", err)
 	}
 
-	remoteBranch, err := repo.LookupBranch(branchRef, libgit2.BranchRemote)
+	remoteBranch, err := repo.References.Lookup(fmt.Sprintf("refs/remotes/origin/%s", branch))
 	if err != nil && !libgit2.IsErrorCode(err, libgit2.ErrorCodeNotFound) {
 		return err
 	}
@@ -784,15 +787,25 @@ func switchToBranch(repo *libgit2.Repository, ctx context.Context, branch string
 	}
 	defer commit.Free()
 
-	localBranch, err := repo.LookupBranch(branch, libgit2.BranchLocal)
+	localBranch, err := repo.References.Lookup(fmt.Sprintf("refs/heads/%s", branch))
 	if err != nil && !libgit2.IsErrorCode(err, libgit2.ErrorCodeNotFound) {
 		return fmt.Errorf("cannot lookup branch '%s': %w", branch, err)
 	}
 	if localBranch == nil {
-		localBranch, err = repo.CreateBranch(branch, commit, false)
-	}
-	if localBranch == nil {
-		return fmt.Errorf("cannot create local branch '%s': %w", branch, err)
+		lb, err := repo.CreateBranch(branch, commit, false)
+		if err != nil {
+			return fmt.Errorf("cannot create branch '%s': %w", branch, err)
+		}
+		defer lb.Free()
+		// We could've done something like:
+		// localBranch = lb.Reference
+		// But for some reason, calling `lb.Free()` AND using it, causes a really
+		// nasty crash. Since, we can't avoid calling `lb.Free()`, in order to prevent
+		// memory leaks, we don't use `lb` and instead manually lookup the ref.
+		localBranch, err = repo.References.Lookup(fmt.Sprintf("refs/heads/%s", branch))
+		if err != nil {
+			return fmt.Errorf("cannot lookup branch '%s': %w", branch, err)
+		}
 	}
 	defer localBranch.Free()
 
@@ -809,6 +822,12 @@ func switchToBranch(repo *libgit2.Repository, ctx context.Context, branch string
 	if err != nil {
 		return fmt.Errorf("cannot checkout tree for branch '%s': %w", branch, err)
 	}
+
+	ref, err := localBranch.SetTarget(commit.Id(), "")
+	if err != nil {
+		return fmt.Errorf("cannot update branch '%s' to be at target commit: %w", branch, err)
+	}
+	ref.Free()
 
 	return repo.SetHead("refs/heads/" + branch)
 }
@@ -963,4 +982,10 @@ func templateMsg(messageTemplate string, templateValues *TemplateData) (string, 
 		return "", fmt.Errorf("failed to run template from spec: %w", err)
 	}
 	return b.String(), nil
+}
+
+func recoverPanic(err *error) {
+	if r := recover(); r != nil {
+		*err = fmt.Errorf("recovered from git2go panic: %v", r)
+	}
 }
