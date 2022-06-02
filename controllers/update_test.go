@@ -904,7 +904,7 @@ func configureManagedTransportOptions(repo *libgit2.Repository, repoURL string) 
 	}, nil
 }
 
-func commitInRepo(g *WithT, repoURL, branch, msg string, changeFiles func(path string)) {
+func commitInRepo(g *WithT, repoURL, branch, msg string, changeFiles func(path string)) *libgit2.Oid {
 	repo, err := clone(repoURL, branch)
 	g.Expect(err).ToNot(HaveOccurred())
 	defer repo.Free()
@@ -916,21 +916,18 @@ func commitInRepo(g *WithT, repoURL, branch, msg string, changeFiles func(path s
 		Email: "test@example.com",
 		When:  time.Now(),
 	}
-	_, err = commitWorkDir(repo, branch, msg, sig)
+	id, err := commitWorkDir(repo, branch, msg, sig)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	cleanup, err := configureManagedTransportOptions(repo, repoURL)
-	if err != nil {
-		panic(err)
-	}
+	g.Expect(err).ToNot(HaveOccurred())
 	defer cleanup()
 	origin, err := repo.Remotes.Lookup(originRemote)
-	if err != nil {
-		panic(fmt.Errorf("cannot find origin: %v", err))
-	}
+	g.Expect(err).ToNot(HaveOccurred())
 	defer origin.Free()
 
 	g.Expect(origin.Push([]string{branchRefName(branch)}, &libgit2.PushOptions{})).To(Succeed())
+	return id
 }
 
 // Initialise a git server with a repo including the files in dir.
