@@ -250,31 +250,20 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		return failWithError(err)
 	}
 
-	repositoryURL := origin.Spec.URL
+	// managed GIT transport only affects the libgit2 implementation
 	if managed.Enabled() {
-		// At present only HTTP connections have the ability to define remote options.
-		// Although this can be easily extended by ensuring that the fake URL below uses the
-		// target ssh scheme, and the libgit2/managed/ssh.go pulls that information accordingly.
-		//
-		// This is due to the fact the key libgit2 remote callbacks do not take place for HTTP
-		// whilst most still work for SSH.
-		if strings.HasPrefix(repositoryURL, "http") {
-			if access.auth != nil && len(access.auth.CAFile) > 0 {
-				// Due to the lack of the callback feature, a fake target URL is created to allow
-				// for the smart sub transport be able to pick the options specific for this
-				// GitRepository object.
-				// The URL should use unique information that do not collide in a multi tenant
-				// deployment.
-				repositoryURL = fmt.Sprintf("http://%s/%s/%d", auto.Name, auto.UID, auto.Generation)
-				managed.AddTransportOptions(repositoryURL,
-					managed.TransportOptions{
-						TargetURL: repositoryURL,
-						CABundle:  access.auth.CAFile,
-					})
-
-				// We remove the options from memory, to avoid accumulating unused options over time.
-				defer managed.RemoveTransportOptions(repositoryURL)
-			}
+		// We set the TransportOptionsURL of this set of authentication options here by constructing
+		// a unique URL that won't clash in a multi tenant environment. This unique URL is used by
+		// libgit2 managed transports. This enables us to bypass the inbuilt credentials callback in
+		// libgit2, which is inflexible and unstable.
+		// NB: The Transport Options URL must be unique, therefore it must use the object under
+		// reconciliation details, instead of the repository it depends on.
+		if strings.HasPrefix(origin.Spec.URL, "http") {
+			access.auth.TransportOptionsURL = fmt.Sprintf("http://%s/%s/%d", auto.Name, auto.UID, auto.Generation)
+		} else if strings.HasPrefix(origin.Spec.URL, "ssh") {
+			access.auth.TransportOptionsURL = fmt.Sprintf("ssh://%s/%s/%d", auto.Name, auto.UID, auto.Generation)
+		} else {
+			return failWithError(fmt.Errorf("git repository URL '%s' has invalid transport type, supported types are: http, https, ssh", origin.Spec.URL))
 		}
 	}
 
@@ -286,6 +275,20 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		return failWithError(err)
 	}
 	defer repo.Free()
+
+	if managed.Enabled() {
+		// Checkout removes TransportOptions before returning, therefore this
+		// must happen after cloneInto.
+		// TODO(pjbgf): Git consolidation should improve the API workflow.
+		managed.AddTransportOptions(access.auth.TransportOptionsURL, managed.TransportOptions{
+			TargetURL:    origin.Spec.URL,
+			AuthOpts:     access.auth,
+			ProxyOptions: &libgit2.ProxyOptions{Type: libgit2.ProxyTypeAuto},
+			Context:      cloneCtx,
+		})
+
+		defer managed.RemoveTransportOptions(access.auth.TransportOptionsURL)
+	}
 
 	// When there's a push spec, the pushed-to branch is where commits
 	// shall be made
@@ -732,7 +735,28 @@ var errRemoteBranchMissing = errors.New("remote branch missing")
 // switchToBranch switches to a branch after fetching latest from upstream.
 // If the branch does not exist, it is created using the head as the starting point.
 func switchToBranch(repo *libgit2.Repository, ctx context.Context, branch string, access repoAccess) error {
+	origin, err := repo.Remotes.Lookup(originRemote)
+	if err != nil {
+		return fmt.Errorf("cannot lookup remote: %w", err)
+	}
+	defer origin.Free()
+
+	callbacks := access.remoteCallbacks(ctx)
+	if managed.Enabled() {
+		// Override callbacks with dummy ones as they are not needed within Managed Transport.
+		// However, not setting them may lead to git2go panicing.
+		callbacks = managed.RemoteCallbacks()
+	}
+
 	branchRef := fmt.Sprintf("origin/%s", branch)
+	// Force the fetching of the remote branch.
+	err = origin.Fetch([]string{branch}, &libgit2.FetchOptions{
+		RemoteCallbacks: callbacks,
+	}, "")
+	if err != nil {
+		return fmt.Errorf("cannot fetch remote branch: %w", err)
+	}
+
 	remoteBranch, err := repo.LookupBranch(branchRef, libgit2.BranchRemote)
 	if err != nil && !libgit2.IsErrorCode(err, libgit2.ErrorCodeNotFound) {
 		return err
@@ -806,6 +830,11 @@ func push(ctx context.Context, path, branch string, access repoAccess) error {
 	defer origin.Free()
 
 	callbacks := access.remoteCallbacks(ctx)
+	if managed.Enabled() {
+		// Override callbacks with dummy ones as they are not needed within Managed Transport.
+		// However, not setting them may lead to git2go panicing.
+		callbacks = managed.RemoteCallbacks()
+	}
 
 	// calling repo.Push will succeed even if a reference update is
 	// rejected; to detect this case, this callback is supplied.
