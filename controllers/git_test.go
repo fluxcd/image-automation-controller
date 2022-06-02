@@ -10,12 +10,10 @@ import (
 
 	"github.com/go-logr/logr"
 	libgit2 "github.com/libgit2/git2go/v33"
+	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/types"
 
-	. "github.com/onsi/gomega"
-
 	"github.com/fluxcd/pkg/gittestserver"
-	"github.com/fluxcd/source-controller/pkg/git/libgit2/managed"
 )
 
 func populateRepoFromFixture(repo *libgit2.Repository, fixture string) error {
@@ -131,24 +129,29 @@ func TestPushRejected(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// this is currently defined in update_test.go, but handy right here ..
+	// We use "test" as the branch to init repo, to avoid potential conflicts
+	// with the default branch(main/master) of the system this test is running
+	// on. If, for e.g., we used main as the branch and the default branch is
+	// supposed to be main, this will fail as this would try to create a branch
+	// named main explicitly.
 	if err = initGitRepo(gitServer, "testdata/appconfig", "test", "/appconfig.git"); err != nil {
 		t.Fatal(err)
 	}
 
 	repoURL := gitServer.HTTPAddressWithCredentials() + "/appconfig.git"
-	repo, err := clone(repoURL, "test")
+	cloneCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+	defer cancel()
+	repo, err := clone(cloneCtx, repoURL, "test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer repo.Free()
 
-	transportOptsURL := "http://" + randStringRunes(5)
-	managed.AddTransportOptions(transportOptsURL, managed.TransportOptions{
-		TargetURL: repoURL,
-	})
-	defer managed.RemoveTransportOptions(transportOptsURL)
-	repo.Remotes.SetUrl("origin", transportOptsURL)
+	cleanup, err := configureTransportOptsForRepo(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
 
 	// This is here to guard against push in general being broken
 	err = push(context.TODO(), repo.Workdir(), "test", repoAccess{})
@@ -176,11 +179,18 @@ func Test_switchToBranch(t *testing.T) {
 	gitServer.AutoCreate()
 	g.Expect(gitServer.StartHTTP()).To(Succeed())
 
+	// We use "test" as the branch to init repo, to avoid potential conflicts
+	// with the default branch(main/master) of the system this test is running
+	// on. If, for e.g., we used main as the branch and the default branch is
+	// supposed to be main, this will fail as this would try to create a branch
+	// named main explicitly.
 	branch := "test"
 	g.Expect(initGitRepo(gitServer, "testdata/appconfig", branch, "/appconfig.git")).To(Succeed())
 
 	repoURL := gitServer.HTTPAddressWithCredentials() + "/appconfig.git"
-	repo, err := clone(repoURL, branch)
+	cloneCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+	defer cancel()
+	repo, err := clone(cloneCtx, repoURL, branch)
 	g.Expect(err).ToNot(HaveOccurred())
 	defer repo.Free()
 
@@ -190,12 +200,11 @@ func Test_switchToBranch(t *testing.T) {
 	target := head.Target()
 
 	// register transport options and update remote to transport url
-	transportOptsURL := "http://" + randStringRunes(5)
-	managed.AddTransportOptions(transportOptsURL, managed.TransportOptions{
-		TargetURL: repoURL,
-	})
-	defer managed.RemoveTransportOptions(transportOptsURL)
-	repo.Remotes.SetUrl("origin", transportOptsURL)
+	cleanup, err := configureTransportOptsForRepo(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
 
 	// calling switchToBranch with a branch that doesn't exist on origin
 	// should result in the branch being created and switched to.
@@ -217,7 +226,7 @@ func Test_switchToBranch(t *testing.T) {
 	branch = "exists-on-origin"
 	_, err = repo.CreateBranch(branch, cc, false)
 	g.Expect(err).ToNot(HaveOccurred())
-	origin, err := repo.Remotes.Lookup("origin")
+	origin, err := repo.Remotes.Lookup(originRemote)
 	g.Expect(err).ToNot(HaveOccurred())
 	defer origin.Free()
 
