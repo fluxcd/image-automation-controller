@@ -9,10 +9,10 @@ require (
 	github.com/ProtonMail/go-crypto v0.0.0-20220517143526-88bb52951d5b
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/fluxcd/image-automation-controller/api v0.22.1
-	github.com/fluxcd/image-reflector-controller/api v0.18.0
+	github.com/fluxcd/image-reflector-controller/api v0.19.0
 	github.com/fluxcd/pkg/apis/acl v0.0.3
 	github.com/fluxcd/pkg/apis/meta v0.14.1
-	github.com/fluxcd/pkg/gittestserver v0.5.3
+	github.com/fluxcd/pkg/gittestserver v0.5.4
 	github.com/fluxcd/pkg/runtime v0.16.1
 	github.com/fluxcd/pkg/ssh v0.4.1
 	github.com/fluxcd/source-controller v0.25.0
@@ -70,7 +70,6 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-	github.com/hashicorp/go-hclog v0.12.0 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.1 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
@@ -80,7 +79,6 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
-	github.com/matryer/is v1.4.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
