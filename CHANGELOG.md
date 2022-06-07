@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.23.1
+
+**Release date:** 2022-06-07
+
+This prerelease fixes a regression when accessing Gitlab via HTTPS
+when the URL does not have the '.git' suffix and updates dependencies. 
+
+Improvements:
+- Update dependencies and source-controller to v0.25.4
+  [#380](https://github.com/fluxcd/image-automation-controller/pull/380)
+- Update source-controller/api to v0.25.2
+  [#377](https://github.com/fluxcd/image-automation-controller/pull/377)
+
 ## 0.23.0
 
 **Release date:** 2022-06-02
