@@ -77,6 +77,7 @@ SOURCE_VER=$(go list -m github.com/fluxcd/source-controller/api | awk '{print $2
 REFLECTOR_VER=$(go list -m github.com/fluxcd/image-reflector-controller/api | awk '{print $2}')
 
 go mod download
+go mod tidy -go=1.16 && go mod tidy -go=1.17
 go get -d github.com/fluxcd/image-automation-controller
 go get -d github.com/AdaLogics/go-fuzz-headers
 
