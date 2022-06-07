@@ -15,8 +15,8 @@ require (
 	github.com/fluxcd/pkg/gittestserver v0.5.4
 	github.com/fluxcd/pkg/runtime v0.16.1
 	github.com/fluxcd/pkg/ssh v0.4.1
-	github.com/fluxcd/source-controller v0.25.2
-	github.com/fluxcd/source-controller/api v0.25.2
+	github.com/fluxcd/source-controller v0.25.4
+	github.com/fluxcd/source-controller/api v0.25.4
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-containerregistry v0.9.0
 	github.com/libgit2/git2go/v33 v33.0.9
@@ -29,6 +29,11 @@ require (
 	k8s.io/kube-openapi v0.0.0-20220401212409-b28bf2818661
 	sigs.k8s.io/controller-runtime v0.11.2
 	sigs.k8s.io/kustomize/kyaml v0.13.7
+)
+
+require (
+	github.com/hashicorp/go-hclog v0.12.0 // indirect
+	github.com/matryer/is v1.4.0 // indirect
 )
 
 // Fix CVE-2022-28948
@@ -103,8 +108,8 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
-	golang.org/x/net v0.0.0-20220524220425-1d687d428aca // indirect
-	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5 // indirect
+	golang.org/x/net v0.0.0-20220607020251-c690dde0001d // indirect
+	golang.org/x/oauth2 v0.0.0-20220524215830-622c5d57e401 // indirect
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
