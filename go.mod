@@ -9,11 +9,11 @@ require (
 	github.com/ProtonMail/go-crypto v0.0.0-20220517143526-88bb52951d5b
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/fluxcd/image-automation-controller/api v0.23.1
-	github.com/fluxcd/image-reflector-controller/api v0.19.0
+	github.com/fluxcd/image-reflector-controller/api v0.19.1
 	github.com/fluxcd/pkg/apis/acl v0.0.3
-	github.com/fluxcd/pkg/apis/meta v0.14.1
+	github.com/fluxcd/pkg/apis/meta v0.14.2
 	github.com/fluxcd/pkg/gittestserver v0.5.4
-	github.com/fluxcd/pkg/runtime v0.16.1
+	github.com/fluxcd/pkg/runtime v0.16.2
 	github.com/fluxcd/pkg/ssh v0.4.1
 	github.com/fluxcd/source-controller v0.25.4
 	github.com/fluxcd/source-controller/api v0.25.4
@@ -23,15 +23,16 @@ require (
 	github.com/onsi/gomega v1.19.0
 	github.com/otiai10/copy v1.7.0
 	github.com/spf13/pflag v1.0.5
-	k8s.io/api v0.24.0
-	k8s.io/apimachinery v0.24.0
-	k8s.io/client-go v0.24.0
-	k8s.io/kube-openapi v0.0.0-20220401212409-b28bf2818661
+	k8s.io/api v0.24.1
+	k8s.io/apimachinery v0.24.1
+	k8s.io/client-go v0.24.1
+	k8s.io/kube-openapi v0.0.0-20220603121420-31174f50af60
 	sigs.k8s.io/controller-runtime v0.11.2
 	sigs.k8s.io/kustomize/kyaml v0.13.7
 )
 
 require (
+	github.com/emicklei/go-restful/v3 v3.7.5-0.20220308211933-7c971ca4d0fd // indirect
 	github.com/hashicorp/go-hclog v0.12.0 // indirect
 	github.com/matryer/is v1.4.0 // indirect
 )
@@ -51,7 +52,6 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/emicklei/go-restful v2.9.5+incompatible // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/fluxcd/gitkit v0.5.1 // indirect
@@ -122,10 +122,10 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 	k8s.io/apiextensions-apiserver v0.24.0 // indirect
-	k8s.io/component-base v0.24.0 // indirect
+	k8s.io/component-base v0.24.1 // indirect
 	k8s.io/klog/v2 v2.60.1 // indirect
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9 // indirect
-	sigs.k8s.io/cli-utils v0.31.1 // indirect
+	sigs.k8s.io/cli-utils v0.31.2 // indirect
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
