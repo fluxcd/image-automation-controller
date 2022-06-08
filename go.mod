@@ -14,9 +14,9 @@ require (
 	github.com/fluxcd/pkg/apis/meta v0.14.2
 	github.com/fluxcd/pkg/gittestserver v0.5.4
 	github.com/fluxcd/pkg/runtime v0.16.2
-	github.com/fluxcd/pkg/ssh v0.4.1
-	github.com/fluxcd/source-controller v0.25.4
-	github.com/fluxcd/source-controller/api v0.25.4
+	github.com/fluxcd/pkg/ssh v0.5.0
+	github.com/fluxcd/source-controller v0.25.5
+	github.com/fluxcd/source-controller/api v0.25.5
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-containerregistry v0.9.0
 	github.com/libgit2/git2go/v33 v33.0.9
@@ -29,12 +29,6 @@ require (
 	k8s.io/kube-openapi v0.0.0-20220603121420-31174f50af60
 	sigs.k8s.io/controller-runtime v0.11.2
 	sigs.k8s.io/kustomize/kyaml v0.13.7
-)
-
-require (
-	github.com/emicklei/go-restful/v3 v3.7.5-0.20220308211933-7c971ca4d0fd // indirect
-	github.com/hashicorp/go-hclog v0.12.0 // indirect
-	github.com/matryer/is v1.4.0 // indirect
 )
 
 // Fix CVE-2022-28948
@@ -52,6 +46,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/emicklei/go-restful/v3 v3.7.5-0.20220308211933-7c971ca4d0fd // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/fluxcd/gitkit v0.5.1 // indirect
@@ -75,6 +70,7 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
+	github.com/hashicorp/go-hclog v0.12.0 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.1 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
@@ -84,6 +80,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
+	github.com/matryer/is v1.4.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
