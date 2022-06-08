@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"path/filepath"
 	"strings"
 	"text/template"
 	"time"
@@ -271,9 +270,11 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	cloneCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
 	defer cancel()
 	var repo *libgit2.Repository
+	tracelog.Info("trying to clone repo")
 	if repo, err = cloneInto(cloneCtx, access, ref, tmp); err != nil {
 		return failWithError(err)
 	}
+	tracelog.Info("cloned repo successfully")
 	defer repo.Free()
 
 	if managed.Enabled() {
@@ -297,9 +298,11 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		// Use the git operations timeout for the repo.
 		fetchCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
 		defer cancel()
+		tracelog.Info("trying to switch to push branch", "branch", pushBranch)
 		if err := switchToBranch(repo, fetchCtx, pushBranch, access); err != nil && err != errRemoteBranchMissing {
 			return failWithError(err)
 		}
+		tracelog.Info("switched to push branch", "branch", pushBranch)
 	}
 
 	switch {
@@ -381,6 +384,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		}
 	} else {
 		// Use the git operations timeout for the repo.
+		tracelog.Info("trying to push commit to origin", "revision", rev, "branch", pushBranch)
 		pushCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
 		defer cancel()
 		if err := push(pushCtx, tmp, pushBranch, access); err != nil {
@@ -607,40 +611,23 @@ func commitChangedManifests(tracelog logr.Logger, repo *libgit2.Repository, absR
 	}
 	defer index.Free()
 
-	// add to index any files that are not within .git/
-	if err = filepath.Walk(repo.Workdir(),
-		func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			rel, err := filepath.Rel(repo.Workdir(), path)
-			if err != nil {
-				return err
-			}
-			f, err := os.Stat(path)
-			if err != nil {
-				return err
-			}
-			if f.IsDir() || strings.HasPrefix(rel, ".git") || rel == "." {
-				return nil
-			}
-			if err := index.AddByPath(rel); err != nil {
-				tracelog.Info("adding file", "file", rel)
-				return err
-			}
-			return nil
-		}); err != nil {
+	tracelog.Info("adding files to index")
+	err = index.AddAll(nil, libgit2.IndexAddDefault, nil)
+	if err != nil {
 		return "", err
 	}
+	tracelog.Info("added files to index")
 
 	if err := index.Write(); err != nil {
 		return "", err
 	}
+	tracelog.Info("written index")
 
 	treeID, err := index.WriteTree()
 	if err != nil {
 		return "", err
 	}
+	tracelog.Info("written tree index")
 
 	tree, err := repo.LookupTree(treeID)
 	if err != nil {
@@ -652,6 +639,7 @@ func commitChangedManifests(tracelog logr.Logger, repo *libgit2.Repository, absR
 	if err != nil {
 		return "", err
 	}
+	tracelog.Info("created commit")
 
 	// return unsigned commit if pgp entity is not provided
 	if ent == nil {
