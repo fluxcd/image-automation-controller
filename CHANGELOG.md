@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.23.2
+
+**Release date:** 2022-06-08
+
+This prerelease fixes a regression for SSH host key verification and
+updates some dependencies.
+
+In addition, the controller was updated to Kubernetes v1.24.1.
+
+Fixes:
+- Update github.com/fluxcd/source-controller v0.25.5
+  [#384](https://github.com/fluxcd/image-automation-controller/pull/384)
+
+Improvements:
+- Update dependencies
+  [#383](https://github.com/fluxcd/image-automation-controller/pull/383)
+
 ## 0.23.1
 
 **Release date:** 2022-06-07
