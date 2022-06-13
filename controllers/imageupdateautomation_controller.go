@@ -108,6 +108,12 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	tracelog := log.V(logger.TraceLevel)
 	now := time.Now()
 	var templateValues TemplateData
+	defer func() {
+		if r := recover(); r != nil {
+			tracelog.Error(errors.New(r.(string)),
+				"recovered from panic")
+		}
+	}()
 
 	var auto imagev1.ImageUpdateAutomation
 	if err := r.Get(ctx, req.NamespacedName, &auto); err != nil {
