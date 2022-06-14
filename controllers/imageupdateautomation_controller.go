@@ -341,6 +341,11 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		if result, err := updateAccordingToSetters(ctx, tracelog, manifestsPath, policies.Items); err != nil {
 			return failWithError(err)
 		} else {
+			updatedFiles := make([]string, 0)
+			for file := range result.Files {
+				updatedFiles = append(updatedFiles, file)
+			}
+			tracelog.Info("updated setters in files", "file-count", len(result.Files), "files", updatedFiles)
 			templateValues.Updated = result
 		}
 	default:
@@ -618,7 +623,12 @@ func commitChangedManifests(tracelog logr.Logger, repo *libgit2.Repository, absR
 	defer index.Free()
 
 	tracelog.Info("adding files to index")
-	err = index.AddAll(nil, libgit2.IndexAddDefault, nil)
+	c := 1
+	err = index.AddAll(nil, libgit2.IndexAddDefault, func(s1, s2 string) error {
+		tracelog.Info("adding file", "name", s1, "count", c)
+		c += 1
+		return nil
+	})
 	if err != nil {
 		return "", err
 	}
