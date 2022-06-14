@@ -78,7 +78,6 @@ func main() {
 		featureGates          feathelper.FeatureGates
 		watchAllNamespaces    bool
 		concurrent            int
-		kexAlgos              []string
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -87,8 +86,10 @@ func main() {
 	flag.BoolVar(&watchAllNamespaces, "watch-all-namespaces", true,
 		"Watch for custom resources in all namespaces, if set to false it will only watch the runtime namespace.")
 	flag.IntVar(&concurrent, "concurrent", 4, "The number of concurrent resource reconciles.")
-	flag.StringSliceVar(&kexAlgos, "ssh-kex-algos", []string{},
+	flag.StringSliceVar(&git.KexAlgos, "ssh-kex-algos", []string{},
 		"The list of key exchange algorithms to use for ssh connections, arranged from most preferred to the least.")
+	flag.StringSliceVar(&git.HostKeyAlgos, "ssh-hostkey-algos", []string{},
+		"The list of hostkey algorithms to use for ssh connections, arranged from most preferred to the least.")
 
 	clientOptions.BindFlags(flag.CommandLine)
 	logOptions.BindFlags(flag.CommandLine)
@@ -164,15 +165,9 @@ func main() {
 		managed.InitManagedTransport(ctrl.Log.WithName("managed-transport"))
 	}
 
-	setPreferredKexAlgos(kexAlgos)
-
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
-}
-
-func setPreferredKexAlgos(algos []string) {
-	git.KexAlgos = algos
 }
