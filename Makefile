@@ -16,6 +16,9 @@ BUILD_ARGS ?=
 # Architectures to build images for
 BUILD_PLATFORMS ?= linux/amd64,linux/arm64,linux/arm/v7
 
+# Allows for defining additional Go test args, e.g. '-tags integration'.
+GO_TEST_ARGS ?= -race
+
 # Directory with versioned, downloaded things
 CACHE := cache
 
@@ -138,10 +141,10 @@ endif
 KUBEBUILDER_ASSETS?="$(shell $(ENVTEST) --arch=$(ENVTEST_ARCH) use -i $(ENVTEST_KUBERNETES_VERSION) --bin-dir=$(ENVTEST_ASSETS_DIR) -p path)"
 test: $(LIBGIT2) tidy test-api test_deps generate fmt vet manifests api-docs install-envtest ## Run tests
 	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) \
-	go test $(GO_STATIC_FLAGS) ./... -coverprofile cover.out
+	go test $(GO_STATIC_FLAGS) $(GO_TEST_ARGS) ./... -coverprofile cover.out
 
 test-api:	## Run api tests
-	cd api; go test ./... -coverprofile cover.out
+	cd api; go test $(GO_TEST_ARGS) ./... -coverprofile cover.out
 
 manager: $(LIBGIT2) generate fmt vet	## Build manager binary
 	go build -o $(BUILD_DIR)/bin/manager ./main.go
