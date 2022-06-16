@@ -162,7 +162,7 @@ func main() {
 	// +kubebuilder:scaffold:builder
 
 	if enabled, _ := features.Enabled(features.GitManagedTransport); enabled {
-		managed.InitManagedTransport(ctrl.Log.WithName("managed-transport"))
+		managed.InitManagedTransport()
 	}
 
 	setupLog.Info("starting manager")
