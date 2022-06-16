@@ -479,8 +479,10 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 		// test cases and cleanup at the end.
 
 		t.Run("PushSpec", func(t *testing.T) {
+			g := NewWithT(t)
+
 			// Clone the repo locally.
-			cloneCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+			cloneCtx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
 			localRepo, err := clone(cloneCtx, cloneLocalRepoURL, branch)
 			g.Expect(err).ToNot(HaveOccurred(), "failed to clone git repo")
@@ -499,6 +501,8 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 			pushBranch := "pr-" + randStringRunes(5)
 
 			t.Run("update with PushSpec", func(t *testing.T) {
+				g := NewWithT(t)
+
 				preChangeCommitId := commitIdFromBranch(localRepo, branch)
 				commitInRepo(g, cloneLocalRepoURL, branch, "Install setter marker", func(tmp string) {
 					g.Expect(replaceMarker(tmp, policyKey)).To(Succeed())
@@ -536,6 +540,8 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 			})
 
 			t.Run("push branch gets updated", func(t *testing.T) {
+				g := NewWithT(t)
+
 				initialHead, err := headFromBranch(localRepo, branch)
 				g.Expect(err).ToNot(HaveOccurred())
 				defer initialHead.Free()
@@ -566,6 +572,8 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 			})
 
 			t.Run("still pushes to the push branch after it's merged", func(t *testing.T) {
+				g := NewWithT(t)
+
 				initialHead, err := headFromBranch(localRepo, branch)
 				g.Expect(err).ToNot(HaveOccurred())
 				defer initialHead.Free()
@@ -610,13 +618,15 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 		})
 
 		t.Run("with update strategy setters", func(t *testing.T) {
+			g := NewWithT(t)
+
 			// Clone the repo locally.
 			// NOTE: A new localRepo is created here instead of reusing the one
 			// in the previous case due to a bug in some of the git operations
 			// test helper. When switching branches, the localRepo seems to get
 			// stuck in one particular branch. As a workaround, create a
 			// separate localRepo.
-			cloneCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+			cloneCtx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
 			localRepo, err := clone(cloneCtx, cloneLocalRepoURL, branch)
 			g.Expect(err).ToNot(HaveOccurred(), "failed to clone git repo")
@@ -677,6 +687,8 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 		})
 
 		t.Run("no reconciliation when object is suspended", func(t *testing.T) {
+			g := NewWithT(t)
+
 			err = createImagePolicyWithLatestImage(testEnv, imagePolicyName, namespace, "not-expected-to-exist", "1.x", latestImage)
 			g.Expect(err).ToNot(HaveOccurred(), "failed to create ImagePolicy resource")
 
@@ -863,7 +875,7 @@ func compareRepoWithExpected(g *WithT, repoURL, branch, fixture string, changeFi
 
 	copy.Copy(fixture, expected)
 	changeFixture(expected)
-	cloneCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+	cloneCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	repo, err := clone(cloneCtx, repoURL, branch)
 	g.Expect(err).ToNot(HaveOccurred())
@@ -909,7 +921,7 @@ func configureTransportOptsForRepo(repo *libgit2.Repository) (func(), error) {
 }
 
 func commitInRepo(g *WithT, repoURL, branch, msg string, changeFiles func(path string)) *libgit2.Oid {
-	cloneCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+	cloneCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	repo, err := clone(cloneCtx, repoURL, branch)
 	g.Expect(err).ToNot(HaveOccurred())
@@ -1443,7 +1455,7 @@ func testWithCustomRepoAndImagePolicy(
 
 	// Clone the repo.
 	repoURL := gitServer.HTTPAddressWithCredentials() + repositoryPath
-	cloneCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+	cloneCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	localRepo, err := clone(cloneCtx, repoURL, args.branch)
 	g.Expect(err).ToNot(HaveOccurred(), "failed to clone git repo")
