@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-logr/logr"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -63,7 +62,7 @@ func TestMain(m *testing.M) {
 		filepath.Join("testdata", "crds"),
 	))
 
-	managed.InitManagedTransport(logr.Discard())
+	managed.InitManagedTransport()
 
 	controllerName := "image-automation-controller"
 	if err := (&ImageUpdateAutomationReconciler{
