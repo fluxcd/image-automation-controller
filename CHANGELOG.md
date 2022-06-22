@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.23.3
+
+**Release date:** 2022-06-22
+
+This prerelease adds a new flag for configuring the SSH host key algorithms and
+updates the source-controller dependency to v0.25.7, which fixes a deadlock
+scenario in the SSH managed transport and some SSH connection leak issues.
+
+Improvements:
+- Update source-controller to v0.25.7
+  [#393](https://github.com/fluxcd/image-automation-controller/pull/393)
+- build: enable -race for go test
+  [#389](https://github.com/fluxcd/image-automation-controller/pull/389)
+- Add new flag --ssh-hostkey-algos
+  [#388](https://github.com/fluxcd/image-automation-controller/pull/388)
+
 ## 0.23.2
 
 **Release date:** 2022-06-08
