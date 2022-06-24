@@ -1558,8 +1558,9 @@ func createImagePolicyWithLatestImageForSpec(kClient client.Client, name, namesp
 	if err != nil {
 		return err
 	}
+	patch := client.MergeFrom(policy.DeepCopy())
 	policy.Status.LatestImage = latest
-	return kClient.Status().Update(context.Background(), policy)
+	return kClient.Status().Patch(context.Background(), policy, patch)
 }
 
 func updateImagePolicyWithLatestImage(kClient client.Client, name, namespace, latest string) error {
@@ -1571,8 +1572,9 @@ func updateImagePolicyWithLatestImage(kClient client.Client, name, namespace, la
 	if err := kClient.Get(context.Background(), key, policy); err != nil {
 		return err
 	}
+	patch := client.MergeFrom(policy.DeepCopy())
 	policy.Status.LatestImage = latest
-	return kClient.Status().Update(context.Background(), policy)
+	return kClient.Status().Patch(context.Background(), policy, patch)
 }
 
 func createImageUpdateAutomation(kClient client.Client, name, namespace,

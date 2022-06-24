@@ -25,7 +25,10 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 )
 
-const ImageUpdateAutomationKind = "ImageUpdateAutomation"
+const (
+	ImageUpdateAutomationKind      = "ImageUpdateAutomation"
+	ImageUpdateAutomationFinalizer = "finalizers.fluxcd.io"
+)
 
 // ImageUpdateAutomationSpec defines the desired state of ImageUpdateAutomation
 type ImageUpdateAutomationSpec struct {
