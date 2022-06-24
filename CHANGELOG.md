@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.23.4
+
+**Release date:** 2022-06-24
+
+This prerelease comes with finalizer in `ImageUpdateAutomation` resource, which
+helps ensure that the resource deletion is recorded in the metrics properly.
+source-controller dependency was updated to `v0.25.8` which fixes an
+authentication issue when using libgit2 managed transport to checkout
+repositories on Bitbucket server.
+
+In addition, `github.com/emicklei/go-restful` was also updated to `v3.8.0` to
+please static analysers and fix warnings for CVE-2022-1996.
+
+Improvements:
+- Update source-controller and image-reflector-controller
+  [#399](https://github.com/fluxcd/image-automation-controller/pull/399)
+- Update go-restful to v3.8.0 (Fix CVE-2022-1996)
+  [#398](https://github.com/fluxcd/image-automation-controller/pull/398)
+- Add finalizer to ImageUpdateAutomation resources
+  [#397](https://github.com/fluxcd/image-automation-controller/pull/397)
+
 ## 0.23.3
 
 **Release date:** 2022-06-22
