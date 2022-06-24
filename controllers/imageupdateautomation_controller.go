@@ -29,12 +29,11 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
-	libgit2 "github.com/libgit2/git2go/v33"
-
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/go-logr/logr"
+	libgit2 "github.com/libgit2/git2go/v33"
 	corev1 "k8s.io/api/core/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,6 +45,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
@@ -113,6 +113,26 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	var auto imagev1.ImageUpdateAutomation
 	if err := r.Get(ctx, req.NamespacedName, &auto); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	// Add our finalizer if it does not exist.
+	if !controllerutil.ContainsFinalizer(&auto, imagev1.ImageUpdateAutomationFinalizer) {
+		patch := client.MergeFrom(auto.DeepCopy())
+		controllerutil.AddFinalizer(&auto, imagev1.ImageUpdateAutomationFinalizer)
+		if err := r.Patch(ctx, &auto, patch); err != nil {
+			log.Error(err, "unable to register finalizer")
+			return ctrl.Result{}, err
+		}
+	}
+
+	// If the object is under deletion, record the readiness, and remove our finalizer.
+	if !auto.ObjectMeta.DeletionTimestamp.IsZero() {
+		r.recordReadinessMetric(ctx, &auto)
+		controllerutil.RemoveFinalizer(&auto, imagev1.ImageUpdateAutomationFinalizer)
+		if err := r.Update(ctx, &auto); err != nil {
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
 	}
 
 	// record suspension metrics
