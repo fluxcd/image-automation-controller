@@ -34,6 +34,9 @@ require (
 // Fix CVE-2022-28948
 replace gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.0
 
+// Fix CVE-2022-1996
+replace github.com/emicklei/go-restful/v3 => github.com/emicklei/go-restful/v3 v3.8.0
+
 require (
 	cloud.google.com/go/compute v1.6.1 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
