@@ -714,6 +714,9 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 				if err := testEnv.Get(context.Background(), updateKey, obj); err != nil {
 					return false
 				}
+				if len(obj.Finalizers) == 0 {
+					return false
+				}
 				return true
 			}, timeout, time.Second).Should(BeTrue())
 
