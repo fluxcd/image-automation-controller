@@ -1,6 +1,6 @@
 module github.com/fluxcd/image-automation-controller/api
 
-go 1.17
+go 1.18
 
 require (
 	github.com/fluxcd/pkg/apis/meta v0.14.2
