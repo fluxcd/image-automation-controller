@@ -6,7 +6,7 @@ replace github.com/fluxcd/image-automation-controller/api => ./api
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.2
-	github.com/ProtonMail/go-crypto v0.0.0-20220623141421-5afb4c282135
+	github.com/ProtonMail/go-crypto v0.0.0-20220711121315-1fde58898e96
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/fluxcd/image-automation-controller/api v0.23.4
 	github.com/fluxcd/image-reflector-controller/api v0.19.2
