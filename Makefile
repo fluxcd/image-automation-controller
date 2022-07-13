@@ -212,8 +212,11 @@ controller-gen: ## Download controller-gen locally if necessary.
 
 libgit2: $(LIBGIT2)  ## Detect or download libgit2 library
 
+COSIGN = $(GOBIN)/cosign
 $(LIBGIT2): $(MUSL-CC)
-	IMG=$(LIBGIT2_IMG) TAG=$(LIBGIT2_TAG) ./hack/install-libraries.sh
+	$(call go-install-tool,$(COSIGN),github.com/sigstore/cosign/cmd/cosign@latest)
+
+	IMG=$(LIBGIT2_IMG) TAG=$(LIBGIT2_TAG) PATH=$(PATH):$(GOBIN) ./hack/install-libraries.sh
 
 $(MUSL-CC):
 ifneq ($(shell uname -s),Darwin)
