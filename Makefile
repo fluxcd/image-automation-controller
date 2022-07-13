@@ -7,8 +7,8 @@ TAG ?= latest
 CRD_OPTIONS ?= crd:crdVersions=v1
 
 # Base image used to build the Go binary
-LIBGIT2_IMG ?= ghcr.io/fluxcd/golang-with-libgit2
-LIBGIT2_TAG ?= libgit2-1.3.1
+LIBGIT2_IMG ?= ghcr.io/fluxcd/golang-with-libgit2-all
+LIBGIT2_TAG ?= v0.1.1
 
 # Allows for defining additional Docker buildx arguments,
 # e.g. '--push'.
