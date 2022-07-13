@@ -6,7 +6,7 @@ replace github.com/fluxcd/image-automation-controller/api => ./api
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.2
-	github.com/ProtonMail/go-crypto v0.0.0-20220623141421-5afb4c282135
+	github.com/ProtonMail/go-crypto v0.0.0-20220711121315-1fde58898e96
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/fluxcd/image-automation-controller/api v0.23.4
 	github.com/fluxcd/image-reflector-controller/api v0.19.2
@@ -33,6 +33,9 @@ require (
 
 // Fix CVE-2022-28948
 replace gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.1
+
+// Fix CVE-2022-1996 (for v2, Go Modules incompatible)
+replace github.com/emicklei/go-restful => github.com/emicklei/go-restful v2.16.0+incompatible
 
 // Fix CVE-2022-1996
 replace github.com/emicklei/go-restful/v3 => github.com/emicklei/go-restful/v3 v3.8.0
