@@ -6,26 +6,26 @@ replace github.com/fluxcd/image-automation-controller/api => ./api
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.2
-	github.com/ProtonMail/go-crypto v0.0.0-20220711121315-1fde58898e96
+	github.com/ProtonMail/go-crypto v0.0.0-20220714114130-e85cedf506cd
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/fluxcd/image-automation-controller/api v0.23.4
-	github.com/fluxcd/image-reflector-controller/api v0.19.2
+	github.com/fluxcd/image-reflector-controller/api v0.19.3
 	github.com/fluxcd/pkg/apis/acl v0.0.3
 	github.com/fluxcd/pkg/apis/meta v0.14.2
 	github.com/fluxcd/pkg/gittestserver v0.5.4
 	github.com/fluxcd/pkg/runtime v0.16.2
 	github.com/fluxcd/pkg/ssh v0.5.0
-	github.com/fluxcd/source-controller v0.25.9
-	github.com/fluxcd/source-controller/api v0.25.9
+	github.com/fluxcd/source-controller v0.25.10
+	github.com/fluxcd/source-controller/api v0.25.10
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-containerregistry v0.10.0
 	github.com/libgit2/git2go/v33 v33.0.9
 	github.com/onsi/gomega v1.19.0
 	github.com/otiai10/copy v1.7.0
 	github.com/spf13/pflag v1.0.5
-	k8s.io/api v0.24.1
-	k8s.io/apimachinery v0.24.1
-	k8s.io/client-go v0.24.1
+	k8s.io/api v0.24.2
+	k8s.io/apimachinery v0.24.2
+	k8s.io/client-go v0.24.2
 	k8s.io/kube-openapi v0.0.0-20220627174259-011e075b9cb8
 	sigs.k8s.io/controller-runtime v0.11.2
 	sigs.k8s.io/kustomize/kyaml v0.13.7
@@ -41,7 +41,7 @@ replace github.com/emicklei/go-restful => github.com/emicklei/go-restful v2.16.0
 replace github.com/emicklei/go-restful/v3 => github.com/emicklei/go-restful/v3 v3.8.0
 
 require (
-	cloud.google.com/go/compute v1.6.1 // indirect
+	cloud.google.com/go/compute v1.7.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.1.1 // indirect
 	github.com/Microsoft/go-winio v0.5.2 // indirect
@@ -111,9 +111,9 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
-	golang.org/x/net v0.0.0-20220607020251-c690dde0001d // indirect
-	golang.org/x/oauth2 v0.0.0-20220524215830-622c5d57e401 // indirect
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
+	golang.org/x/net v0.0.0-20220706163947-c90051bbdb60 // indirect
+	golang.org/x/oauth2 v0.0.0-20220622183110-fd043fe589d2 // indirect
+	golang.org/x/sys v0.0.0-20220624220833-87e55d714810 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
@@ -124,8 +124,8 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiextensions-apiserver v0.24.1 // indirect
-	k8s.io/component-base v0.24.1 // indirect
+	k8s.io/apiextensions-apiserver v0.24.2 // indirect
+	k8s.io/component-base v0.24.2 // indirect
 	k8s.io/klog/v2 v2.60.1 // indirect
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9 // indirect
 	sigs.k8s.io/cli-utils v0.31.2 // indirect
