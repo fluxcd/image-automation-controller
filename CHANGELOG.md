@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.23.5
+
+**Release date:** 2022-07-15
+
+This prerelease comes with some minor improvements and update dependencies to patch upstream CVEs.
+
+Improvements:
+- Update dependencies
+  [#408](https://github.com/fluxcd/image-automation-controller/pull/408)
+  [#401](https://github.com/fluxcd/image-automation-controller/pull/401)
+- build: Upgrade to Go 1.18
+  [#403](https://github.com/fluxcd/image-automation-controller/pull/403)
+- build: provenance and tampering checks for libgit2
+  [#406](https://github.com/fluxcd/image-automation-controller/pull/406)
+- Update libgit2 to v1.3.2
+  [#407](https://github.com/fluxcd/image-automation-controller/pull/407)
+
 ## 0.23.4
 
 **Release date:** 2022-06-24
