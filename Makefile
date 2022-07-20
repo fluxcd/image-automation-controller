@@ -301,3 +301,15 @@ endif
 .PHONY: help
 help:  ## Display this help menu
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+
+# Creates an env file that can be used to load all image-automation-controller's
+# dependencies this is handy when you want to run adhoc debug sessions on tests or
+# start the controller in a new debug session.
+env: $(LIBGIT2)
+	echo 'GO_ENABLED="1"' > $(BUILD_DIR)/.env
+	echo 'PKG_CONFIG_PATH="$(PKG_CONFIG_PATH)"' >> $(BUILD_DIR)/.env
+	echo 'LIBRARY_PATH="$(LIBRARY_PATH)"' >> $(BUILD_DIR)/.env
+	echo 'CGO_CFLAGS="$(CGO_CFLAGS)"' >> $(BUILD_DIR)/.env
+	echo 'CGO_LDFLAGS="$(CGO_LDFLAGS)"' >> $(BUILD_DIR)/.env
+	echo 'KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS)' >> $(BUILD_DIR)/.env
+	echo 'GIT_CONFIG_GLOBAL=/dev/null' >> $(BUILD_DIR)/.env
