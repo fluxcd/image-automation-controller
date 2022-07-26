@@ -12,7 +12,7 @@ require (
 	github.com/fluxcd/image-reflector-controller/api v0.19.3
 	github.com/fluxcd/pkg/apis/acl v0.0.3
 	github.com/fluxcd/pkg/apis/meta v0.14.2
-	github.com/fluxcd/pkg/gittestserver v0.5.4
+	github.com/fluxcd/pkg/gittestserver v0.6.0
 	github.com/fluxcd/pkg/runtime v0.16.2
 	github.com/fluxcd/pkg/ssh v0.5.0
 	github.com/fluxcd/source-controller v0.25.10
@@ -23,6 +23,7 @@ require (
 	github.com/onsi/gomega v1.19.0
 	github.com/otiai10/copy v1.7.0
 	github.com/spf13/pflag v1.0.5
+	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
 	k8s.io/api v0.24.2
 	k8s.io/apimachinery v0.24.2
 	k8s.io/client-go v0.24.2
@@ -55,7 +56,7 @@ require (
 	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
-	github.com/fluxcd/gitkit v0.5.1 // indirect
+	github.com/fluxcd/gitkit v0.6.0 // indirect
 	github.com/fluxcd/pkg/gitutil v0.1.0 // indirect
 	github.com/fluxcd/pkg/version v0.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
@@ -110,10 +111,9 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
-	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
-	golang.org/x/net v0.0.0-20220706163947-c90051bbdb60 // indirect
-	golang.org/x/oauth2 v0.0.0-20220622183110-fd043fe589d2 // indirect
-	golang.org/x/sys v0.0.0-20220624220833-87e55d714810 // indirect
+	golang.org/x/net v0.0.0-20220708220712-1185a9018129 // indirect
+	golang.org/x/oauth2 v0.0.0-20220718184931-c8730f7fcb92 // indirect
+	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect

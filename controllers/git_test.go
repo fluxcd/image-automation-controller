@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/fluxcd/pkg/gittestserver"
+	"github.com/fluxcd/source-controller/pkg/git"
 )
 
 func populateRepoFromFixture(repo *libgit2.Repository, fixture string) error {
@@ -141,13 +142,13 @@ func TestPushRejected(t *testing.T) {
 	repoURL := gitServer.HTTPAddressWithCredentials() + "/appconfig.git"
 	cloneCtx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
-	repo, err := clone(cloneCtx, repoURL, "test")
+	repo, err := clone(cloneCtx, repoURL, "test", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer repo.Free()
 
-	cleanup, err := configureTransportOptsForRepo(repo)
+	cleanup, err := configureTransportOptsForRepo(repo, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,6 +173,54 @@ func TestPushRejected(t *testing.T) {
 	}
 }
 
+func TestEarlyEOF(t *testing.T) {
+	g := NewWithT(t)
+
+	gitServer, err := gittestserver.NewTempGitServer()
+	g.Expect(err).ToNot(HaveOccurred())
+	defer os.RemoveAll(gitServer.Root())
+
+	username := "norris"
+	password := "chuck"
+
+	gitServer.
+		AutoCreate().
+		KeyDir(filepath.Join(t.TempDir(), "keys")).
+		Auth(username, password).
+		ReadOnly(true)
+
+	err = gitServer.StartHTTP()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	err = initGitRepo(gitServer, "testdata/appconfig", "test", "/appconfig.git")
+	g.Expect(err).ToNot(HaveOccurred())
+
+	repoURL := gitServer.HTTPAddressWithCredentials() + "/appconfig.git"
+	cloneCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+	defer cancel()
+
+	access := repoAccess{
+		auth: &git.AuthOptions{
+			Username: username,
+			Password: password,
+		},
+	}
+
+	repo, err := clone(cloneCtx, repoURL, "test", access.auth)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	defer repo.Free()
+
+	cleanup, err := configureTransportOptsForRepo(repo, access.auth)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	defer cleanup()
+
+	err = push(context.TODO(), repo.Workdir(), "test", access)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("early EOF (the SSH key may not have write access to the repository)"))
+}
+
 func Test_switchToBranch(t *testing.T) {
 	g := NewWithT(t)
 	gitServer, err := gittestserver.NewTempGitServer()
@@ -190,7 +239,7 @@ func Test_switchToBranch(t *testing.T) {
 	repoURL := gitServer.HTTPAddressWithCredentials() + "/appconfig.git"
 	cloneCtx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
-	repo, err := clone(cloneCtx, repoURL, branch)
+	repo, err := clone(cloneCtx, repoURL, branch, nil)
 	g.Expect(err).ToNot(HaveOccurred())
 	defer repo.Free()
 
@@ -200,7 +249,7 @@ func Test_switchToBranch(t *testing.T) {
 	target := head.Target()
 
 	// register transport options and update remote to transport url
-	cleanup, err := configureTransportOptsForRepo(repo)
+	cleanup, err := configureTransportOptsForRepo(repo, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
