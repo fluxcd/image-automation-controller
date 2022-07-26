@@ -887,6 +887,9 @@ func push(ctx context.Context, path, branch string, access repoAccess) error {
 		ProxyOptions:    libgit2.ProxyOptions{Type: libgit2.ProxyTypeAuto},
 	})
 	if err != nil {
+		if strings.Contains(err.Error(), "early EOF") {
+			return fmt.Errorf("%w (the SSH key may not have write access to the repository)", err)
+		}
 		return libgit2PushError(err)
 	}
 	return callbackErr
