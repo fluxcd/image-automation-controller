@@ -54,6 +54,7 @@ import (
 	"github.com/fluxcd/pkg/gittestserver"
 	"github.com/fluxcd/pkg/ssh"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	"github.com/fluxcd/source-controller/pkg/git"
 	"github.com/fluxcd/source-controller/pkg/git/libgit2/managed"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
@@ -484,7 +485,7 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 			// Clone the repo locally.
 			cloneCtx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
-			localRepo, err := clone(cloneCtx, cloneLocalRepoURL, branch)
+			localRepo, err := clone(cloneCtx, cloneLocalRepoURL, branch, nil)
 			g.Expect(err).ToNot(HaveOccurred(), "failed to clone git repo")
 			defer localRepo.Free()
 
@@ -628,7 +629,7 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 			// separate localRepo.
 			cloneCtx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
-			localRepo, err := clone(cloneCtx, cloneLocalRepoURL, branch)
+			localRepo, err := clone(cloneCtx, cloneLocalRepoURL, branch, nil)
 			g.Expect(err).ToNot(HaveOccurred(), "failed to clone git repo")
 			defer localRepo.Free()
 
@@ -880,7 +881,7 @@ func compareRepoWithExpected(g *WithT, repoURL, branch, fixture string, changeFi
 	changeFixture(expected)
 	cloneCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	repo, err := clone(cloneCtx, repoURL, branch)
+	repo, err := clone(cloneCtx, repoURL, branch, nil)
 	g.Expect(err).ToNot(HaveOccurred())
 	defer repo.Free()
 	// NOTE: The workdir contains a trailing /. Clean it to not confuse the
@@ -897,7 +898,7 @@ func compareRepoWithExpected(g *WithT, repoURL, branch, fixture string, changeFi
 // it tries to figure it out by looking at the remote url of origin. It returns a function
 // which removes the transport options for this repo and sets the remote url of the origin
 // back to the actual url. Callers are expected to call this function in a deferred manner.
-func configureTransportOptsForRepo(repo *libgit2.Repository) (func(), error) {
+func configureTransportOptsForRepo(repo *libgit2.Repository, authOpts *git.AuthOptions) (func(), error) {
 	origin, err := repo.Remotes.Lookup(originRemote)
 	if err != nil {
 		return nil, err
@@ -911,6 +912,7 @@ func configureTransportOptsForRepo(repo *libgit2.Repository) (func(), error) {
 	transportOptsURL := u.Scheme + "://" + randStringRunes(5)
 	managed.AddTransportOptions(transportOptsURL, managed.TransportOptions{
 		TargetURL: repoURL,
+		AuthOpts:  authOpts,
 	})
 
 	err = repo.Remotes.SetUrl(originRemote, transportOptsURL)
@@ -926,7 +928,7 @@ func configureTransportOptsForRepo(repo *libgit2.Repository) (func(), error) {
 func commitInRepo(g *WithT, repoURL, branch, msg string, changeFiles func(path string)) *libgit2.Oid {
 	cloneCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	repo, err := clone(cloneCtx, repoURL, branch)
+	repo, err := clone(cloneCtx, repoURL, branch, nil)
 	g.Expect(err).ToNot(HaveOccurred())
 	defer repo.Free()
 
@@ -940,7 +942,7 @@ func commitInRepo(g *WithT, repoURL, branch, msg string, changeFiles func(path s
 	id, err := commitWorkDir(repo, branch, msg, sig)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	cleanup, err := configureTransportOptsForRepo(repo)
+	cleanup, err := configureTransportOptsForRepo(repo, nil)
 	g.Expect(err).ToNot(HaveOccurred())
 	defer cleanup()
 	origin, err := repo.Remotes.Lookup(originRemote)
@@ -1177,15 +1179,22 @@ func mockSignature(time time.Time) *git2go.Signature {
 	}
 }
 
-func clone(ctx context.Context, repoURL, branchName string) (*git2go.Repository, error) {
+func clone(ctx context.Context, repoURL, branchName string, authOpts *git.AuthOptions) (*git2go.Repository, error) {
 	dir, err := os.MkdirTemp("", "iac-clone-*")
 	if err != nil {
 		return nil, err
 	}
-	transportOptsURL := "http://" + randStringRunes(5)
+
+	u, err := url.Parse(repoURL)
+	if err != nil {
+		return nil, err
+	}
+
+	transportOptsURL := u.Scheme + "://" + randStringRunes(5)
 	managed.AddTransportOptions(transportOptsURL, managed.TransportOptions{
 		TargetURL: repoURL,
 		Context:   ctx,
+		AuthOpts:  authOpts,
 	})
 	defer managed.RemoveTransportOptions(transportOptsURL)
 
@@ -1214,7 +1223,7 @@ func clone(ctx context.Context, repoURL, branchName string) (*git2go.Repository,
 func waitForNewHead(g *WithT, repo *git2go.Repository, branch, preChangeHash string) {
 	var commitToResetTo *git2go.Commit
 
-	cleanup, err := configureTransportOptsForRepo(repo)
+	cleanup, err := configureTransportOptsForRepo(repo, nil)
 	g.Expect(err).ToNot(HaveOccurred())
 	defer cleanup()
 
@@ -1272,7 +1281,7 @@ func commitIdFromBranch(repo *git2go.Repository, branchName string) string {
 }
 
 func getRemoteHead(repo *git2go.Repository, branchName string) (*git2go.Oid, error) {
-	cleanup, err := configureTransportOptsForRepo(repo)
+	cleanup, err := configureTransportOptsForRepo(repo, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1460,7 +1469,7 @@ func testWithCustomRepoAndImagePolicy(
 	repoURL := gitServer.HTTPAddressWithCredentials() + repositoryPath
 	cloneCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	localRepo, err := clone(cloneCtx, repoURL, args.branch)
+	localRepo, err := clone(cloneCtx, repoURL, args.branch, nil)
 	g.Expect(err).ToNot(HaveOccurred(), "failed to clone git repo")
 	defer localRepo.Free()
 
