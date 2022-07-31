@@ -136,11 +136,11 @@ install_libraries(){
         fi
     fi
 
-    FILE_NAME="linux-$(uname -m)-all-libs.tar.gz"
-    DIR="libgit2-linux-all-libs"
+    FILE_NAME="linux-$(uname -m)-libgit2-only.tar.gz"
+    DIR="linux-libgit2-only"
     if [[ $OSTYPE == 'darwin'* ]]; then
-        FILE_NAME="darwin-all-libs.tar.gz"
-        DIR="darwin-all-libs"
+        FILE_NAME="darwin-libgit2-only.tar.gz"
+        DIR="darwin-libgit2-only"
     fi
 
     download_files "${FILE_NAME}"

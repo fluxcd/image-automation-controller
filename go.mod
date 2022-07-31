@@ -4,6 +4,16 @@ go 1.18
 
 replace github.com/fluxcd/image-automation-controller/api => ./api
 
+// A temporary fork of git2go was created to enable use
+// of libgit2 without thread support to fix:
+// fluxcd/image-automation-controller/#339.
+//
+// This can be removed once libgit2/git2go#918 is merged.
+//
+// The fork automatically releases new patches based on upstream:
+// https://github.com/pjbgf/git2go/commit/d72e39cdc20f7fe014ba73072b01ba7b569e9253
+replace github.com/libgit2/git2go/v33 => github.com/pjbgf/git2go/v33 v33.0.9-nothread-check
+
 require (
 	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/ProtonMail/go-crypto v0.0.0-20220714114130-e85cedf506cd

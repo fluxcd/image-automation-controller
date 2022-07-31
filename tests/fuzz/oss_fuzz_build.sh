@@ -16,7 +16,7 @@
 
 set -euxo pipefail
 
-LIBGIT2_TAG="${LIBGIT2_TAG:-v0.1.2}"
+LIBGIT2_TAG="${LIBGIT2_TAG:-v0.2.0}"
 GOPATH="${GOPATH:-/root/go}"
 GO_SRC="${GOPATH}/src"
 PROJECT_PATH="github.com/fluxcd/image-automation-controller"
@@ -28,9 +28,9 @@ export TARGET_DIR="$(/bin/pwd)/build/libgit2/${LIBGIT2_TAG}"
 # For most cases, libgit2 will already be present.
 # The exception being at the oss-fuzz integration.
 if [ ! -d "${TARGET_DIR}" ]; then
-    curl -o output.tar.gz -LO "https://github.com/fluxcd/golang-with-libgit2/releases/download/${LIBGIT2_TAG}/linux-$(uname -m)-all-libs.tar.gz"
+    curl -o output.tar.gz -LO "https://github.com/fluxcd/golang-with-libgit2/releases/download/${LIBGIT2_TAG}/linux-$(uname -m)-libgit2-only.tar.gz"
 
-    DIR=libgit2-linux-all-libs
+    DIR=linux-libgit2-only
     NEW_DIR="$(/bin/pwd)/build/libgit2/${LIBGIT2_TAG}"
     INSTALLED_DIR="/home/runner/work/golang-with-libgit2/golang-with-libgit2/build/${DIR}"
 
@@ -77,7 +77,6 @@ SOURCE_VER=$(go list -m github.com/fluxcd/source-controller/api | awk '{print $2
 REFLECTOR_VER=$(go list -m github.com/fluxcd/image-reflector-controller/api | awk '{print $2}')
 
 go mod download
-go mod tidy -go=1.18
 go get -d github.com/fluxcd/image-automation-controller
 go get -d github.com/AdaLogics/go-fuzz-headers
 
@@ -103,9 +102,7 @@ function go_compile(){
         go-fuzz -tags gofuzz -func="${function}" -o "${fuzzer}.a" .
         ${CXX} ${CXXFLAGS} ${LIB_FUZZING_ENGINE} -o "${OUT}/${fuzzer}" \
             "${fuzzer}.a" \
-            "${TARGET_DIR}/lib/libgit2.a" "${TARGET_DIR}/lib/libssh2.a" \
-            "${TARGET_DIR}/lib/libz.a" "${TARGET_DIR}/lib64/libssl.a" \
-            "${TARGET_DIR}/lib64/libcrypto.a" \
+            "${TARGET_DIR}/lib/libgit2.a" \
             -fsanitize="${SANITIZER}"
     fi
 }
