@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.24.0
+
+**Release date:** 2022-08-09
+
+This prerelease comes with internal changes that improve the way the controller
+interacts with Git repositories and some improvement on error messages. 
+
+Unmanaged Transport is no longer supported and has now been decomissioned across
+Flux controllers. 
+
+In some instances when Flux is trying to push changes using read-only keys the
+controller would return an `early EOF` error message. This has now been changed
+to `early EOF (the SSH key may not have write access to the repository)`.
+
+Improvements:
+- Enrich early EOF error message
+  [#410](https://github.com/fluxcd/image-automation-controller/pull/410)
+- Remove MUSL and enable threadless libgit2 support
+  [#411](https://github.com/fluxcd/image-automation-controller/pull/411)
+- Decommission libgit2 Unmanaged Transport
+  [#412](https://github.com/fluxcd/image-automation-controller/pull/412)
+
 ## 0.23.5
 
 **Release date:** 2022-07-15
