@@ -4,8 +4,8 @@ go 1.18
 
 require (
 	github.com/fluxcd/pkg/apis/meta v0.14.2
-	github.com/fluxcd/source-controller/api v0.25.9
-	k8s.io/apimachinery v0.24.1
+	github.com/fluxcd/source-controller/api v0.26.0
+	k8s.io/apimachinery v0.24.3
 	sigs.k8s.io/controller-runtime v0.11.2
 )
 
