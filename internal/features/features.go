@@ -31,12 +31,7 @@ const (
 	GitManagedTransport = "GitManagedTransport"
 )
 
-var features = map[string]bool{
-	// GitManagedTransport
-	// opt-in from v0.21 (via environment variable)
-	// opt-out from v0.23
-	GitManagedTransport: true,
-}
+var features = map[string]bool{}
 
 // DefaultFeatureGates contains a list of all supported feature gates and
 // their default values.
