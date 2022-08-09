@@ -1,6 +1,11 @@
 name: build
 on:
   pull_request:
+    paths-ignore:
+      - 'README.md'
+      - 'MAINTAINERS'
+      - 'CHANGELOG.md'
+
   push:
     branches:
     - main

@@ -5,6 +5,13 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+
+    paths-ignore:
+      - 'README.md'
+      - 'MAINTAINERS'
+      - 'CHANGELOG.md'
+      - 'config/manager/kustomization.yaml'
+
   schedule:
     - cron: '18 10 * * 3'
 

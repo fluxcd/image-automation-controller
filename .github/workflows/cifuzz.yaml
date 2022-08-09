@@ -4,6 +4,12 @@ on:
     branches:
       - main
 
+    paths-ignore:
+      - 'README.md'
+      - 'MAINTAINERS'
+      - 'CHANGELOG.md'
+      - 'config/manager/kustomization.yaml'
+
 permissions:
   contents: read
 
