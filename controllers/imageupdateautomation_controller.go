@@ -96,6 +96,7 @@ type ImageUpdateAutomationReconciler struct {
 type ImageUpdateAutomationReconcilerOptions struct {
 	MaxConcurrentReconciles int
 	RateLimiter             ratelimiter.RateLimiter
+	RecoverPanic            bool
 }
 
 // +kubebuilder:rbac:groups=image.toolkit.fluxcd.io,resources=imageupdateautomations,verbs=get;list;watch;create;update;patch;delete
@@ -443,6 +444,7 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager, opt
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: opts.MaxConcurrentReconciles,
 			RateLimiter:             opts.RateLimiter,
+			RecoverPanic:            opts.RecoverPanic,
 		}).
 		Complete(r)
 }
