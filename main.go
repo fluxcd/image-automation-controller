@@ -50,7 +50,12 @@ import (
 	"github.com/fluxcd/image-automation-controller/controllers"
 )
 
-const controllerName = "image-automation-controller"
+const (
+	controllerName = "image-automation-controller"
+
+	// recoverPanic indicates whether panic caused by reconciles should be recovered.
+	recoverPanic = true
+)
 
 var (
 	scheme   = runtime.NewScheme()
@@ -155,6 +160,7 @@ func main() {
 	}).SetupWithManager(mgr, controllers.ImageUpdateAutomationReconcilerOptions{
 		MaxConcurrentReconciles: concurrent,
 		RateLimiter:             helper.GetRateLimiter(rateLimiterOptions),
+		RecoverPanic:            recoverPanic,
 	}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ImageUpdateAutomation")
 		os.Exit(1)
