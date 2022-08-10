@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.24.1
+
+**Release date:** 2022-08-10
+
+This prerelease comes with panic recovery, to protect the controller from
+crashing when reconciliations lead to a crash.
+
+Improvements:
+- Enable RecoverPanic
+  [#416](https://github.com/fluxcd/image-automation-controller/pull/416)
+
 ## 0.24.0
 
 **Release date:** 2022-08-09
