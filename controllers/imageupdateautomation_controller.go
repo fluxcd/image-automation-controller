@@ -308,7 +308,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	// When there's a push spec, the pushed-to branch is where commits
 	// shall be made
 
-	if gitSpec.Push != nil {
+	if gitSpec.Push != nil && !(ref != nil && ref.Branch == pushBranch) {
 		// Use the git operations timeout for the repo.
 		fetchCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
 		defer cancel()
