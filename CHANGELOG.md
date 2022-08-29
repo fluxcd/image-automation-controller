@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.24.2
+
+**Release date:** 2022-08-29
+
+This prerelease comes with a bug fix for when the push branch and reference branch are equal.
+
+In addition, the controller dependencies have been updated to Kubernetes v1.25.0.
+
+Fixes:
+- Fix fetch error in push branch
+  [#423](https://github.com/fluxcd/image-automation-controller/pull/423)
+
+Improvements:
+- Update Kubernetes packages to v1.25.0
+  [#425](https://github.com/fluxcd/image-automation-controller/pull/425)
+- fuzz: Ensure Go 1.18 for fuzz image
+  [#424](https://github.com/fluxcd/image-automation-controller/pull/424)
+
 ## 0.24.1
 
 **Release date:** 2022-08-10
@@ -18,7 +36,7 @@ Improvements:
 This prerelease comes with internal changes that improve the way the controller
 interacts with Git repositories and some improvement on error messages. 
 
-Unmanaged Transport is no longer supported and has now been decomissioned across
+Unmanaged Transport is no longer supported and has now been decommissioned across
 Flux controllers. 
 
 In some instances when Flux is trying to push changes using read-only keys the
