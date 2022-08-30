@@ -17,7 +17,7 @@ updating YAML files in a git repository, and committing the changes.
 ## How to install it
 
 Please see the [installation and use
-guide](https://fluxcd.io/docs/guides/image-update/).
+guide](https://fluxcd.io/flux/guides/image-update/).
 
 ## How to work on it
 

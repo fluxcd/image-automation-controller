@@ -537,7 +537,7 @@ replacing the `apiVersion` field value:
 
 Instructions for migrating from _`v1alpha1`_ are included in the [API guide].
 
-[API guide]: https://fluxcd.io/docs/components/image/imageupdateautomations/#migrating-from-v1alpha1
+[API guide]: https://fluxcd.io/flux/components/image/imageupdateautomations/#migrating-from-v1alpha1
 
 Improvements:
 * Let people set the number of controller workers with a flag
