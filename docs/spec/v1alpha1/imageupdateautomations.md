@@ -368,8 +368,8 @@ There is one condition maintained by the controller, which is the usual `ReadyCo
 condition. This will be recorded as `True` when automation has run without errors, whether or not it
 resulted in a commit.
 
-[image-auto-guide]: https://fluxcd.io/docs/guides/image-update/#configure-image-update-for-custom-resources
-[git-repo-ref]: https://fluxcd.io/docs/components/source/gitrepositories/
+[image-auto-guide]: https://fluxcd.io/flux/guides/image-update/#configure-image-update-for-custom-resources
+[git-repo-ref]: https://fluxcd.io/flux/components/source/gitrepositories/
 [durations]: https://godoc.org/time#ParseDuration
-[source-docs]: https://fluxcd.io/docs/components/source/gitrepositories/#git-implementation
+[source-docs]: https://fluxcd.io/flux/components/source/gitrepositories/#git-implementation
 [go-text-template]: https://golang.org/pkg/text/template/
