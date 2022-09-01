@@ -23,7 +23,7 @@ require (
 	github.com/fluxcd/pkg/apis/acl v0.1.0
 	github.com/fluxcd/pkg/apis/meta v0.15.0
 	github.com/fluxcd/pkg/gittestserver v0.7.0
-	github.com/fluxcd/pkg/runtime v0.17.0
+	github.com/fluxcd/pkg/runtime v0.18.0
 	github.com/fluxcd/pkg/ssh v0.6.0
 	github.com/fluxcd/source-controller v0.28.0
 	github.com/fluxcd/source-controller/api v0.28.0
@@ -38,7 +38,7 @@ require (
 	k8s.io/apimachinery v0.25.0
 	k8s.io/client-go v0.25.0
 	k8s.io/kube-openapi v0.0.0-20220803164354-a70c9af30aea
-	sigs.k8s.io/controller-runtime v0.11.2
+	sigs.k8s.io/controller-runtime v0.12.3
 	sigs.k8s.io/kustomize/kyaml v0.13.9
 )
 
