@@ -30,9 +30,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
+	"github.com/fluxcd/pkg/git/libgit2/transport"
 	"github.com/fluxcd/pkg/runtime/testenv"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
-	"github.com/fluxcd/source-controller/pkg/git/libgit2/managed"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
 	// +kubebuilder:scaffold:imports
@@ -65,20 +65,22 @@ func TestMain(m *testing.M) {
 		filepath.Join("testdata", "crds"),
 	))
 
-	managed.InitManagedTransport()
+	if err := transport.InitManagedTransport(); err != nil {
+		panic(fmt.Sprintf("failed to initialize libgit2 managed transport: %v", err))
+	}
 
 	controllerName := "image-automation-controller"
 	if err := (&ImageUpdateAutomationReconciler{
 		Client:        testEnv,
 		EventRecorder: testEnv.GetEventRecorderFor(controllerName),
 	}).SetupWithManager(testEnv, ImageUpdateAutomationReconcilerOptions{}); err != nil {
-		panic(fmt.Sprintf("Failed to start ImageUpdateAutomationReconciler: %v", err))
+		panic(fmt.Sprintf("failed to start ImageUpdateAutomationReconciler: %v", err))
 	}
 
 	go func() {
 		fmt.Println("Starting the test environment")
 		if err := testEnv.Start(ctx); err != nil {
-			panic(fmt.Sprintf("Failed to start the test environment manager: %v", err))
+			panic(fmt.Sprintf("failed to start the test environment manager: %v", err))
 		}
 	}()
 	<-testEnv.Manager.Elected()
@@ -87,7 +89,7 @@ func TestMain(m *testing.M) {
 
 	fmt.Println("Stopping the test environment")
 	if err := testEnv.Stop(); err != nil {
-		panic(fmt.Sprintf("Failed to stop the test environment: %v", err))
+		panic(fmt.Sprintf("failed to stop the test environment: %v", err))
 	}
 
 	os.Exit(code)

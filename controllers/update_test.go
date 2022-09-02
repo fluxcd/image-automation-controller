@@ -50,11 +50,11 @@ import (
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
 	"github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/git"
+	"github.com/fluxcd/pkg/git/libgit2/transport"
 	"github.com/fluxcd/pkg/gittestserver"
 	"github.com/fluxcd/pkg/ssh"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
-	"github.com/fluxcd/source-controller/pkg/git"
-	"github.com/fluxcd/source-controller/pkg/git/libgit2/managed"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
 	"github.com/fluxcd/image-automation-controller/pkg/test"
@@ -907,7 +907,7 @@ func configureTransportOptsForRepo(repo *libgit2.Repository, authOpts *git.AuthO
 		return nil, err
 	}
 	transportOptsURL := u.Scheme + "://" + randStringRunes(5)
-	managed.AddTransportOptions(transportOptsURL, managed.TransportOptions{
+	transport.AddTransportOptions(transportOptsURL, transport.TransportOptions{
 		TargetURL: repoURL,
 		AuthOpts:  authOpts,
 	})
@@ -917,7 +917,7 @@ func configureTransportOptsForRepo(repo *libgit2.Repository, authOpts *git.AuthO
 		return nil, fmt.Errorf("could not set remote origin url: %v", err)
 	}
 	return func() {
-		managed.RemoveTransportOptions(transportOptsURL)
+		transport.RemoveTransportOptions(transportOptsURL)
 		repo.Remotes.SetUrl(originRemote, repoURL)
 	}, nil
 }
@@ -1188,12 +1188,12 @@ func clone(ctx context.Context, repoURL, branchName string, authOpts *git.AuthOp
 	}
 
 	transportOptsURL := u.Scheme + "://" + randStringRunes(5)
-	managed.AddTransportOptions(transportOptsURL, managed.TransportOptions{
+	transport.AddTransportOptions(transportOptsURL, transport.TransportOptions{
 		TargetURL: repoURL,
 		Context:   ctx,
 		AuthOpts:  authOpts,
 	})
-	defer managed.RemoveTransportOptions(transportOptsURL)
+	defer transport.RemoveTransportOptions(transportOptsURL)
 
 	opts := &git2go.CloneOptions{
 		Bare:           false,
@@ -1264,6 +1264,21 @@ func waitForNewHead(g *WithT, repo *git2go.Repository, branch, preChangeHash str
 		g.Expect(repo.ResetToCommit(commitToResetTo, libgit2.ResetHard,
 			&libgit2.CheckoutOptions{})).To(Succeed())
 	}
+}
+
+func headCommit(repo *libgit2.Repository) (*libgit2.Commit, error) {
+	head, err := repo.Head()
+	if err != nil {
+		return nil, err
+
+	}
+	defer head.Free()
+	c, err := repo.LookupCommit(head.Target())
+	if err != nil {
+		return nil, err
+
+	}
+	return c, nil
 }
 
 func commitIdFromBranch(repo *git2go.Repository, branchName string) string {
