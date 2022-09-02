@@ -19,21 +19,18 @@ package controllers
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"math"
+	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"text/template"
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/ProtonMail/go-crypto/openpgp"
-	"github.com/ProtonMail/go-crypto/openpgp/packet"
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/go-logr/logr"
-	libgit2 "github.com/libgit2/git2go/v33"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -52,15 +49,14 @@ import (
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
 	apiacl "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/git"
+	libgit2pkg "github.com/fluxcd/pkg/git/libgit2"
 	"github.com/fluxcd/pkg/runtime/acl"
 	helper "github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
-	"github.com/fluxcd/source-controller/pkg/git"
-	"github.com/fluxcd/source-controller/pkg/git/libgit2/managed"
-	gitstrat "github.com/fluxcd/source-controller/pkg/git/strategy"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
 	"github.com/fluxcd/image-automation-controller/pkg/update"
@@ -223,7 +219,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	} else if r := origin.Spec.Reference; r != nil {
 		ref = r
 		tracelog.Info("using git repository ref from GitRepository spec", "ref", ref)
-	} // else remain as `nil`, which is an acceptable value for cloneInto, later.
+	} // else remain as `nil` and git.DefaultBranch will be used.
 
 	var pushBranch string
 	if gitSpec.Push != nil {
@@ -254,54 +250,39 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	debuglog.Info("attempting to clone git repository", "gitrepository", originName, "ref", ref, "working", tmp)
 
-	access, err := r.getRepoAccess(ctx, &origin)
+	authOpts, err := r.getAuthOpts(ctx, &origin)
 	if err != nil {
 		return failWithError(err)
 	}
 
-	// We set the TransportOptionsURL of this set of authentication options here by constructing
-	// a unique URL that won't clash in a multi tenant environment. This unique URL is used by
-	// libgit2 managed transports. This enables us to bypass the inbuilt credentials callback in
-	// libgit2, which is inflexible and unstable.
-	// NB: The Transport Options URL must be unique, therefore it must use the object under
-	// reconciliation details, instead of the repository it depends on.
-	if strings.HasPrefix(origin.Spec.URL, "http") {
-		access.auth.TransportOptionsURL = fmt.Sprintf("http://%s/%s/%d", auto.Name, auto.UID, auto.Generation)
-	} else if strings.HasPrefix(origin.Spec.URL, "ssh") {
-		access.auth.TransportOptionsURL = fmt.Sprintf("ssh://%s/%s/%d", auto.Name, auto.UID, auto.Generation)
-	} else {
-		return failWithError(fmt.Errorf("git repository URL '%s' has invalid transport type, supported types are: http, https, ssh", origin.Spec.URL))
+	lgc, err := libgit2pkg.NewClient(tmp, authOpts)
+	if err != nil {
+		return failWithError(err)
+	}
+	defer lgc.Close()
+
+	opts := git.CloneOptions{}
+	if ref != nil {
+		opts.Tag = ref.Tag
+		opts.SemVer = ref.SemVer
+		opts.Commit = ref.Commit
+		opts.Branch = ref.Branch
 	}
 
 	// Use the git operations timeout for the repo.
 	cloneCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
 	defer cancel()
-	var repo *libgit2.Repository
-	if repo, err = cloneInto(cloneCtx, access, ref, tmp); err != nil {
+	if _, err := lgc.Clone(cloneCtx, origin.Spec.URL, opts); err != nil {
 		return failWithError(err)
 	}
-	defer repo.Free()
-
-	// Checkout removes TransportOptions before returning, therefore this
-	// must happen after cloneInto.
-	// TODO(pjbgf): Git consolidation should improve the API workflow.
-	managed.AddTransportOptions(access.auth.TransportOptionsURL, managed.TransportOptions{
-		TargetURL:    origin.Spec.URL,
-		AuthOpts:     access.auth,
-		ProxyOptions: &libgit2.ProxyOptions{Type: libgit2.ProxyTypeAuto},
-		Context:      cloneCtx,
-	})
-
-	defer managed.RemoveTransportOptions(access.auth.TransportOptionsURL)
 
 	// When there's a push spec, the pushed-to branch is where commits
 	// shall be made
-
 	if gitSpec.Push != nil && !(ref != nil && ref.Branch == pushBranch) {
 		// Use the git operations timeout for the repo.
 		fetchCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
 		defer cancel()
-		if err := switchToBranch(repo, fetchCtx, pushBranch, access); err != nil && err != errRemoteBranchMissing {
+		if err := lgc.SwitchBranch(fetchCtx, pushBranch); err != nil {
 			return failWithError(err)
 		}
 	}
@@ -366,14 +347,18 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	// The status message depends on what happens next. Since there's
 	// more than one way to succeed, there's some if..else below, and
 	// early returns only on failure.
-	signature := &libgit2.Signature{
-		Name:  gitSpec.Commit.Author.Name,
-		Email: gitSpec.Commit.Author.Email,
-		When:  time.Now(),
-	}
-
-	if rev, err := commitChangedManifests(tracelog, repo, tmp, signingEntity, signature, message); err != nil {
-		if err != errNoChanges {
+	if rev, err := lgc.Commit(
+		git.Commit{
+			Author: git.Signature{
+				Name:  gitSpec.Commit.Author.Name,
+				Email: gitSpec.Commit.Author.Email,
+				When:  time.Now(),
+			},
+			Message: message,
+		},
+		git.WithSigner(signingEntity),
+	); err != nil {
+		if err != git.ErrNoStagedFiles {
 			return failWithError(err)
 		}
 
@@ -387,7 +372,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		// Use the git operations timeout for the repo.
 		pushCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
 		defer cancel()
-		if err := push(pushCtx, tmp, pushBranch, access); err != nil {
+		if err := lgc.Push(pushCtx); err != nil {
 			return failWithError(err)
 		}
 
@@ -512,11 +497,8 @@ type repoAccess struct {
 	url  string
 }
 
-func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, repository *sourcev1.GitRepository) (repoAccess, error) {
-	var access repoAccess
-	access.url = repository.Spec.URL
-	access.auth = &git.AuthOptions{}
-
+func (r *ImageUpdateAutomationReconciler) getAuthOpts(ctx context.Context, repository *sourcev1.GitRepository) (*git.AuthOptions, error) {
+	var data map[string][]byte
 	if repository.Spec.SecretRef != nil {
 		name := types.NamespacedName{
 			Namespace: repository.GetNamespace(),
@@ -526,181 +508,22 @@ func (r *ImageUpdateAutomationReconciler) getRepoAccess(ctx context.Context, rep
 		secret := &corev1.Secret{}
 		err := r.Client.Get(ctx, name, secret)
 		if err != nil {
-			err = fmt.Errorf("auth secret error: %w", err)
-			return access, err
+			return nil, fmt.Errorf("failed to get secret '%s': %w", name.String(), err)
 		}
+		data = secret.Data
+	}
 
-		access.auth, err = git.AuthOptionsFromSecret(access.url, secret)
-		if err != nil {
-			err = fmt.Errorf("auth error: %w", err)
-			return access, err
-		}
-	}
-	return access, nil
-}
-
-// cloneInto clones the upstream repository at the `ref` given (which
-// can be `nil`). It returns a `*libgit2.Repository` since that is used
-// for committing changes.
-func cloneInto(ctx context.Context, access repoAccess, ref *sourcev1.GitRepositoryRef,
-	path string) (*libgit2.Repository, error) {
-	opts := git.CheckoutOptions{}
-	if ref != nil {
-		opts.Tag = ref.Tag
-		opts.SemVer = ref.SemVer
-		opts.Commit = ref.Commit
-		opts.Branch = ref.Branch
-	}
-	checkoutStrat, err := gitstrat.CheckoutStrategyForImplementation(ctx, sourcev1.LibGit2Implementation, opts)
-	if err == nil {
-		_, err = checkoutStrat.Checkout(ctx, path, access.url, access.auth)
-	}
+	u, err := url.Parse(repository.Spec.URL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse URL '%s': %w", repository.Spec.URL, err)
 	}
 
-	return libgit2.OpenRepository(path)
-}
-
-func headCommit(repo *libgit2.Repository) (*libgit2.Commit, error) {
-	head, err := repo.Head()
+	opts, err := git.NewAuthOptions(*u, data)
 	if err != nil {
-		return nil, err
-	}
-	defer head.Free()
-	c, err := repo.LookupCommit(head.Target())
-	if err != nil {
-		return nil, err
-	}
-	return c, nil
-}
-
-var errNoChanges error = errors.New("no changes made to working directory")
-
-func commitChangedManifests(tracelog logr.Logger, repo *libgit2.Repository, absRepoPath string, ent *openpgp.Entity, sig *libgit2.Signature, message string) (string, error) {
-	sl, err := repo.StatusList(&libgit2.StatusOptions{
-		Show: libgit2.StatusShowIndexAndWorkdir,
-	})
-	if err != nil {
-		return "", err
-	}
-	defer sl.Free()
-
-	count, err := sl.EntryCount()
-	if err != nil {
-		return "", err
+		return nil, fmt.Errorf("failed to configure authentication options: %w", err)
 	}
 
-	if count == 0 {
-		return "", errNoChanges
-	}
-
-	var parentC []*libgit2.Commit
-	head, err := headCommit(repo)
-	if err == nil {
-		defer head.Free()
-		parentC = append(parentC, head)
-	}
-
-	index, err := repo.Index()
-	if err != nil {
-		return "", err
-	}
-	defer index.Free()
-
-	// add to index any files that are not within .git/
-	if err = filepath.Walk(repo.Workdir(),
-		func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			rel, err := filepath.Rel(repo.Workdir(), path)
-			if err != nil {
-				return err
-			}
-			f, err := os.Stat(path)
-			if err != nil {
-				return err
-			}
-			if f.IsDir() || strings.HasPrefix(rel, ".git") || rel == "." {
-				return nil
-			}
-			if err := index.AddByPath(rel); err != nil {
-				tracelog.Info("adding file", "file", rel)
-				return err
-			}
-			return nil
-		}); err != nil {
-		return "", err
-	}
-
-	if err := index.Write(); err != nil {
-		return "", err
-	}
-
-	treeID, err := index.WriteTree()
-	if err != nil {
-		return "", err
-	}
-
-	tree, err := repo.LookupTree(treeID)
-	if err != nil {
-		return "", err
-	}
-	defer tree.Free()
-
-	commitID, err := repo.CreateCommit("HEAD", sig, sig, message, tree, parentC...)
-	if err != nil {
-		return "", err
-	}
-
-	// return unsigned commit if pgp entity is not provided
-	if ent == nil {
-		return commitID.String(), nil
-	}
-
-	commit, err := repo.LookupCommit(commitID)
-	if err != nil {
-		return "", err
-	}
-	defer commit.Free()
-
-	signedCommitID, err := commit.WithSignatureUsing(func(commitContent string) (string, string, error) {
-		cipherText := new(bytes.Buffer)
-		err := openpgp.ArmoredDetachSignText(cipherText, ent, strings.NewReader(commitContent), &packet.Config{})
-		if err != nil {
-			return "", "", errors.New("error signing payload")
-		}
-
-		return cipherText.String(), "", nil
-	})
-	if err != nil {
-		return "", err
-	}
-	signedCommit, err := repo.LookupCommit(signedCommitID)
-	if err != nil {
-		return "", err
-	}
-	defer signedCommit.Free()
-
-	newHead, err := repo.Head()
-	if err != nil {
-		return "", err
-	}
-	defer newHead.Free()
-
-	ref, err := repo.References.Create(
-		newHead.Name(),
-		signedCommit.Id(),
-		true,
-		"repoint to signed commit",
-	)
-	if err != nil {
-		return "", err
-	}
-	defer ref.Free()
-
-	return signedCommitID.String(), nil
+	return opts, nil
 }
 
 // getSigningEntity retrieves an OpenPGP entity referenced by the
@@ -731,175 +554,6 @@ func (r *ImageUpdateAutomationReconciler) getSigningEntity(ctx context.Context, 
 		return nil, fmt.Errorf("multiple entities read from secret '%s', could not determine which signing key to use", secretName)
 	}
 	return entities[0], nil
-}
-
-var errRemoteBranchMissing = errors.New("remote branch missing")
-
-// switchToBranch switches to a branch after fetching latest from upstream.
-// If the branch does not exist, it is created using the head as the starting point.
-func switchToBranch(repo *libgit2.Repository, ctx context.Context, branch string, access repoAccess) error {
-	origin, err := repo.Remotes.Lookup(originRemote)
-	if err != nil {
-		return fmt.Errorf("cannot lookup remote: %w", err)
-	}
-	defer origin.Free()
-
-	// Override callbacks with dummy ones as they are not needed within Managed Transport.
-	// However, not setting them may lead to git2go panicing.
-	callbacks := managed.RemoteCallbacks()
-
-	// Force the fetching of the remote branch.
-	err = origin.Fetch([]string{branch}, &libgit2.FetchOptions{
-		RemoteCallbacks: callbacks,
-	}, "")
-	if err != nil {
-		return fmt.Errorf("cannot fetch remote branch: %w", err)
-	}
-
-	remoteBranch, err := repo.References.Lookup(fmt.Sprintf("refs/remotes/origin/%s", branch))
-	if err != nil && !libgit2.IsErrorCode(err, libgit2.ErrorCodeNotFound) {
-		return err
-	}
-	if remoteBranch != nil {
-		defer remoteBranch.Free()
-	}
-	err = nil
-
-	var commit *libgit2.Commit
-	// tries to get tip commit from remote branch, if it exists.
-	// otherwise gets the commit that local head is pointing to.
-	if remoteBranch != nil {
-		commit, err = repo.LookupCommit(remoteBranch.Target())
-	} else {
-		head, err := repo.Head()
-		if err != nil {
-			return fmt.Errorf("cannot get repo head: %w", err)
-		}
-		defer head.Free()
-		commit, err = repo.LookupCommit(head.Target())
-	}
-	if err != nil {
-		return fmt.Errorf("cannot find the head commit: %w", err)
-	}
-	defer commit.Free()
-
-	localBranch, err := repo.References.Lookup(fmt.Sprintf("refs/heads/%s", branch))
-	if err != nil && !libgit2.IsErrorCode(err, libgit2.ErrorCodeNotFound) {
-		return fmt.Errorf("cannot lookup branch '%s': %w", branch, err)
-	}
-	if localBranch == nil {
-		lb, err := repo.CreateBranch(branch, commit, false)
-		if err != nil {
-			return fmt.Errorf("cannot create branch '%s': %w", branch, err)
-		}
-		defer lb.Free()
-		// We could've done something like:
-		// localBranch = lb.Reference
-		// But for some reason, calling `lb.Free()` AND using it, causes a really
-		// nasty crash. Since, we can't avoid calling `lb.Free()`, in order to prevent
-		// memory leaks, we don't use `lb` and instead manually lookup the ref.
-		localBranch, err = repo.References.Lookup(fmt.Sprintf("refs/heads/%s", branch))
-		if err != nil {
-			return fmt.Errorf("cannot lookup branch '%s': %w", branch, err)
-		}
-	}
-	defer localBranch.Free()
-
-	tree, err := repo.LookupTree(commit.TreeId())
-	if err != nil {
-		return fmt.Errorf("cannot lookup tree for branch '%s': %w", branch, err)
-	}
-	defer tree.Free()
-
-	err = repo.CheckoutTree(tree, &libgit2.CheckoutOpts{
-		// the remote branch should take precedence if it exists at this point in time.
-		Strategy: libgit2.CheckoutForce,
-	})
-	if err != nil {
-		return fmt.Errorf("cannot checkout tree for branch '%s': %w", branch, err)
-	}
-
-	ref, err := localBranch.SetTarget(commit.Id(), "")
-	if err != nil {
-		return fmt.Errorf("cannot update branch '%s' to be at target commit: %w", branch, err)
-	}
-	ref.Free()
-
-	return repo.SetHead("refs/heads/" + branch)
-}
-
-// push pushes the branch given to the origin using the git library
-// indicated by `impl`. It's passed both the path to the repo and a
-// libgit2.Repository value, since the latter may as well be used if the
-// implementation is libgit2.
-func push(ctx context.Context, path, branch string, access repoAccess) error {
-	repo, err := libgit2.OpenRepository(path)
-	if err != nil {
-		return err
-	}
-	defer repo.Free()
-	origin, err := repo.Remotes.Lookup(originRemote)
-	if err != nil {
-		return err
-	}
-	defer origin.Free()
-
-	// Override callbacks with dummy ones as they are not needed within Managed Transport.
-	// However, not setting them may lead to git2go panicing.
-	callbacks := managed.RemoteCallbacks()
-
-	// calling repo.Push will succeed even if a reference update is
-	// rejected; to detect this case, this callback is supplied.
-	var callbackErr error
-	callbacks.PushUpdateReferenceCallback = func(refname, status string) error {
-		if status != "" {
-			callbackErr = fmt.Errorf("ref %s rejected: %s", refname, status)
-		}
-		return nil
-	}
-	err = origin.Push([]string{fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch)}, &libgit2.PushOptions{
-		RemoteCallbacks: callbacks,
-		ProxyOptions:    libgit2.ProxyOptions{Type: libgit2.ProxyTypeAuto},
-	})
-	if err != nil {
-		if strings.Contains(err.Error(), "early EOF") {
-			return fmt.Errorf("%w (the SSH key may not have write access to the repository)", err)
-		}
-		return libgit2PushError(err)
-	}
-	return callbackErr
-}
-
-func libgit2PushError(err error) error {
-	if err == nil {
-		return err
-	}
-	// libgit2 returns the whole output from stderr, and we only need
-	// the message. GitLab likes to return a banner, so as an
-	// heuristic, strip any lines that are just "remote:" and spaces
-	// or fencing.
-	msg := err.Error()
-	lines := strings.Split(msg, "\n")
-	if len(lines) == 1 {
-		return err
-	}
-	var b strings.Builder
-	// the following removes the prefix "remote:" from each line; to
-	// retain a bit of fidelity to the original error, start with it.
-	b.WriteString("remote: ")
-
-	var appending bool
-	for _, line := range lines {
-		m := strings.TrimPrefix(line, "remote:")
-		if m = strings.Trim(m, " \t="); m != "" {
-			if appending {
-				b.WriteString(" ")
-			}
-			b.WriteString(m)
-			appending = true
-		}
-	}
-	return errors.New(b.String())
 }
 
 // --- events, metrics
