@@ -26,7 +26,6 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
-	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
 	"github.com/fluxcd/pkg/runtime/acl"
@@ -36,7 +35,6 @@ import (
 	feathelper "github.com/fluxcd/pkg/runtime/features"
 	"github.com/fluxcd/pkg/runtime/leaderelection"
 	"github.com/fluxcd/pkg/runtime/logger"
-	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/pprof"
 	"github.com/fluxcd/pkg/runtime/probes"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
@@ -115,9 +113,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	metricsRecorder := metrics.NewRecorder()
-	ctrlmetrics.Registry.MustRegister(metricsRecorder.Collectors()...)
-
 	watchNamespace := ""
 	if !watchAllNamespaces {
 		watchNamespace = os.Getenv("RUNTIME_NAMESPACE")
@@ -151,11 +146,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	metricsH := helper.MustMakeMetrics(mgr)
+
 	if err = (&controllers.ImageUpdateAutomationReconciler{
 		Client:              mgr.GetClient(),
-		Scheme:              mgr.GetScheme(),
 		EventRecorder:       eventRecorder,
-		MetricsRecorder:     metricsRecorder,
+		Metrics:             metricsH,
 		NoCrossNamespaceRef: aclOptions.NoCrossNamespaceRefs,
 	}).SetupWithManager(mgr, controllers.ImageUpdateAutomationReconcilerOptions{
 		MaxConcurrentReconciles: concurrent,
