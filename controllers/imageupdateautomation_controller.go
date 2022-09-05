@@ -35,12 +35,9 @@ import (
 	"github.com/go-logr/logr"
 	libgit2 "github.com/libgit2/git2go/v33"
 	corev1 "k8s.io/api/core/v1"
-	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kuberecorder "k8s.io/client-go/tools/record"
-	"k8s.io/client-go/tools/reference"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -56,9 +53,9 @@ import (
 	apiacl "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/acl"
+	helper "github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/logger"
-	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/fluxcd/source-controller/pkg/git"
@@ -87,9 +84,9 @@ type TemplateData struct {
 // ImageUpdateAutomationReconciler reconciles a ImageUpdateAutomation object
 type ImageUpdateAutomationReconciler struct {
 	client.Client
-	Scheme              *runtime.Scheme
-	EventRecorder       kuberecorder.EventRecorder
-	MetricsRecorder     *metrics.Recorder
+	EventRecorder kuberecorder.EventRecorder
+	helper.Metrics
+
 	NoCrossNamespaceRef bool
 }
 
@@ -107,7 +104,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	log := ctrl.LoggerFrom(ctx)
 	debuglog := log.V(logger.DebugLevel)
 	tracelog := log.V(logger.TraceLevel)
-	now := time.Now()
+	start := time.Now()
 	var templateValues TemplateData
 
 	var auto imagev1.ImageUpdateAutomation
@@ -127,7 +124,6 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	// If the object is under deletion, record the readiness, and remove our finalizer.
 	if !auto.ObjectMeta.DeletionTimestamp.IsZero() {
-		r.recordReadinessMetric(ctx, &auto)
 		controllerutil.RemoveFinalizer(&auto, imagev1.ImageUpdateAutomationFinalizer)
 		if err := r.Update(ctx, &auto); err != nil {
 			return ctrl.Result{}, err
@@ -136,7 +132,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	// record suspension metrics
-	defer r.recordSuspension(ctx, auto)
+	r.RecordSuspend(ctx, &auto, auto.Spec.Suspend)
 
 	if auto.Spec.Suspend {
 		log.Info("ImageUpdateAutomation is suspended, skipping automation run")
@@ -145,18 +141,11 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	templateValues.AutomationObject = req.NamespacedName
 
-	// Record readiness metric when exiting; if there's any points at
-	// which the readiness is updated _without also exiting_, they
-	// should also record the readiness.
-	defer r.recordReadinessMetric(ctx, &auto)
-	// Record reconciliation duration when exiting
-	if r.MetricsRecorder != nil {
-		objRef, err := reference.GetReference(r.Scheme, &auto)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		defer r.MetricsRecorder.RecordDuration(*objRef, now)
-	}
+	defer func() {
+		// Always record readiness and duration metrics
+		r.Metrics.RecordReadiness(ctx, &auto)
+		r.Metrics.RecordDuration(ctx, &auto, start)
+	}()
 
 	// whatever else happens, we've now "seen" the reconcile
 	// annotation if it's there
@@ -405,12 +394,12 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		r.event(ctx, auto, events.EventSeverityInfo, fmt.Sprintf("Committed and pushed change %s to %s\n%s", rev, pushBranch, message))
 		log.Info("pushed commit to origin", "revision", rev, "branch", pushBranch)
 		auto.Status.LastPushCommit = rev
-		auto.Status.LastPushTime = &metav1.Time{Time: now}
+		auto.Status.LastPushTime = &metav1.Time{Time: start}
 		statusMessage = "committed and pushed " + rev + " to " + pushBranch
 	}
 
 	// Getting to here is a successful run.
-	auto.Status.LastAutomationRunTime = &metav1.Time{Time: now}
+	auto.Status.LastAutomationRunTime = &metav1.Time{Time: start}
 	imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionTrue, imagev1.ReconciliationSucceededReason, statusMessage)
 	if err := r.patchStatus(ctx, req, auto.Status); err != nil {
 		return ctrl.Result{Requeue: true}, err
@@ -923,51 +912,12 @@ func (r *ImageUpdateAutomationReconciler) event(ctx context.Context, auto imagev
 	r.EventRecorder.Eventf(&auto, eventtype, severity, msg)
 }
 
-func (r *ImageUpdateAutomationReconciler) recordReadinessMetric(ctx context.Context, auto *imagev1.ImageUpdateAutomation) {
-	if r.MetricsRecorder == nil {
-		return
-	}
-
-	objRef, err := reference.GetReference(r.Scheme, auto)
-	if err != nil {
-		ctrl.LoggerFrom(ctx).Error(err, "unable to record readiness metric")
-		return
-	}
-	if rc := apimeta.FindStatusCondition(auto.Status.Conditions, meta.ReadyCondition); rc != nil {
-		r.MetricsRecorder.RecordCondition(*objRef, *rc, !auto.DeletionTimestamp.IsZero())
-	} else {
-		r.MetricsRecorder.RecordCondition(*objRef, metav1.Condition{
-			Type:   meta.ReadyCondition,
-			Status: metav1.ConditionUnknown,
-		}, !auto.DeletionTimestamp.IsZero())
-	}
-}
-
 // --- updates
 
 // updateAccordingToSetters updates files under the root by treating
 // the given image policies as kyaml setters.
 func updateAccordingToSetters(ctx context.Context, tracelog logr.Logger, path string, policies []imagev1_reflect.ImagePolicy) (update.Result, error) {
 	return update.UpdateWithSetters(tracelog, path, path, policies)
-}
-
-func (r *ImageUpdateAutomationReconciler) recordSuspension(ctx context.Context, auto imagev1.ImageUpdateAutomation) {
-	if r.MetricsRecorder == nil {
-		return
-	}
-	log := ctrl.LoggerFrom(ctx)
-
-	objRef, err := reference.GetReference(r.Scheme, &auto)
-	if err != nil {
-		log.Error(err, "unable to record suspended metric")
-		return
-	}
-
-	if !auto.DeletionTimestamp.IsZero() {
-		r.MetricsRecorder.RecordSuspend(*objRef, false)
-	} else {
-		r.MetricsRecorder.RecordSuspend(*objRef, auto.Spec.Suspend)
-	}
 }
 
 // templateMsg renders a msg template, returning the message or an error.

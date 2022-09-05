@@ -70,7 +70,6 @@ func TestMain(m *testing.M) {
 	controllerName := "image-automation-controller"
 	if err := (&ImageUpdateAutomationReconciler{
 		Client:        testEnv,
-		Scheme:        scheme.Scheme,
 		EventRecorder: testEnv.GetEventRecorderFor(controllerName),
 	}).SetupWithManager(testEnv, ImageUpdateAutomationReconcilerOptions{}); err != nil {
 		panic(fmt.Sprintf("Failed to start ImageUpdateAutomationReconciler: %v", err))
