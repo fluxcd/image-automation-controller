@@ -388,7 +388,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			return failWithError(err)
 		}
 
-		debuglog.Info("no changes made in working directory; no commit")
+		log.Info("no changes made in working directory; no commit")
 		statusMessage = "no updates made"
 
 		if auto.Status.LastPushTime != nil && len(auto.Status.LastPushCommit) >= 7 {
