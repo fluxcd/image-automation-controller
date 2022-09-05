@@ -43,7 +43,6 @@ import (
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -250,7 +249,6 @@ func TestImageAutomationReconciler_crossNamespaceRef(t *testing.T) {
 	builder := fakeclient.NewClientBuilder().WithScheme(testEnv.Scheme())
 	r := &ImageUpdateAutomationReconciler{
 		Client:              builder.Build(),
-		Scheme:              scheme.Scheme,
 		EventRecorder:       testEnv.GetEventRecorderFor("image-automation-controller"),
 		NoCrossNamespaceRef: true,
 	}
@@ -731,7 +729,6 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 			// explicitly.
 			imageAutoReconciler := &ImageUpdateAutomationReconciler{
 				Client: testEnv,
-				Scheme: scheme.Scheme,
 			}
 
 			// Wait for the suspension to reach the cache

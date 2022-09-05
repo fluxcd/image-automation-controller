@@ -178,7 +178,6 @@ func FuzzImageUpdateReconciler(data []byte) int {
 		utilruntime.Must(ensureDependencies(func(m manager.Manager) {
 			utilruntime.Must((&controllers.ImageUpdateAutomationReconciler{
 				Client: m.GetClient(),
-				Scheme: scheme.Scheme,
 			}).SetupWithManager(m, controllers.ImageUpdateAutomationReconcilerOptions{MaxConcurrentReconciles: 4}))
 		}))
 	})
