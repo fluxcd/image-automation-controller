@@ -15,6 +15,7 @@ replace github.com/fluxcd/image-automation-controller/api => ./api
 replace github.com/libgit2/git2go/v33 => github.com/pjbgf/git2go/v33 v33.0.9-nothread-check
 
 require (
+	github.com/AdaLogics/go-fuzz-headers v0.0.0-20220903154154-e8044f6e4c72
 	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/ProtonMail/go-crypto v0.0.0-20220824120805-4b6e5c587895
 	github.com/cyphar/filepath-securejoin v0.2.3
@@ -27,6 +28,8 @@ require (
 	github.com/fluxcd/pkg/ssh v0.6.0
 	github.com/fluxcd/source-controller v0.28.0
 	github.com/fluxcd/source-controller/api v0.28.0
+	github.com/go-git/go-billy/v5 v5.3.1
+	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-containerregistry v0.11.0
 	github.com/libgit2/git2go/v33 v33.0.9
@@ -71,8 +74,6 @@ require (
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
-	github.com/go-git/go-billy/v5 v5.3.1 // indirect
-	github.com/go-git/go-git/v5 v5.4.2 // indirect
 	github.com/go-logr/zapr v1.2.3 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.20.0 // indirect
