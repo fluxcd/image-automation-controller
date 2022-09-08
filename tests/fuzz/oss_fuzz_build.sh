@@ -20,8 +20,47 @@ LIBGIT2_TAG="${LIBGIT2_TAG:-v0.2.0}"
 GOPATH="${GOPATH:-/root/go}"
 GO_SRC="${GOPATH}/src"
 PROJECT_PATH="github.com/fluxcd/image-automation-controller"
+TMP_DIR=$(mktemp -d /tmp/oss_fuzz-XXXXXX)
 
-pushd "${GO_SRC}/${PROJECT_PATH}"
+cleanup(){
+	rm -rf "${TMP_DIR}"
+}
+trap cleanup EXIT
+
+install_deps(){
+	if ! command -v go-118-fuzz-build &> /dev/null || ! command -v addimport &> /dev/null; then
+		mkdir -p "${TMP_DIR}/go-118-fuzz-build"
+
+		git clone https://github.com/AdamKorcz/go-118-fuzz-build "${TMP_DIR}/go-118-fuzz-build"
+		cd "${TMP_DIR}/go-118-fuzz-build"
+		go build -o "${GOPATH}/bin/go-118-fuzz-build"
+
+		cd addimport
+		go build -o "${GOPATH}/bin/addimport"
+	fi
+
+	if ! command -v goimports &> /dev/null; then
+		go install golang.org/x/tools/cmd/goimports@latest
+	fi
+}
+
+# Removes the content of test funcs which could cause the Fuzz
+# tests to break.
+remove_test_funcs(){
+	filename=$1
+
+	echo "removing co-located *testing.T"
+	sed -i -e '/func Test.*testing.T) {$/ {:r;/\n}/!{N;br}; s/\n.*\n/\n/}' "${filename}"
+	# Remove gomega reference as it is not used by Fuzz tests.
+	sed -i 's;. "github.com/onsi/gomega";;g' "${filename}"
+
+	# After removing the body of the go testing funcs, consolidate the imports.
+	goimports -w "${filename}"
+}
+
+install_deps
+
+cd "${GO_SRC}/${PROJECT_PATH}"
 
 export TARGET_DIR="$(/bin/pwd)/build/libgit2/${LIBGIT2_TAG}"
 
@@ -46,27 +85,17 @@ if [ ! -d "${TARGET_DIR}" ]; then
     find "${NEW_DIR}" -type f -name "*.pc" | xargs -I {} sed -i "s;${INSTALLED_DIR};${NEW_DIR};g" {}
 fi
 
-apt-get update && apt-get install -y pkg-config
-
-export CGO_ENABLED=1
-export LIBRARY_PATH="${TARGET_DIR}/lib:${TARGET_DIR}/lib64"
-export PKG_CONFIG_PATH="${TARGET_DIR}/lib/pkgconfig:${TARGET_DIR}/lib64/pkgconfig"
-export CGO_CFLAGS="-I${TARGET_DIR}/include -I${TARGET_DIR}/include/openssl"
-export CGO_LDFLAGS="$(pkg-config --libs --static --cflags libssh2 openssl libgit2)"
-
-pushd "tests/fuzz"
+go get github.com/AdamKorcz/go-118-fuzz-build/utils
 
 # Setup files to be embedded into controllers_fuzzer.go's testFiles variable.
-mkdir -p testdata/crds
-cp ../../config/crd/bases/*.yaml testdata/crds/
+mkdir -p controllers/testdata/crd
+cp config/crd/bases/*.yaml controllers/testdata/crd
 
-# Use main go.mod in order to conserve the same version across all dependencies.
-cp ../../go.mod .
-cp ../../go.sum .
-
-sed -i 's;module .*;module github.com/fluxcd/image-automation-controller/tests/fuzz;g' go.mod
-sed -i 's;api => ./api;api => ../../api;g' go.mod
-echo "replace github.com/fluxcd/image-automation-controller => ../../" >> go.mod
+export CGO_ENABLED=1
+export LIBRARY_PATH="${TARGET_DIR}/lib"
+export PKG_CONFIG_PATH="${TARGET_DIR}/lib/pkgconfig"
+export CGO_CFLAGS="-I${TARGET_DIR}/include"
+export CGO_LDFLAGS="$(pkg-config --libs --static --cflags libgit2)"
 
 # Version of the source-controller from which to get the GitRepository CRD.
 # Pulls source-controller/api's version set in go.mod.
@@ -76,42 +105,29 @@ SOURCE_VER=$(go list -m github.com/fluxcd/source-controller/api | awk '{print $2
 # Pulls image-reflector-controller/api's version set in go.mod.
 REFLECTOR_VER=$(go list -m github.com/fluxcd/image-reflector-controller/api | awk '{print $2}')
 
-go mod download
-go get -d github.com/fluxcd/image-automation-controller
-go get -d github.com/AdaLogics/go-fuzz-headers
-
 if [ -d "../../controllers/testdata/crds" ]; then
     cp ../../controllers/testdata/crds/*.yaml testdata/crds
-# Fetch the CRDs if not present since we need them when running fuzz tests on CI.
 else
-    curl -s --fail https://raw.githubusercontent.com/fluxcd/source-controller/${SOURCE_VER}/config/crd/bases/source.toolkit.fluxcd.io_gitrepositories.yaml -o testdata/crds/gitrepositories.yaml
-
-    curl -s --fail https://raw.githubusercontent.com/fluxcd/image-reflector-controller/${REFLECTOR_VER}/config/crd/bases/image.toolkit.fluxcd.io_imagepolicies.yaml -o testdata/crds/imagepolicies.yaml
+    # Fetch the CRDs if not present since we need them when running fuzz tests on CI.
+    curl -s --fail https://raw.githubusercontent.com/fluxcd/source-controller/${SOURCE_VER}/config/crd/bases/source.toolkit.fluxcd.io_gitrepositories.yaml -o controllers/testdata/crd/gitrepositories.yaml
+    curl -s --fail https://raw.githubusercontent.com/fluxcd/image-reflector-controller/${REFLECTOR_VER}/config/crd/bases/image.toolkit.fluxcd.io_imagepolicies.yaml -o controllers/testdata/crd/imagepolicies.yaml
 fi
 
-# Using compile_go_fuzzer to compile fails when statically linking libgit2 dependencies
-# via CFLAGS/CXXFLAGS.
-function go_compile(){
-    function=$1
-    fuzzer=$2
+export ADDITIONAL_LIBS="${TARGET_DIR}/lib/libgit2.a"
 
-    if [[ $SANITIZER = *coverage* ]]; then
-        # ref: https://github.com/google/oss-fuzz/blob/master/infra/base-images/base-builder/compile_go_fuzzer
-        compile_go_fuzzer "${PROJECT_PATH}/tests/fuzz" "${function}" "${fuzzer}"
-    else
-        go-fuzz -tags gofuzz -func="${function}" -o "${fuzzer}.a" .
-        ${CXX} ${CXXFLAGS} ${LIB_FUZZING_ENGINE} -o "${OUT}/${fuzzer}" \
-            "${fuzzer}.a" \
-            "${TARGET_DIR}/lib/libgit2.a" \
-            -fsanitize="${SANITIZER}"
-    fi
-}
+# Iterate through all Go Fuzz targets, compiling each into a fuzzer.
+test_files=$(grep -r --include='**_test.go' --files-with-matches 'func Fuzz' .)
+for file in ${test_files}
+do
+	remove_test_funcs "${file}"
 
-go_compile FuzzImageUpdateReconciler fuzz_image_update_reconciler
-go_compile FuzzUpdateWithSetters fuzz_update_with_setters
+	targets=$(grep -oP 'func \K(Fuzz\w*)' "${file}")
+	for target_name in ${targets}
+	do
+		fuzzer_name=$(echo "${target_name}" | tr '[:upper:]' '[:lower:]')
+		target_dir=$(dirname "${file}")
 
-# By now testdata is embedded in the binaries and no longer needed.
-rm -rf testdata/
-
-popd
-popd
+		echo "Building ${file}.${target_name} into ${fuzzer_name}"
+		compile_native_go_fuzzer "${target_dir}" "${target_name}" "${fuzzer_name}"
+	done
+done

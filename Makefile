@@ -37,6 +37,10 @@ BUILD_DIR := $(REPOSITORY_ROOT)/build
 # Other dependency versions
 ENVTEST_BIN_VERSION ?= 1.19.2
 
+# FUZZ_TIME defines the max amount of time, in Go Duration,
+# each fuzzer should run for.
+FUZZ_TIME ?= 1m
+
 # Caches libgit2 versions per tag, "forcing" rebuild only when needed.
 LIBGIT2_PATH := $(BUILD_DIR)/libgit2/$(LIBGIT2_TAG)
 LIBGIT2_LIB_PATH := $(LIBGIT2_PATH)/lib
@@ -219,7 +223,7 @@ ENVTEST = $(GOBIN)/setup-envtest
 setup-envtest: ## Download envtest-setup locally if necessary.
 	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
 
-# Build fuzzers
+# Build fuzzers used by oss-fuzz.
 fuzz-build: $(LIBGIT2)
 	rm -rf $(shell pwd)/build/fuzz/
 	mkdir -p $(shell pwd)/build/fuzz/out/
@@ -231,12 +235,19 @@ fuzz-build: $(LIBGIT2)
 		-v "$(shell pwd)/build/fuzz/out":/out \
 		local-fuzzing:latest
 
+# Run each fuzzer once to ensure they will work when executed by oss-fuzz.
 fuzz-smoketest: fuzz-build
 	docker run --rm \
 		-v "$(shell pwd)/build/fuzz/out":/out \
 		-v "$(shell pwd)/tests/fuzz/oss_fuzz_run.sh":/runner.sh \
 		local-fuzzing:latest \
 		bash -c "/runner.sh"
+
+# Run fuzz tests for the duration set in FUZZ_TIME.
+fuzz-native: 
+	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) \
+	FUZZ_TIME=$(FUZZ_TIME) \
+		./tests/fuzz/native_go_run.sh
 
 # go-install-tool will 'go install' any package $2 and install it to $1.
 define go-install-tool
