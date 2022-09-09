@@ -20,23 +20,23 @@ require (
 	github.com/ProtonMail/go-crypto v0.0.0-20220824120805-4b6e5c587895
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/fluxcd/image-automation-controller/api v0.24.2
-	github.com/fluxcd/image-reflector-controller/api v0.20.1
+	github.com/fluxcd/image-reflector-controller/api v0.21.0
 	github.com/fluxcd/pkg/apis/acl v0.1.0
 	github.com/fluxcd/pkg/apis/meta v0.15.0
 	github.com/fluxcd/pkg/gittestserver v0.7.0
 	github.com/fluxcd/pkg/runtime v0.18.0
 	github.com/fluxcd/pkg/ssh v0.6.0
-	github.com/fluxcd/source-controller v0.28.0
-	github.com/fluxcd/source-controller/api v0.28.0
+	github.com/fluxcd/source-controller v0.29.0
+	github.com/fluxcd/source-controller/api v0.29.0
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-containerregistry v0.11.0
 	github.com/libgit2/git2go/v33 v33.0.9
-	github.com/onsi/gomega v1.20.1
+	github.com/onsi/gomega v1.20.2
 	github.com/otiai10/copy v1.7.0
 	github.com/spf13/pflag v1.0.5
-	golang.org/x/crypto v0.0.0-20220826181053-bd7e27e6170d
+	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90
 	k8s.io/api v0.25.0
 	k8s.io/apimachinery v0.25.0
 	k8s.io/client-go v0.25.0
