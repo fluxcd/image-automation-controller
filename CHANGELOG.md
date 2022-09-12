@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.25.0
+
+**Release date:** 2022-09-12
+
+This prerelease comes with improvements to fuzzing.
+In addition, the controller dependencies have been updated
+to Kubernetes controller-runtime v0.12.
+
+:warning: **Breaking change:** The controller logs have been aligned
+with the Kubernetes structured logging. For more details on the new logging
+structure please see: [fluxcd/flux2#3051](https://github.com/fluxcd/flux2/issues/3051).
+
+Improvements:
+- Align controller logs to Kubernetes structured logging
+  [#429](https://github.com/fluxcd/image-automation-controller/pull/429)
+- Align output with source-controller on no-ops
+  [#431](https://github.com/fluxcd/image-automation-controller/pull/431)
+- Refactor Fuzzers based on Go native fuzzing
+  [#432](https://github.com/fluxcd/image-automation-controller/pull/432)
+- Update dependencies
+  [#434](https://github.com/fluxcd/image-automation-controller/pull/434)
+
 ## 0.24.2
 
 **Release date:** 2022-08-29
