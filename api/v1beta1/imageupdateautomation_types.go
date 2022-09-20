@@ -44,6 +44,8 @@ type ImageUpdateAutomationSpec struct {
 
 	// Interval gives an lower bound for how often the automation
 	// run should be attempted.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
