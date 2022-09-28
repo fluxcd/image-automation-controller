@@ -76,7 +76,7 @@ func (d dirfile) FailedExpectation(g *WithT) {
 // DiffDirectories walks the two given directories, recursively, and
 // reports relative paths for any files that are:
 //
-//     (in actual but not expected, in expected but not actual, in both but different)
+//	(in actual but not expected, in expected but not actual, in both but different)
 //
 // It ignores dot directories (e.g., `.git/`) and Emacs backups (e.g.,
 // `foo.yaml~`). It panics if it encounters any error apart from a
