@@ -4,15 +4,13 @@ go 1.18
 
 replace github.com/fluxcd/image-automation-controller/api => ./api
 
-// A temporary fork of git2go was created to enable use
-// of libgit2 without thread support to fix:
-// fluxcd/image-automation-controller/#339.
+// Flux has its own git2go fork to enable changes in behaviour for improved
+// reliability.
 //
-// This can be removed once libgit2/git2go#918 is merged.
-//
-// The fork automatically releases new patches based on upstream:
-// https://github.com/pjbgf/git2go/commit/d72e39cdc20f7fe014ba73072b01ba7b569e9253
-replace github.com/libgit2/git2go/v33 => github.com/pjbgf/git2go/v33 v33.0.9-nothread-check
+// For more information refer to:
+// - fluxcd/image-automation-controller/#339.
+// - libgit2/git2go#918.
+replace github.com/libgit2/git2go/v33 => github.com/fluxcd/git2go/v33 v33.0.9-flux
 
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20220903154154-e8044f6e4c72
