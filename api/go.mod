@@ -3,14 +3,11 @@ module github.com/fluxcd/image-automation-controller/api
 go 1.18
 
 require (
-	github.com/fluxcd/pkg/apis/meta v0.15.0
+	github.com/fluxcd/pkg/apis/meta v0.16.0
 	github.com/fluxcd/source-controller/api v0.29.0
-	k8s.io/apimachinery v0.25.0
-	sigs.k8s.io/controller-runtime v0.12.3
+	k8s.io/apimachinery v0.25.2
+	sigs.k8s.io/controller-runtime v0.13.0
 )
-
-// Fix CVE-2022-28948
-replace gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.0
 
 require (
 	github.com/fluxcd/pkg/apis/acl v0.1.0 // indirect
