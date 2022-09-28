@@ -55,10 +55,10 @@ jobs:
       - name: Verify
         run: make verify
 
-  # Runs 'make test' on macos-10.15 to assure development environment for
+  # Runs 'make test' on macos-11 to assure development environment for
   # contributors using MacOS.
   darwin-amd64:
-    runs-on: macos-10.15
+    runs-on: macos-11
     steps:
       - name: Checkout
         uses: actions/checkout@v3
