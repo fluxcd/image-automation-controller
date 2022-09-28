@@ -77,7 +77,8 @@ var testFiles embed.FS
 // This fuzzer randomized 2 things:
 // 1: The files in the git repository
 // 2: The values of ImageUpdateAutomationSpec
-//    and ImagePolicy resources
+//
+//	and ImagePolicy resources
 func Fuzz_ImageUpdateReconciler(f *testing.F) {
 	f.Fuzz(func(t *testing.T, seed []byte) {
 		initter.Do(func() {

@@ -1,5 +1,5 @@
 ARG BASE_VARIANT=alpine
-ARG GO_VERSION=1.18
+ARG GO_VERSION=1.19
 ARG XX_VERSION=1.1.2
 
 ARG LIBGIT2_IMG=ghcr.io/fluxcd/golang-with-libgit2-only
@@ -72,7 +72,7 @@ RUN export LIBRARY_PATH="/usr/local/$(xx-info triple)" && \
 # Ensure that the binary was cross-compiled correctly to the target platform.
 RUN xx-verify --static /image-automation-controller
 
-FROM alpine:3.15
+FROM alpine:3.16
 
 ARG TARGETPLATFORM
 RUN apk --no-cache add ca-certificates \
