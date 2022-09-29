@@ -19,6 +19,9 @@ BUILD_PLATFORMS ?= linux/amd64,linux/arm64,linux/arm/v7
 # Allows for defining additional Go test args, e.g. '-tags integration'.
 GO_TEST_ARGS ?= -race
 
+# Defines whether cosign verification should be skipped.
+SKIP_COSIGN_VERIFICATION ?= false
+
 # Directory with versioned, downloaded things
 CACHE := cache
 

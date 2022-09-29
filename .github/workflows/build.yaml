@@ -51,6 +51,7 @@ jobs:
           # We should reenable go test -race for arm64 runners once the
           # current issue is resolved.
           GO_TEST_ARGS: ""
+          SKIP_COSIGN_VERIFICATION: true
       - name: Verify
         run: make verify
 
@@ -74,5 +75,7 @@ jobs:
             ${{ runner.os }}-go-
       - name: Run tests
         run: make test
+        env:
+          SKIP_COSIGN_VERIFICATION: true
       - name: Verify
         run: make verify
