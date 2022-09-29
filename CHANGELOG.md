@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.26.0
+
+**Release date:** 2022-09-29
+
+This prerelease comes with strict validation rules for API fields which define a
+(time) duration. Effectively, this means values without a time unit (e.g. `ms`,
+`s`, `m`, `h`) will now be rejected by the API server. To stimulate sane
+configurations, the units `ns`, `us` and `µs` can no longer be configured, nor
+can `h` be set for fields defining a timeout value.
+
+In addition, the controller dependencies have been updated
+to Kubernetes controller-runtime v0.13.
+
+:warning: **Breaking changes:**
+- `.spec.interval` new validation pattern is `"^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"`
+
+Improvements:
+* api: add custom validation for v1.Duration types
+  [#439](https://github.com/fluxcd/image-automation-controller/pull/439)
+* Update dependencies
+  [#442](https://github.com/fluxcd/image-automation-controller/pull/442)
+  [#444](https://github.com/fluxcd/image-automation-controller/pull/444)
+* Build with Go 1.19
+  [#440](https://github.com/fluxcd/image-automation-controller/pull/440)
+* build: Bump CI to macos-11
+  [#441](https://github.com/fluxcd/image-automation-controller/pull/441)
+* Fix build by enabling Cosign experimental
+  [#438](https://github.com/fluxcd/image-automation-controller/pull/438)
+
 ## 0.25.0
 
 **Release date:** 2022-09-12
