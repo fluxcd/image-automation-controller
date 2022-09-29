@@ -3,7 +3,7 @@ ARG GO_VERSION=1.19
 ARG XX_VERSION=1.1.2
 
 ARG LIBGIT2_IMG=ghcr.io/fluxcd/golang-with-libgit2-only
-ARG LIBGIT2_TAG=v0.2.0
+ARG LIBGIT2_TAG=v0.3.0
 
 FROM ${LIBGIT2_IMG}:${LIBGIT2_TAG} AS libgit2-libs
 
@@ -62,12 +62,12 @@ ARG TARGETARCH
 ENV CGO_ENABLED=1
 
 RUN export LIBRARY_PATH="/usr/local/$(xx-info triple)" && \
-    export PKG_CONFIG_PATH="/usr/local/$(xx-info triple)/lib/pkgconfig" && \
-    export CGO_LDFLAGS="$(pkg-config --static --libs --cflags libgit2) -static -fuse-ld=lld" && \
-    xx-go build  \
-        -ldflags "-s -w" \
-        -tags 'netgo,osusergo,static_build' \
-        -o /image-automation-controller -trimpath main.go;
+  export PKG_CONFIG_PATH="/usr/local/$(xx-info triple)/lib/pkgconfig" && \
+  export CGO_LDFLAGS="$(pkg-config --static --libs --cflags libgit2) -static -fuse-ld=lld" && \
+  xx-go build  \
+  -ldflags "-s -w" \
+  -tags 'netgo,osusergo,static_build' \
+  -o /image-automation-controller -trimpath main.go;
 
 # Ensure that the binary was cross-compiled correctly to the target platform.
 RUN xx-verify --static /image-automation-controller
