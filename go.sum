@@ -128,8 +128,8 @@ github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d/go.mod h1:ZZM
 github.com/fatih/color v1.13.0 h1:8LOYc1KYPPmyKMuN8QV2DNRWNbLo6LZ0iLs8+mlH53w=
 github.com/fatih/color v1.13.0/go.mod h1:kLAiJbzzSOZDVNGyDpeOxJ47H46qBXwg5ILebYFFOfk=
 github.com/flowstack/go-jsonschema v0.1.1/go.mod h1:yL7fNggx1o8rm9RlgXv7hTBWxdBM0rVwpMwimd3F3N0=
-github.com/fluxcd/git2go/v33 v33.0.9-flux h1:H6SCbrVx4a4KMewMSHW7lFqr5+Mm8HDhV1RD6n7J5tg=
-github.com/fluxcd/git2go/v33 v33.0.9-flux/go.mod h1:KdpqkU+6+++4oHna/MIOgx4GCQ92IPCdpVRMRI80J+4=
+github.com/fluxcd/git2go/v34 v34.0.0 h1:08PEpdbsLO4sUTvFKuxmt6xBowaqObro9veChBWFwa8=
+github.com/fluxcd/git2go/v34 v34.0.0/go.mod h1:blVco2jDAw6YTXkErMMqzHLcAjKkwF0aWIRHBqiJkZ0=
 github.com/fluxcd/gitkit v0.6.0 h1:iNg5LTx6ePo+Pl0ZwqHTAkhbUHxGVSY3YCxCdw7VIFg=
 github.com/fluxcd/gitkit v0.6.0/go.mod h1:svOHuKi0fO9HoawdK4HfHAJJseZDHHjk7I3ihnCIqNo=
 github.com/fluxcd/image-reflector-controller/api v0.22.1 h1:n4G1UamjfG4aV12x5lMEB4tj9DLCQvUo4KAGZMmdzVs=
@@ -140,8 +140,8 @@ github.com/fluxcd/pkg/apis/meta v0.17.0 h1:Y2dfo1syHZDb9Mexjr2SWdcj1FnxnRXm015hE
 github.com/fluxcd/pkg/apis/meta v0.17.0/go.mod h1:GrOVzWXiu22XjLNgLLe2EBYhQPqZetes5SIADb4bmHE=
 github.com/fluxcd/pkg/git v0.6.1 h1:LC5k/5QBgDNoaDMb6ukmKNcxLih/Se09m1x5vLfUZb8=
 github.com/fluxcd/pkg/git v0.6.1/go.mod h1:O1YYuMUr5z8gHZrB3xBIMFyOdcCXG7kHUAuAqu6UkeA=
-github.com/fluxcd/pkg/git/libgit2 v0.1.1-0.20220908131225-538bbcd1fc66 h1:OqRl5sbUtsOOFkem1ajgmq/78sbXgiAAFeuswRvB/DE=
-github.com/fluxcd/pkg/git/libgit2 v0.1.1-0.20220908131225-538bbcd1fc66/go.mod h1:U0BrFOeONG/Au+LTlfc2UC6uRbLnWA8ulEj2liVLuTQ=
+github.com/fluxcd/pkg/git/libgit2 v0.0.0-20221007164102-c0aed7d985a4 h1:3XJ9N2EczpvWLG3suVE9jiD1bictAA6NHkSFRPg9vfs=
+github.com/fluxcd/pkg/git/libgit2 v0.0.0-20221007164102-c0aed7d985a4/go.mod h1:r9n6pcnCucx28Pw0WIiT9twcrUkhmNPTorKkT48sq8w=
 github.com/fluxcd/pkg/gittestserver v0.7.0 h1:PRVaEjeC/ePKTusB5Bx/ExM0P6bjroPdG6K2DO7YJUM=
 github.com/fluxcd/pkg/gittestserver v0.7.0/go.mod h1:WHqqZQfdePi5M/s1ONMTB4MigktqJhzAFJOZ0KTBw9Y=
 github.com/fluxcd/pkg/gitutil v0.2.0 h1:7vvXfq+Ur1/WXEejXY/b2haJ/2Uj5Et5v4V33l+ni1Q=
