@@ -33,8 +33,8 @@ import (
 
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/go-logr/logr"
-	git2go "github.com/libgit2/git2go/v33"
-	libgit2 "github.com/libgit2/git2go/v33"
+	git2go "github.com/libgit2/git2go/v34"
+	libgit2 "github.com/libgit2/git2go/v34"
 	. "github.com/onsi/gomega"
 	"github.com/otiai10/copy"
 	"golang.org/x/crypto/openpgp"
