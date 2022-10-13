@@ -10,7 +10,10 @@ replace github.com/fluxcd/image-automation-controller/api => ./api
 // For more information refer to:
 // - fluxcd/image-automation-controller/#339.
 // - libgit2/git2go#918.
-replace github.com/libgit2/git2go/v33 => github.com/fluxcd/git2go/v33 v33.0.9-flux
+replace github.com/libgit2/git2go/v34 => github.com/fluxcd/git2go/v34 v34.0.0
+
+// Replace by named version before merging into main.
+replace github.com/fluxcd/pkg/git/libgit2 => github.com/fluxcd/pkg/git/libgit2 v0.0.0-20221007164102-c0aed7d985a4
 
 // This lets us use `go-billy/util.Walk()`, as this function hasn't been released
 // in a tagged version yet:
@@ -36,7 +39,7 @@ require (
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-containerregistry v0.11.0
-	github.com/libgit2/git2go/v33 v33.0.9
+	github.com/libgit2/git2go/v34 v34.0.0
 	github.com/onsi/gomega v1.20.2
 	github.com/otiai10/copy v1.7.0
 	github.com/spf13/pflag v1.0.5
