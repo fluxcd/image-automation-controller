@@ -24,7 +24,7 @@ import (
 	"testing"
 	"time"
 
-	git2go "github.com/libgit2/git2go/v33"
+	git2go "github.com/libgit2/git2go/v34"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
