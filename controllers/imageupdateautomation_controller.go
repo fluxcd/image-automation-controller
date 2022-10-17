@@ -50,7 +50,8 @@ import (
 	apiacl "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/git"
-	libgit2pkg "github.com/fluxcd/pkg/git/libgit2"
+	"github.com/fluxcd/pkg/git/gogit"
+	"github.com/fluxcd/pkg/git/libgit2"
 	"github.com/fluxcd/pkg/runtime/acl"
 	helper "github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/events"
@@ -255,11 +256,19 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		return failWithError(err)
 	}
 
-	lgc, err := libgit2pkg.NewClient(tmp, authOpts)
+	var gitClient git.RepositoryClient
+	switch origin.Spec.GitImplementation {
+	case sourcev1.LibGit2Implementation:
+		gitClient, err = libgit2.NewClient(tmp, authOpts)
+	case sourcev1.GoGitImplementation, "":
+		gitClient, err = gogit.NewClient(tmp, authOpts)
+	default:
+		err = fmt.Errorf("failed to create git client; referred GitRepository has invalid implementation: %s", origin.Spec.GitImplementation)
+	}
 	if err != nil {
 		return failWithError(err)
 	}
-	defer lgc.Close()
+	defer gitClient.Close()
 
 	opts := git.CloneOptions{}
 	if ref != nil {
@@ -272,7 +281,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	// Use the git operations timeout for the repo.
 	cloneCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
 	defer cancel()
-	if _, err := lgc.Clone(cloneCtx, origin.Spec.URL, opts); err != nil {
+	if _, err := gitClient.Clone(cloneCtx, origin.Spec.URL, opts); err != nil {
 		return failWithError(err)
 	}
 
@@ -282,7 +291,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		// Use the git operations timeout for the repo.
 		fetchCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
 		defer cancel()
-		if err := lgc.SwitchBranch(fetchCtx, pushBranch); err != nil {
+		if err := gitClient.SwitchBranch(fetchCtx, pushBranch); err != nil {
 			return failWithError(err)
 		}
 	}
@@ -347,7 +356,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	// The status message depends on what happens next. Since there's
 	// more than one way to succeed, there's some if..else below, and
 	// early returns only on failure.
-	if rev, err := lgc.Commit(
+	if rev, err := gitClient.Commit(
 		git.Commit{
 			Author: git.Signature{
 				Name:  gitSpec.Commit.Author.Name,
@@ -372,7 +381,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		// Use the git operations timeout for the repo.
 		pushCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
 		defer cancel()
-		if err := lgc.Push(pushCtx); err != nil {
+		if err := gitClient.Push(pushCtx); err != nil {
 			return failWithError(err)
 		}
 
