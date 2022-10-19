@@ -12,13 +12,19 @@ replace github.com/fluxcd/image-automation-controller/api => ./api
 // - libgit2/git2go#918.
 replace github.com/libgit2/git2go/v34 => github.com/fluxcd/git2go/v34 v34.0.0
 
-// Replace by named version before merging into main.
-replace github.com/fluxcd/pkg/git/libgit2 => github.com/fluxcd/pkg/git/libgit2 v0.0.0-20221007164102-c0aed7d985a4
-
 // This lets us use `go-billy/util.Walk()`, as this function hasn't been released
 // in a tagged version yet:
 // https://github.com/go-git/go-billy/blob/e0768be422ff616fc042d1d62bfa65962f716ad8/util/walk.go#L59
 replace github.com/go-git/go-billy/v5 => github.com/go-git/go-billy/v5 v5.3.2-0.20210603175951-e0768be422ff
+
+// Replace by named version before merging into main.
+replace (
+	github.com/fluxcd/pkg/git => github.com/fluxcd/pkg/git v0.0.0-20221019101333-e179603d8b44
+	github.com/fluxcd/pkg/git/gogit => github.com/fluxcd/pkg/git/gogit v0.0.0-20221019101333-e179603d8b44
+	github.com/fluxcd/pkg/git/libgit2 => github.com/fluxcd/pkg/git/libgit2 v0.0.0-20221019101333-e179603d8b44
+)
+
+replace github.com/go-git/go-git/v5 => github.com/fluxcd/go-git/v5 v5.0.0-20221019082644-b33dae782906
 
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20220903154154-e8044f6e4c72
@@ -100,10 +106,10 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
+	github.com/libgit2/git2go/v33 v33.0.9 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
-	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -119,6 +125,7 @@ require (
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
+	github.com/skeema/knownhosts v1.1.0 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/cobra v1.5.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.1 // indirect
