@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.26.1
+
+**Release date:** 2022-10-21
+
+This prerelease comes with dependency updates, including the fix for the upstream
+vulnerability CVE-2022-32149.
+
+In addition, the controller dependencies have been updated to Kubernetes v1.25.3.
+
+Improvements:
+- Update dependencies
+  [#448](https://github.com/fluxcd/image-automation-controller/pull/448)
+
 ## 0.26.0
 
 **Release date:** 2022-09-29
