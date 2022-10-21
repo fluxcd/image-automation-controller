@@ -3,11 +3,14 @@ module github.com/fluxcd/image-automation-controller/api
 go 1.18
 
 require (
-	github.com/fluxcd/pkg/apis/meta v0.16.0
-	github.com/fluxcd/source-controller/api v0.30.0
-	k8s.io/apimachinery v0.25.2
+	github.com/fluxcd/pkg/apis/meta v0.17.0
+	github.com/fluxcd/source-controller/api v0.31.0
+	k8s.io/apimachinery v0.25.3
 	sigs.k8s.io/controller-runtime v0.13.0
 )
+
+// Fix CVE-2022-32149
+replace golang.org/x/text => golang.org/x/text v0.4.0
 
 require (
 	github.com/fluxcd/pkg/apis/acl v0.1.0 // indirect
@@ -18,7 +21,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
-	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/text v0.4.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/klog/v2 v2.70.1 // indirect
