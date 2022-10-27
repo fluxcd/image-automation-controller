@@ -12,13 +12,13 @@ replace github.com/fluxcd/image-automation-controller/api => ./api
 // - libgit2/git2go#918.
 replace github.com/libgit2/git2go/v34 => github.com/fluxcd/git2go/v34 v34.0.0
 
-// Replace by named version before merging into main.
-replace github.com/fluxcd/pkg/git/libgit2 => github.com/fluxcd/pkg/git/libgit2 v0.0.0-20221007164102-c0aed7d985a4
-
 // This lets us use `go-billy/util.Walk()`, as this function hasn't been released
 // in a tagged version yet:
 // https://github.com/go-git/go-billy/blob/e0768be422ff616fc042d1d62bfa65962f716ad8/util/walk.go#L59
 replace github.com/go-git/go-billy/v5 => github.com/go-git/go-billy/v5 v5.3.2-0.20210603175951-e0768be422ff
+
+// Use Flux's version of go-git, which allows clones with multi_ack and multi_ack_detailed.
+replace github.com/go-git/go-git/v5 => github.com/fluxcd/go-git/v5 v5.0.0-20221019082644-b33dae782906
 
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20221007124625-37f5449ff7df
@@ -30,8 +30,8 @@ require (
 	github.com/fluxcd/pkg/apis/acl v0.1.0
 	github.com/fluxcd/pkg/apis/meta v0.17.0
 	github.com/fluxcd/pkg/git v0.6.1
-	github.com/fluxcd/pkg/git/gogit v0.1.1-0.20220902101857-4d204a4a6fa4
-	github.com/fluxcd/pkg/git/libgit2 v0.1.1-0.20220908131225-538bbcd1fc66
+	github.com/fluxcd/pkg/git/gogit v0.0.0-20221026163510-7f35f613c6c1
+	github.com/fluxcd/pkg/git/libgit2 v0.0.0-20221026163510-7f35f613c6c1
 	github.com/fluxcd/pkg/gittestserver v0.7.0
 	github.com/fluxcd/pkg/runtime v0.22.0
 	github.com/fluxcd/pkg/ssh v0.6.0
@@ -117,7 +117,6 @@ require (
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
-	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
@@ -138,6 +137,7 @@ require (
 	github.com/russross/blackfriday v1.6.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
+	github.com/skeema/knownhosts v1.1.0 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/cobra v1.6.0 // indirect
 	github.com/stretchr/objx v0.4.0 // indirect
