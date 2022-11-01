@@ -247,8 +247,6 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		}
 	}()
 
-	// FIXME use context with deadline for at least the following ops
-
 	debuglog.Info("attempting to clone git repository", "gitrepository", originName, "ref", ref, "working", tmp)
 
 	authOpts, err := r.getAuthOpts(ctx, &origin)
@@ -339,7 +337,6 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	debuglog.Info("ran updates to working dir", "working", tmp)
 
 	var statusMessage string
-
 	var signingEntity *openpgp.Entity
 	if gitSpec.Commit.SigningKey != nil {
 		if signingEntity, err = r.getSigningEntity(ctx, auto); err != nil {
@@ -499,11 +496,6 @@ func (r *ImageUpdateAutomationReconciler) automationsForImagePolicy(obj client.O
 		reqs[i].NamespacedName.Namespace = autoList.Items[i].GetNamespace()
 	}
 	return reqs
-}
-
-type repoAccess struct {
-	auth *git.AuthOptions
-	url  string
 }
 
 func (r *ImageUpdateAutomationReconciler) getAuthOpts(ctx context.Context, repository *sourcev1.GitRepository) (*git.AuthOptions, error) {
