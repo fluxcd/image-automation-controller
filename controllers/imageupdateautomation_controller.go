@@ -60,6 +60,7 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
+	"github.com/fluxcd/image-automation-controller/internal/features"
 	"github.com/fluxcd/image-automation-controller/pkg/update"
 )
 
@@ -259,7 +260,13 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	case sourcev1.LibGit2Implementation:
 		gitClient, err = libgit2.NewClient(tmp, authOpts)
 	case sourcev1.GoGitImplementation, "":
-		gitClient, err = gogit.NewClient(tmp, authOpts)
+		opts := make([]gogit.ClientOption, 0)
+		forcePush, _ := features.Enabled(features.GitForcePushBranch)
+		if forcePush && pushBranch != ref.Branch {
+			opts = append(opts, gogit.WithDiskStorage, gogit.WithForcePush())
+		}
+
+		gitClient, err = gogit.NewClient(tmp, authOpts, opts...)
 	default:
 		err = fmt.Errorf("failed to create git client; referred GitRepository has invalid implementation: %s", origin.Spec.GitImplementation)
 	}
