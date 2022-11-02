@@ -22,16 +22,16 @@ package features
 import feathelper "github.com/fluxcd/pkg/runtime/features"
 
 const (
-	// GitManagedTransport implements a managed transport for GitRepository
-	// objects that use the libgit2 implementation.
-	//
-	// When enabled, improves the reliability of libgit2 reconciliations,
-	// by enforcing timeouts and ensuring libgit2 cannot hijack the process
-	// and hang it indefinitely.
-	GitManagedTransport = "GitManagedTransport"
+	// GitForcePushBranch enables the use of "force push" when push branches
+	// are configured.
+	GitForcePushBranch = "GitForcePushBranch"
 )
 
-var features = map[string]bool{}
+var features = map[string]bool{
+	// GitForcePushBranch
+	// opt-out from v0.27
+	GitForcePushBranch: true,
+}
 
 // DefaultFeatureGates contains a list of all supported feature gates and
 // their default values.

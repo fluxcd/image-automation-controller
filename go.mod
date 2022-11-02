@@ -23,15 +23,15 @@ replace github.com/go-git/go-git/v5 => github.com/fluxcd/go-git/v5 v5.0.0-202210
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20221007124625-37f5449ff7df
 	github.com/Masterminds/sprig/v3 v3.2.2
-	github.com/ProtonMail/go-crypto v0.0.0-20220930113650-c6815a8c17ad
+	github.com/ProtonMail/go-crypto v0.0.0-20221026131551-cf6655e29de4
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/fluxcd/image-automation-controller/api v0.26.1
 	github.com/fluxcd/image-reflector-controller/api v0.22.1
 	github.com/fluxcd/pkg/apis/acl v0.1.0
 	github.com/fluxcd/pkg/apis/meta v0.17.0
 	github.com/fluxcd/pkg/git v0.6.1
-	github.com/fluxcd/pkg/git/gogit v0.0.0-20221026163510-7f35f613c6c1
-	github.com/fluxcd/pkg/git/libgit2 v0.0.0-20221026163510-7f35f613c6c1
+	github.com/fluxcd/pkg/git/gogit v0.0.0-20221102123958-2ee90dd5b2ec
+	github.com/fluxcd/pkg/git/libgit2 v0.0.0-20221102123958-2ee90dd5b2ec
 	github.com/fluxcd/pkg/gittestserver v0.7.0
 	github.com/fluxcd/pkg/runtime v0.22.0
 	github.com/fluxcd/pkg/ssh v0.6.0
@@ -71,7 +71,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
-	github.com/cloudflare/circl v1.1.0 // indirect
+	github.com/cloudflare/circl v1.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/elazarl/goproxy v0.0.0-20221015165544-a0805db90819 // indirect
 	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
@@ -105,7 +105,7 @@ require (
 	github.com/hashicorp/go-hclog v1.3.1 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.1 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
-	github.com/imdario/mergo v0.3.12 // indirect
+	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
@@ -141,7 +141,7 @@ require (
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/cobra v1.6.0 // indirect
 	github.com/stretchr/objx v0.4.0 // indirect
-	github.com/xanzy/ssh-agent v0.3.1 // indirect
+	github.com/xanzy/ssh-agent v0.3.2 // indirect
 	github.com/xlab/treeprint v1.1.0 // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
@@ -155,7 +155,7 @@ require (
 	golang.org/x/term v0.1.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	golang.org/x/time v0.1.0 // indirect
-	golang.org/x/tools v0.1.12 // indirect
+	golang.org/x/tools v0.2.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
