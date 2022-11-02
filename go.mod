@@ -10,7 +10,15 @@ replace github.com/fluxcd/image-automation-controller/api => ./api
 // For more information refer to:
 // - fluxcd/image-automation-controller/#339.
 // - libgit2/git2go#918.
-replace github.com/libgit2/git2go/v33 => github.com/fluxcd/git2go/v33 v33.0.9-flux
+replace github.com/libgit2/git2go/v34 => github.com/fluxcd/git2go/v34 v34.0.0
+
+// This lets us use `go-billy/util.Walk()`, as this function hasn't been released
+// in a tagged version yet:
+// https://github.com/go-git/go-billy/blob/e0768be422ff616fc042d1d62bfa65962f716ad8/util/walk.go#L59
+replace github.com/go-git/go-billy/v5 => github.com/go-git/go-billy/v5 v5.3.2-0.20210603175951-e0768be422ff
+
+// Use Flux's version of go-git, which allows clones with multi_ack and multi_ack_detailed.
+replace github.com/go-git/go-git/v5 => github.com/fluxcd/go-git/v5 v5.0.0-20221019082644-b33dae782906
 
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20221007124625-37f5449ff7df
@@ -21,16 +29,18 @@ require (
 	github.com/fluxcd/image-reflector-controller/api v0.22.1
 	github.com/fluxcd/pkg/apis/acl v0.1.0
 	github.com/fluxcd/pkg/apis/meta v0.17.0
+	github.com/fluxcd/pkg/git v0.6.1
+	github.com/fluxcd/pkg/git/gogit v0.0.0-20221026163510-7f35f613c6c1
+	github.com/fluxcd/pkg/git/libgit2 v0.0.0-20221026163510-7f35f613c6c1
 	github.com/fluxcd/pkg/gittestserver v0.7.0
 	github.com/fluxcd/pkg/runtime v0.22.0
 	github.com/fluxcd/pkg/ssh v0.6.0
-	github.com/fluxcd/source-controller v0.31.0
 	github.com/fluxcd/source-controller/api v0.31.0
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-containerregistry v0.11.0
-	github.com/libgit2/git2go/v33 v33.0.9
+	github.com/libgit2/git2go/v34 v34.0.0
 	github.com/onsi/gomega v1.22.1
 	github.com/otiai10/copy v1.7.0
 	github.com/spf13/pflag v1.0.5
@@ -63,6 +73,7 @@ require (
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/cloudflare/circl v1.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/elazarl/goproxy v0.0.0-20221015165544-a0805db90819 // indirect
 	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
@@ -70,6 +81,7 @@ require (
 	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
 	github.com/fluxcd/gitkit v0.6.0 // indirect
 	github.com/fluxcd/pkg/gitutil v0.2.0 // indirect
+	github.com/fluxcd/pkg/http/transport v0.0.1 // indirect
 	github.com/fluxcd/pkg/version v0.2.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
@@ -101,10 +113,10 @@ require (
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/matryer/is v1.4.0 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
-	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
@@ -125,6 +137,7 @@ require (
 	github.com/russross/blackfriday v1.6.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
+	github.com/skeema/knownhosts v1.1.0 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/cobra v1.6.0 // indirect
 	github.com/stretchr/objx v0.4.0 // indirect
