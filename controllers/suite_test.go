@@ -35,6 +35,7 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
+	"github.com/fluxcd/image-automation-controller/internal/features"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -60,19 +61,34 @@ func TestMain(m *testing.M) {
 	utilruntime.Must(sourcev1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(imagev1.AddToScheme(scheme.Scheme))
 
+	if err := transport.InitManagedTransport(); err != nil {
+		panic(fmt.Sprintf("failed to initialize libgit2 managed transport: %v", err))
+	}
+
+	code := runTestsWithFeatures(m, nil)
+	if code != 0 {
+		fmt.Println("failed with default feature values")
+		os.Exit(code)
+	}
+
+	code = runTestsWithFeatures(m, map[string]bool{
+		features.ForceGoGitImplementation: false,
+	})
+
+	os.Exit(code)
+}
+
+func runTestsWithFeatures(m *testing.M, feats map[string]bool) int {
 	testEnv = testenv.New(testenv.WithCRDPath(
 		filepath.Join("..", "config", "crd", "bases"),
 		filepath.Join("testdata", "crds"),
 	))
 
-	if err := transport.InitManagedTransport(); err != nil {
-		panic(fmt.Sprintf("failed to initialize libgit2 managed transport: %v", err))
-	}
-
 	controllerName := "image-automation-controller"
 	if err := (&ImageUpdateAutomationReconciler{
 		Client:        testEnv,
 		EventRecorder: testEnv.GetEventRecorderFor(controllerName),
+		features:      feats,
 	}).SetupWithManager(testEnv, ImageUpdateAutomationReconcilerOptions{}); err != nil {
 		panic(fmt.Sprintf("failed to start ImageUpdateAutomationReconciler: %v", err))
 	}
@@ -92,7 +108,7 @@ func TestMain(m *testing.M) {
 		panic(fmt.Sprintf("failed to stop the test environment: %v", err))
 	}
 
-	os.Exit(code)
+	return code
 }
 
 // This provides a regression assurance for image-automation-controller/#339.

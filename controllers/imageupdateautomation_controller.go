@@ -86,6 +86,8 @@ type ImageUpdateAutomationReconciler struct {
 	helper.Metrics
 
 	NoCrossNamespaceRef bool
+
+	features map[string]bool
 }
 
 type ImageUpdateAutomationReconcilerOptions struct {
@@ -255,8 +257,13 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		return failWithError(err)
 	}
 
+	gitImplementation := origin.Spec.GitImplementation
+	if goGitOnly, _ := r.features[features.ForceGoGitImplementation]; goGitOnly {
+		gitImplementation = sourcev1.GoGitImplementation
+	}
+
 	var gitClient git.RepositoryClient
-	switch origin.Spec.GitImplementation {
+	switch gitImplementation {
 	case sourcev1.LibGit2Implementation:
 		gitClient, err = libgit2.NewClient(tmp, authOpts)
 	case sourcev1.GoGitImplementation, "":
@@ -268,7 +275,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 		gitClient, err = gogit.NewClient(tmp, authOpts, opts...)
 	default:
-		err = fmt.Errorf("failed to create git client; referred GitRepository has invalid implementation: %s", origin.Spec.GitImplementation)
+		err = fmt.Errorf("failed to create git client; referred GitRepository has invalid implementation: %s", gitImplementation)
 	}
 	if err != nil {
 		return failWithError(err)
@@ -421,6 +428,10 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager, opt
 		return []string{ref.Name}
 	}); err != nil {
 		return err
+	}
+
+	if r.features == nil {
+		r.features = features.FeatureGates()
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
