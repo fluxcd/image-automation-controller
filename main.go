@@ -163,9 +163,11 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	if err = transport.InitManagedTransport(); err != nil {
-		setupLog.Error(err, "unable to initialize libgit2 managed transport")
-		os.Exit(1)
+	if gogitOnly, _ := features.Enabled(features.ForceGoGitImplementation); !gogitOnly {
+		if err = transport.InitManagedTransport(); err != nil {
+			setupLog.Error(err, "unable to initialize libgit2 managed transport")
+			os.Exit(1)
+		}
 	}
 
 	setupLog.Info("starting manager")
