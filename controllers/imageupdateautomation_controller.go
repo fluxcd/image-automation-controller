@@ -48,13 +48,13 @@ import (
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
 	apiacl "github.com/fluxcd/pkg/apis/acl"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/git/gogit"
 	"github.com/fluxcd/pkg/git/libgit2"
 	"github.com/fluxcd/pkg/runtime/acl"
 	helper "github.com/fluxcd/pkg/runtime/controller"
-	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
@@ -159,7 +159,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	// failWithError is a helper for bailing on the reconciliation.
 	failWithError := func(err error) (ctrl.Result, error) {
-		r.event(ctx, auto, events.EventSeverityError, err.Error())
+		r.event(ctx, auto, eventv1.EventSeverityError, err.Error())
 		imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, imagev1.ReconciliationFailedReason, err.Error())
 		if err := r.patchStatus(ctx, req, auto.Status); err != nil {
 			log.Error(err, "failed to reconcile")
@@ -199,7 +199,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		if err := r.patchStatus(ctx, req, auto.Status); err != nil {
 			return ctrl.Result{Requeue: true}, err
 		}
-		r.event(ctx, auto, events.EventSeverityError, err.Error())
+		r.event(ctx, auto, eventv1.EventSeverityError, err.Error())
 		return ctrl.Result{}, nil
 	}
 
@@ -343,7 +343,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	default:
 		log.Info("no update strategy given in the spec")
 		// no sense rescheduling until this resource changes
-		r.event(ctx, auto, events.EventSeverityInfo, "no known update strategy in spec, failing trivially")
+		r.event(ctx, auto, eventv1.EventSeverityInfo, "no known update strategy in spec, failing trivially")
 		imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, imagev1.NoStrategyReason, "no known update strategy is given for object")
 		return ctrl.Result{}, r.patchStatus(ctx, req, auto.Status)
 	}
@@ -396,7 +396,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			return failWithError(err)
 		}
 
-		r.event(ctx, auto, events.EventSeverityInfo, fmt.Sprintf("Committed and pushed change %s to %s\n%s", rev, pushBranch, message))
+		r.event(ctx, auto, eventv1.EventSeverityInfo, fmt.Sprintf("Committed and pushed change %s to %s\n%s", rev, pushBranch, message))
 		log.Info("pushed commit to origin", "revision", rev, "branch", pushBranch)
 		auto.Status.LastPushCommit = rev
 		auto.Status.LastPushTime = &metav1.Time{Time: start}
@@ -579,7 +579,7 @@ func (r *ImageUpdateAutomationReconciler) getSigningEntity(ctx context.Context, 
 
 func (r *ImageUpdateAutomationReconciler) event(ctx context.Context, auto imagev1.ImageUpdateAutomation, severity, msg string) {
 	eventtype := "Normal"
-	if severity == events.EventSeverityError {
+	if severity == eventv1.EventSeverityError {
 		eventtype = "Warning"
 	}
 	r.EventRecorder.Eventf(&auto, eventtype, severity, msg)

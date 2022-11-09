@@ -21,35 +21,36 @@ replace github.com/go-git/go-billy/v5 => github.com/go-git/go-billy/v5 v5.3.2-0.
 replace github.com/go-git/go-git/v5 => github.com/fluxcd/go-git/v5 v5.0.0-20221019082644-b33dae782906
 
 require (
-	github.com/AdaLogics/go-fuzz-headers v0.0.0-20221007124625-37f5449ff7df
+	github.com/AdaLogics/go-fuzz-headers v0.0.0-20221103172237-443f56ff4ba8
 	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/ProtonMail/go-crypto v0.0.0-20221026131551-cf6655e29de4
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/fluxcd/image-automation-controller/api v0.26.1
 	github.com/fluxcd/image-reflector-controller/api v0.22.1
 	github.com/fluxcd/pkg/apis/acl v0.1.0
+	github.com/fluxcd/pkg/apis/event v0.1.0
 	github.com/fluxcd/pkg/apis/meta v0.17.0
 	github.com/fluxcd/pkg/git v0.6.1
 	github.com/fluxcd/pkg/git/gogit v0.0.0-20221102123958-2ee90dd5b2ec
 	github.com/fluxcd/pkg/git/libgit2 v0.0.0-20221102123958-2ee90dd5b2ec
 	github.com/fluxcd/pkg/gittestserver v0.7.0
-	github.com/fluxcd/pkg/runtime v0.22.0
+	github.com/fluxcd/pkg/runtime v0.23.0
 	github.com/fluxcd/pkg/ssh v0.6.0
 	github.com/fluxcd/source-controller/api v0.31.0
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v1.2.3
-	github.com/google/go-containerregistry v0.11.0
+	github.com/google/go-containerregistry v0.12.0
 	github.com/libgit2/git2go/v34 v34.0.0
-	github.com/onsi/gomega v1.22.1
-	github.com/otiai10/copy v1.7.0
+	github.com/onsi/gomega v1.24.0
+	github.com/otiai10/copy v1.9.0
 	github.com/spf13/pflag v1.0.5
 	golang.org/x/crypto v0.1.0
 	k8s.io/api v0.25.3
 	k8s.io/apimachinery v0.25.3
 	k8s.io/client-go v0.25.3
-	k8s.io/kube-openapi v0.0.0-20221012153701-172d655c2280
-	sigs.k8s.io/controller-runtime v0.13.0
+	k8s.io/kube-openapi v0.0.0-20221106113015-f73e7dbcfe29
+	sigs.k8s.io/controller-runtime v0.13.1
 	sigs.k8s.io/kustomize/kyaml v0.13.9
 )
 
@@ -145,7 +146,6 @@ require (
 	github.com/xlab/treeprint v1.1.0 // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
-	go.uber.org/goleak v1.2.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.23.0 // indirect
 	golang.org/x/mod v0.6.0 // indirect
@@ -166,7 +166,7 @@ require (
 	gotest.tools/v3 v3.1.0 // indirect
 	k8s.io/apiextensions-apiserver v0.25.2 // indirect
 	k8s.io/cli-runtime v0.25.2 // indirect
-	k8s.io/component-base v0.25.2 // indirect
+	k8s.io/component-base v0.25.3 // indirect
 	k8s.io/klog/v2 v2.80.1 // indirect
 	k8s.io/kubectl v0.25.2 // indirect
 	k8s.io/utils v0.0.0-20221012122500-cfd413dd9e85 // indirect
