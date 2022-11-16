@@ -30,24 +30,24 @@ require (
 	github.com/fluxcd/pkg/apis/acl v0.1.0
 	github.com/fluxcd/pkg/apis/event v0.1.0
 	github.com/fluxcd/pkg/apis/meta v0.17.0
-	github.com/fluxcd/pkg/git v0.6.1
-	github.com/fluxcd/pkg/git/gogit v0.0.0-20221102123958-2ee90dd5b2ec
-	github.com/fluxcd/pkg/git/libgit2 v0.0.0-20221102123958-2ee90dd5b2ec
-	github.com/fluxcd/pkg/gittestserver v0.7.0
+	github.com/fluxcd/pkg/git v0.7.0
+	github.com/fluxcd/pkg/git/gogit v0.2.0
+	github.com/fluxcd/pkg/git/libgit2 v0.3.0
+	github.com/fluxcd/pkg/gittestserver v0.8.0
 	github.com/fluxcd/pkg/runtime v0.23.0
-	github.com/fluxcd/pkg/ssh v0.6.0
+	github.com/fluxcd/pkg/ssh v0.7.0
 	github.com/fluxcd/source-controller/api v0.31.0
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-containerregistry v0.12.0
 	github.com/libgit2/git2go/v34 v34.0.0
-	github.com/onsi/gomega v1.24.0
+	github.com/onsi/gomega v1.24.1
 	github.com/otiai10/copy v1.9.0
 	github.com/spf13/pflag v1.0.5
-	golang.org/x/crypto v0.1.0
+	golang.org/x/crypto v0.2.0
 	k8s.io/api v0.25.3
-	k8s.io/apimachinery v0.25.3
+	k8s.io/apimachinery v0.25.4
 	k8s.io/client-go v0.25.3
 	k8s.io/kube-openapi v0.0.0-20221106113015-f73e7dbcfe29
 	sigs.k8s.io/controller-runtime v0.13.1
@@ -72,7 +72,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
-	github.com/cloudflare/circl v1.2.0 // indirect
+	github.com/cloudflare/circl v1.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/elazarl/goproxy v0.0.0-20221015165544-a0805db90819 // indirect
 	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
@@ -81,8 +81,8 @@ require (
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
 	github.com/fluxcd/gitkit v0.6.0 // indirect
-	github.com/fluxcd/pkg/gitutil v0.2.0 // indirect
-	github.com/fluxcd/pkg/http/transport v0.0.1 // indirect
+	github.com/fluxcd/go-git/v5 v5.0.0-20221104190732-329fd6659b10 // indirect
+	github.com/fluxcd/pkg/http/transport v0.1.0 // indirect
 	github.com/fluxcd/pkg/version v0.2.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
@@ -149,10 +149,10 @@ require (
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.23.0 // indirect
 	golang.org/x/mod v0.6.0 // indirect
-	golang.org/x/net v0.1.0 // indirect
+	golang.org/x/net v0.2.0 // indirect
 	golang.org/x/oauth2 v0.1.0 // indirect
-	golang.org/x/sys v0.1.0 // indirect
-	golang.org/x/term v0.1.0 // indirect
+	golang.org/x/sys v0.2.0 // indirect
+	golang.org/x/term v0.2.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	golang.org/x/time v0.1.0 // indirect
 	golang.org/x/tools v0.2.0 // indirect
