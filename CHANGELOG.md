@@ -1,5 +1,62 @@
 # Changelog
 
+## 0.27.0
+
+**Release date:** 2022-11-21
+
+This prerelease comes with a major refactoring of the controller's Git operations.
+The controller can now observe the field `spec.gitImplementation` instead of always
+ignoring it and using `libgit2`. The `go-git` implementation now supports all Git
+servers, including Azure DevOps, which previously was only supported by `libgit2`.
+
+By default, the field `spec.gitImplementation` is ignored and the reconciliations
+will use `go-git`. To opt-out from this behaviour, and get the controller to 
+honour the field `spec.gitImplementation`, start the controller with:
+`--feature-gates=ForceGoGitImplementation=false`.
+
+This version initiates the soft deprecation of the `libgit2` implementation.
+The motivation for removing support for `libgit2` being:
+- Reliability: over the past months we managed to substantially reduce the
+issues users experienced, but there are still crashes happening when the controller
+runs over longer periods of time, or when under intense GC pressure.
+- Performance: due to the inherit nature of `libgit2` implementation, which
+is a C library called via CGO through `git2go`, it will never perform as well as
+a pure Go implementations. At scale, memory pressure insues which then triggers
+the reliability issues above.
+- Lack of Shallow Clone Support.
+- Maintainability: supporting two Git implementations is a big task, even more
+so when one of them is in a complete different tech stack. Given its nature, to
+support `libgit2`, we have to maintain an additional repository. Statically built
+`libgit2` libraries need to be cross-compiled for all our supported platforms.
+And a lot of "unnecessary" code has to be in place to make building, testing and
+fuzzing work seamlessly.
+
+Users having any issues with `go-git` should report it to the Flux team,
+so any issues can be resolved before support for `libgit2` is completely
+removed from the codebase.
+
+Starting from this version `ImageUpdateAutomation` objects with a `spec.PushBranch`
+specified will have the push branch refreshed automatically via force push.
+To opt-out from this behaviour, start the controller with:
+`--feature-gates=GitForcePushBranch=false`.
+
+Improvements:
+- Refactor Git operations and introduce go-git support for Azure DevOps and AWS CodeCommit
+  [#451](https://github.com/fluxcd/image-automation-controller/pull/451)
+- Add new ForceGoGitImplementation FeatureGate
+  [#452](https://github.com/fluxcd/image-automation-controller/pull/452)
+- Add support for force push
+  [#453](https://github.com/fluxcd/image-automation-controller/pull/453)
+- Use Flux Event API v1beta1
+  [#455](https://github.com/fluxcd/image-automation-controller/pull/455)
+- Remove deprecated alpha APIs 
+  [#456](https://github.com/fluxcd/image-automation-controller/pull/456)
+- Remove nsswitch.conf creation
+  [#458](https://github.com/fluxcd/image-automation-controller/pull/458)
+- Update Dependencies
+  [#459](https://github.com/fluxcd/image-automation-controller/pull/459)
+  [#460](https://github.com/fluxcd/image-automation-controller/pull/460)
+
 ## 0.26.1
 
 **Release date:** 2022-10-21
