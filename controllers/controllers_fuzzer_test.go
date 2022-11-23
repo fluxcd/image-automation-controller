@@ -1,5 +1,5 @@
-//go:build gofuzz
-// +build gofuzz
+//go:build gofuzz_libfuzzer
+// +build gofuzz_libfuzzer
 
 /*
 Copyright 2021 The Flux authors
@@ -32,7 +32,6 @@ import (
 	"time"
 
 	fuzz "github.com/AdaLogics/go-fuzz-headers"
-	"github.com/fluxcd/image-automation-controller/controllers"
 	"github.com/fluxcd/image-automation-controller/pkg/update"
 	"github.com/fluxcd/pkg/gittestserver"
 	"github.com/fluxcd/pkg/runtime/testenv"
