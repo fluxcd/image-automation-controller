@@ -9,28 +9,24 @@ replace github.com/fluxcd/image-automation-controller/api => ./api
 // https://github.com/go-git/go-billy/blob/e0768be422ff616fc042d1d62bfa65962f716ad8/util/walk.go#L59
 replace github.com/go-git/go-billy/v5 => github.com/go-git/go-billy/v5 v5.3.2-0.20210603175951-e0768be422ff
 
-// Use Flux's version of go-git, which allows clones with multi_ack and multi_ack_detailed.
-replace github.com/go-git/go-git/v5 => github.com/fluxcd/go-git/v5 v5.0.0-20221019082644-b33dae782906
-
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20221103172237-443f56ff4ba8
 	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/ProtonMail/go-crypto v0.0.0-20221026131551-cf6655e29de4
 	github.com/cyphar/filepath-securejoin v0.2.3
-	github.com/fluxcd/go-git/v5 v5.0.0-20221104190732-329fd6659b10
+	github.com/fluxcd/go-git/v5 v5.0.0-20221206140629-ec778c2c37df
 	github.com/fluxcd/image-automation-controller/api v0.27.0
 	github.com/fluxcd/image-reflector-controller/api v0.23.0
 	github.com/fluxcd/pkg/apis/acl v0.1.0
 	github.com/fluxcd/pkg/apis/event v0.2.0
 	github.com/fluxcd/pkg/apis/meta v0.18.0
 	github.com/fluxcd/pkg/git v0.7.0
-	github.com/fluxcd/pkg/git/gogit v0.2.0
+	github.com/fluxcd/pkg/git/gogit v0.3.3-0.20221215162949-d8dda52b554b
 	github.com/fluxcd/pkg/gittestserver v0.8.0
 	github.com/fluxcd/pkg/runtime v0.24.0
 	github.com/fluxcd/pkg/ssh v0.7.0
 	github.com/fluxcd/source-controller/api v0.32.1
 	github.com/go-git/go-billy/v5 v5.3.1
-	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-containerregistry v0.12.1
 	github.com/onsi/gomega v1.24.1
@@ -65,7 +61,6 @@ require (
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/cloudflare/circl v1.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/elazarl/goproxy v0.0.0-20221015165544-a0805db90819 // indirect
 	github.com/emicklei/go-restful/v3 v3.10.0 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
@@ -118,6 +113,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
+	github.com/pjbgf/sha1cd v0.2.3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
