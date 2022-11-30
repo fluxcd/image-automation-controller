@@ -19,6 +19,7 @@ package controllers
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"net/url"
@@ -58,6 +59,8 @@ import (
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+
+	extgogit "github.com/fluxcd/go-git/v5"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
 	"github.com/fluxcd/image-automation-controller/internal/features"
@@ -265,6 +268,9 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	if authOpts.Transport == git.HTTP {
 		clientOpts = append(clientOpts, gogit.WithInsecureCredentialsOverHTTP())
 	}
+	if pushBranch != ref.Branch {
+		clientOpts = append(clientOpts, gogit.WithSingleBranch(false))
+	}
 
 	gitClient, err := gogit.NewClient(tmp, authOpts, clientOpts...)
 	if err != nil {
@@ -329,11 +335,13 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			}
 		}
 
-		if result, err := updateAccordingToSetters(ctx, tracelog, manifestsPath, policies.Items); err != nil {
+		result, err := updateAccordingToSetters(ctx, tracelog, manifestsPath, manifestsPath, policies.Items)
+		if err != nil {
 			return failWithError(err)
-		} else {
-			templateValues.Updated = result
 		}
+
+		templateValues.Updated = result
+
 	default:
 		log.Info("no update strategy given in the spec")
 		// no sense rescheduling until this resource changes
@@ -358,21 +366,28 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		return failWithError(err)
 	}
 
-	// The status message depends on what happens next. Since there's
-	// more than one way to succeed, there's some if..else below, and
-	// early returns only on failure.
-	if rev, err := gitClient.Commit(
-		git.Commit{
-			Author: git.Signature{
-				Name:  gitSpec.Commit.Author.Name,
-				Email: gitSpec.Commit.Author.Email,
-				When:  time.Now(),
+	var rev string
+	if len(templateValues.Updated.Files) > 0 {
+		// The status message depends on what happens next. Since there's
+		// more than one way to succeed, there's some if..else below, and
+		// early returns only on failure.
+		rev, err = gitClient.Commit(
+			git.Commit{
+				Author: git.Signature{
+					Name:  gitSpec.Commit.Author.Name,
+					Email: gitSpec.Commit.Author.Email,
+					When:  time.Now(),
+				},
+				Message: message,
 			},
-			Message: message,
-		},
-		repository.WithSigner(signingEntity),
-	); err != nil {
-		if err != git.ErrNoStagedFiles {
+			repository.WithSigner(signingEntity),
+		)
+	} else {
+		err = extgogit.ErrEmptyCommit
+	}
+
+	if err != nil {
+		if !errors.Is(err, git.ErrNoStagedFiles) && !errors.Is(err, extgogit.ErrEmptyCommit) {
 			return failWithError(err)
 		}
 
@@ -583,8 +598,8 @@ func (r *ImageUpdateAutomationReconciler) event(ctx context.Context, auto imagev
 
 // updateAccordingToSetters updates files under the root by treating
 // the given image policies as kyaml setters.
-func updateAccordingToSetters(ctx context.Context, tracelog logr.Logger, path string, policies []imagev1_reflect.ImagePolicy) (update.Result, error) {
-	return update.UpdateWithSetters(tracelog, path, path, policies)
+func updateAccordingToSetters(ctx context.Context, tracelog logr.Logger, inpath, outpath string, policies []imagev1_reflect.ImagePolicy) (update.Result, error) {
+	return update.UpdateWithSetters(tracelog, inpath, outpath, policies)
 }
 
 // templateMsg renders a msg template, returning the message or an error.
