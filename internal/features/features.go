@@ -48,8 +48,8 @@ var features = map[string]bool{
 	ForceGoGitImplementation: true,
 
 	// GitShallowClone
-	// opt-in from v0.28
-	GitShallowClone: false,
+	// opt-out from v0.28
+	GitShallowClone: true,
 }
 
 // DefaultFeatureGates contains a list of all supported feature gates and
