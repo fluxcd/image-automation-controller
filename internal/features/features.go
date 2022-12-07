@@ -32,6 +32,10 @@ const (
 	// When enabled, libgit2 won't be initialized, nor will any git2go cgo
 	// code be called.
 	ForceGoGitImplementation = "ForceGoGitImplementation"
+
+	// GitShallowClone enables the use of shallow clones when pulling source from
+	// Git repositories.
+	GitShallowClone = "GitShallowClone"
 )
 
 var features = map[string]bool{
@@ -42,6 +46,10 @@ var features = map[string]bool{
 	// ForceGoGitImplementation
 	// opt-out from v0.27
 	ForceGoGitImplementation: true,
+
+	// GitShallowClone
+	// opt-out from v0.28
+	GitShallowClone: true,
 }
 
 // DefaultFeatureGates contains a list of all supported feature gates and

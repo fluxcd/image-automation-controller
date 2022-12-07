@@ -298,6 +298,10 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		opts.Branch = ref.Branch
 	}
 
+	if enabled, _ := r.features[features.GitShallowClone]; enabled {
+		opts.ShallowClone = true
+	}
+
 	// Use the git operations timeout for the repo.
 	cloneCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
 	defer cancel()

@@ -112,8 +112,8 @@ with write access; e.g., if using a GitHub deploy key, "Allow write access" shou
 creating it. Only the `url`, `ref`, and `secretRef` fields of the `GitRepository` are used.
 
 The [`gitImplementation` field][source-docs] in the referenced `GitRepository` is ignored. The
-automation controller cannot use shallow clones or submodules, so there is no reason to use the
-go-git implementation rather than libgit2.
+automation controller automatically uses the go-git implementation rather than libgit2.
+To change this behavor, start the controller with `--feature-gates=ForceGoGitImplementation=false`.
 
 Other fields particular to how the Git repository is used are in the `git` field, [described
 below](#git-specific-specification).
@@ -168,6 +168,9 @@ type GitCheckoutSpec struct {
 When `checkout` is given, it overrides the analogous field in the `GitRepository` object referenced
 in `.spec.sourceRef`. You would use this to put automation commits on a different branch than that
 you are syncing, for example.
+
+By default the controller will only do shallow clones, but this can be disabled by starting the controller
+with `--feature-gates=GitShallowClone=false`.
 
 ### Commit
 
@@ -402,7 +405,12 @@ branch name, the automation will fail.
 
 When `push` is present, the `branch` field specifies a branch to push to at the origin. The branch
 will be created locally if it does not already exist, starting from the checkout branch. If it does
-already exist, updates will be calculated on top of any commits already on the branch.
+already exist, it will be overwritten with the cloned version plus the changes made by the
+controller. Alternatively, force push can be disabled by starting the controller with `--feature-gates=GitForcePushBranch=false`,
+in which case the updates will be calculated on top of any commits already on the push branch.
+Note that without force push in push branches, if the target branch is stale, the controller may not
+be able to conclude the operation and will consistently fail until the branch is either deleted or
+refreshed.
 
 In the following snippet, updates will be pushed as commits to the branch `auto`, and when that
 branch does not exist at the origin, it will be created locally starting from the branch `main`, and
