@@ -4,14 +4,6 @@ go 1.18
 
 replace github.com/fluxcd/image-automation-controller/api => ./api
 
-// Flux has its own git2go fork to enable changes in behaviour for improved
-// reliability.
-//
-// For more information refer to:
-// - fluxcd/image-automation-controller/#339.
-// - libgit2/git2go#918.
-replace github.com/libgit2/git2go/v34 => github.com/fluxcd/git2go/v34 v34.0.0
-
 // This lets us use `go-billy/util.Walk()`, as this function hasn't been released
 // in a tagged version yet:
 // https://github.com/go-git/go-billy/blob/e0768be422ff616fc042d1d62bfa65962f716ad8/util/walk.go#L59
@@ -25,6 +17,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/ProtonMail/go-crypto v0.0.0-20221026131551-cf6655e29de4
 	github.com/cyphar/filepath-securejoin v0.2.3
+	github.com/fluxcd/go-git/v5 v5.0.0-20221104190732-329fd6659b10
 	github.com/fluxcd/image-automation-controller/api v0.27.0
 	github.com/fluxcd/image-reflector-controller/api v0.23.0
 	github.com/fluxcd/pkg/apis/acl v0.1.0
@@ -32,7 +25,6 @@ require (
 	github.com/fluxcd/pkg/apis/meta v0.18.0
 	github.com/fluxcd/pkg/git v0.7.0
 	github.com/fluxcd/pkg/git/gogit v0.2.0
-	github.com/fluxcd/pkg/git/libgit2 v0.3.0
 	github.com/fluxcd/pkg/gittestserver v0.8.0
 	github.com/fluxcd/pkg/runtime v0.24.0
 	github.com/fluxcd/pkg/ssh v0.7.0
@@ -41,7 +33,6 @@ require (
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-containerregistry v0.12.1
-	github.com/libgit2/git2go/v34 v34.0.0
 	github.com/onsi/gomega v1.24.1
 	github.com/otiai10/copy v1.9.0
 	github.com/spf13/pflag v1.0.5
@@ -81,8 +72,6 @@ require (
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f // indirect
 	github.com/fluxcd/gitkit v0.6.0 // indirect
-	github.com/fluxcd/go-git/v5 v5.0.0-20221104190732-329fd6659b10 // indirect
-	github.com/fluxcd/pkg/http/transport v0.1.0 // indirect
 	github.com/fluxcd/pkg/version v0.2.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
