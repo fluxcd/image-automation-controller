@@ -29,5 +29,5 @@ testbin
 *.swo
 *~
 
-# Exclude all libgit2 related files
+# Exclude all build related files
 build/
