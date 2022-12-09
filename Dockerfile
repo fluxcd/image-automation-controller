@@ -21,8 +21,8 @@ FROM build-base as build
 
 ARG TARGETPLATFORM
 
-# Some dependencies have to installed
-# for the target platform: https://github.com/tonistiigi/xx#go--cgo
+# Some dependencies have to installed for the target platform:
+# https://github.com/tonistiigi/xx#go--cgo
 RUN xx-apk add musl-dev gcc
 
 # Configure workspace
@@ -46,6 +46,10 @@ COPY internal/ internal/
 
 ARG TARGETPLATFORM
 ARG TARGETARCH
+
+# Reasons why CGO is in use:
+# - The SHA1 implementation (sha1cd) used by go-git depends on CGO for
+#   performance reasons. See: https://github.com/pjbgf/sha1cd/issues/15
 ENV CGO_ENABLED=1
 
 RUN export CGO_LDFLAGS="-static -fuse-ld=lld" && \
