@@ -21,11 +21,5 @@ guide](https://fluxcd.io/flux/guides/image-update/).
 
 ## How to work on it
 
-The shared library `libgit2` needs to be installed to test or build
-locally. The version required corresponds to the version of git2go
-(which are Go bindings for libgit2), according to [this
-table](https://github.com/libgit2/git2go#which-go-version-to-use).
-
-See
-https://github.com/fluxcd/source-controller/blob/main/DEVELOPMENT.md#installing-required-dependencies
-for instructions on how to install `libgit2`.
+For additional information on dependecies and how to contribute
+please refer to [DEVELOPMENT.md](DEVELOPMENT.md).
