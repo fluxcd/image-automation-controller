@@ -64,7 +64,7 @@ func TestMain(m *testing.M) {
 	}
 
 	code = runTestsWithFeatures(m, map[string]bool{
-		features.ForceGoGitImplementation: false,
+		features.GitShallowClone: true,
 	})
 
 	os.Exit(code)

@@ -25,14 +25,6 @@ const (
 	// GitForcePushBranch enables the use of "force push" when push branches
 	// are configured.
 	GitForcePushBranch = "GitForcePushBranch"
-
-	// ForceGoGitImplementation ignores the value set for gitImplementation
-	// of a GitRepository object and ensures that go-git is used for all git operations.
-	//
-	// When enabled, libgit2 won't be initialized, nor will any git2go cgo
-	// code be called.
-	ForceGoGitImplementation = "ForceGoGitImplementation"
-
 	// GitShallowClone enables the use of shallow clones when pulling source from
 	// Git repositories.
 	GitShallowClone = "GitShallowClone"
@@ -42,10 +34,6 @@ var features = map[string]bool{
 	// GitForcePushBranch
 	// opt-out from v0.27
 	GitForcePushBranch: true,
-
-	// ForceGoGitImplementation
-	// opt-out from v0.27
-	ForceGoGitImplementation: true,
 
 	// GitShallowClone
 	// opt-out from v0.28

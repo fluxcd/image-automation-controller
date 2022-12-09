@@ -257,27 +257,16 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		return failWithError(err)
 	}
 
-	gitImplementation := origin.Spec.GitImplementation
-	if goGitOnly, _ := r.features[features.ForceGoGitImplementation]; goGitOnly {
-		gitImplementation = sourcev1.GoGitImplementation
+	clientOpts := []gogit.ClientOption{gogit.WithDiskStorage()}
+	forcePush, _ := features.Enabled(features.GitForcePushBranch)
+	if forcePush && pushBranch != ref.Branch {
+		clientOpts = append(clientOpts, gogit.WithForcePush())
+	}
+	if authOpts.Transport == git.HTTP {
+		clientOpts = append(clientOpts, gogit.WithInsecureCredentialsOverHTTP())
 	}
 
-	var gitClient repository.Client
-	switch gitImplementation {
-	case sourcev1.LibGit2Implementation, sourcev1.GoGitImplementation, "":
-		clientOpts := []gogit.ClientOption{gogit.WithDiskStorage()}
-		forcePush, _ := features.Enabled(features.GitForcePushBranch)
-		if forcePush && pushBranch != ref.Branch {
-			clientOpts = append(clientOpts, gogit.WithForcePush())
-		}
-		if authOpts.Transport == git.HTTP {
-			clientOpts = append(clientOpts, gogit.WithInsecureCredentialsOverHTTP())
-		}
-
-		gitClient, err = gogit.NewClient(tmp, authOpts, clientOpts...)
-	default:
-		err = fmt.Errorf("failed to create git client; referred GitRepository has invalid implementation: %s", gitImplementation)
-	}
+	gitClient, err := gogit.NewClient(tmp, authOpts, clientOpts...)
 	if err != nil {
 		return failWithError(err)
 	}
