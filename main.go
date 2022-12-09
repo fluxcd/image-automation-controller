@@ -42,7 +42,6 @@ import (
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
 	"github.com/fluxcd/image-automation-controller/internal/features"
 	"github.com/fluxcd/pkg/git"
-	"github.com/fluxcd/pkg/git/libgit2/transport"
 
 	// +kubebuilder:scaffold:imports
 	"github.com/fluxcd/image-automation-controller/controllers"
@@ -162,13 +161,6 @@ func main() {
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
-
-	if gogitOnly, _ := features.Enabled(features.ForceGoGitImplementation); !gogitOnly {
-		if err = transport.InitManagedTransport(); err != nil {
-			setupLog.Error(err, "unable to initialize libgit2 managed transport")
-			os.Exit(1)
-		}
-	}
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

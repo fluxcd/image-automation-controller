@@ -24,13 +24,11 @@ import (
 	"testing"
 	"time"
 
-	git2go "github.com/libgit2/git2go/v34"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
-	"github.com/fluxcd/pkg/git/libgit2/transport"
 	"github.com/fluxcd/pkg/runtime/testenv"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
@@ -55,15 +53,9 @@ func init() {
 }
 
 func TestMain(m *testing.M) {
-	mustHaveNoThreadSupport()
-
 	utilruntime.Must(imagev1_reflect.AddToScheme(scheme.Scheme))
 	utilruntime.Must(sourcev1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(imagev1.AddToScheme(scheme.Scheme))
-
-	if err := transport.InitManagedTransport(); err != nil {
-		panic(fmt.Sprintf("failed to initialize libgit2 managed transport: %v", err))
-	}
 
 	code := runTestsWithFeatures(m, nil)
 	if code != 0 {
@@ -72,7 +64,7 @@ func TestMain(m *testing.M) {
 	}
 
 	code = runTestsWithFeatures(m, map[string]bool{
-		features.ForceGoGitImplementation: false,
+		features.GitShallowClone: true,
 	})
 
 	os.Exit(code)
@@ -109,23 +101,4 @@ func runTestsWithFeatures(m *testing.M, feats map[string]bool) int {
 	}
 
 	return code
-}
-
-// This provides a regression assurance for image-automation-controller/#339.
-// Validates that:
-// - libgit2 was built with no support for threads.
-// - git2go accepts libgit2 built with no support for threads.
-//
-// The logic below does the validation of the former, whilst
-// referring to git2go forces its init() execution, which is
-// where any validation to that effect resides.
-//
-// git2go does not support threadless libgit2 by default,
-// hence a fork is being used which disables such validation.
-//
-// TODO: extract logic into pkg.
-func mustHaveNoThreadSupport() {
-	if git2go.Features()&git2go.FeatureThreads != 0 {
-		panic("libgit2 must not be build with thread support")
-	}
 }

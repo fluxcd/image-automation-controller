@@ -33,7 +33,6 @@ import (
 
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/go-logr/logr"
-	git2go "github.com/libgit2/git2go/v34"
 	. "github.com/onsi/gomega"
 	"github.com/otiai10/copy"
 	"golang.org/x/crypto/openpgp"
@@ -46,13 +45,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	extgogit "github.com/fluxcd/go-git/v5"
+	"github.com/fluxcd/go-git/v5/config"
+	extgogitcfg "github.com/fluxcd/go-git/v5/config"
+	"github.com/fluxcd/go-git/v5/plumbing"
+	"github.com/fluxcd/go-git/v5/plumbing/cache"
+	"github.com/fluxcd/go-git/v5/plumbing/object"
+	"github.com/fluxcd/go-git/v5/storage/filesystem"
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
 	"github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/git/gogit"
-	"github.com/fluxcd/pkg/git/libgit2"
-	"github.com/fluxcd/pkg/git/libgit2/transport"
+	"github.com/fluxcd/pkg/git/gogit/fs"
 	"github.com/fluxcd/pkg/gittestserver"
 	"github.com/fluxcd/pkg/ssh"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
@@ -133,58 +137,55 @@ func TestImageAutomationReconciler_commitMessage(t *testing.T) {
 	}
 	fixture := "testdata/appconfig"
 	latest := "helloworld:v1.0.0"
-	clients := []string{gogit.ClientName, libgit2.ClientName}
 
-	for _, clientName := range clients {
-		t.Run(clientName, func(t *testing.T) {
-			testWithRepoAndImagePolicy(
-				NewWithT(t), testEnv, fixture, policySpec, latest, clientName,
-				func(g *WithT, s repoAndPolicyArgs, repoURL string, localRepo *git2go.Repository) {
-					commitMessage := fmt.Sprintf(testCommitMessageFmt, s.namespace, s.imagePolicyName)
+	t.Run(gogit.ClientName, func(t *testing.T) {
+		testWithRepoAndImagePolicy(
+			NewWithT(t), testEnv, fixture, policySpec, latest, gogit.ClientName,
+			func(g *WithT, s repoAndPolicyArgs, repoURL string, localRepo *extgogit.Repository) {
+				commitMessage := fmt.Sprintf(testCommitMessageFmt, s.namespace, s.imagePolicyName)
 
-					// Update the setter marker in the repo.
-					policyKey := types.NamespacedName{
-						Name:      s.imagePolicyName,
-						Namespace: s.namespace,
-					}
-					commitInRepo(g, repoURL, s.branch, "Install setter marker", func(tmp string) {
-						g.Expect(replaceMarker(tmp, policyKey)).To(Succeed())
-					})
+				// Update the setter marker in the repo.
+				policyKey := types.NamespacedName{
+					Name:      s.imagePolicyName,
+					Namespace: s.namespace,
+				}
+				commitInRepo(g, repoURL, s.branch, "Install setter marker", func(tmp string) {
+					g.Expect(replaceMarker(tmp, policyKey)).To(Succeed())
+				})
 
-					// Pull the head commit we just pushed, so it's not
-					// considered a new commit when checking for a commit
-					// made by automation.
-					preChangeCommitId := commitIdFromBranch(localRepo, s.branch)
+				// Pull the head commit we just pushed, so it's not
+				// considered a new commit when checking for a commit
+				// made by automation.
+				preChangeCommitId := commitIdFromBranch(localRepo, s.branch)
 
-					// Pull the head commit that was just pushed, so it's not considered a new
-					// commit when checking for a commit made by automation.
-					waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
+				// Pull the head commit that was just pushed, so it's not considered a new
+				// commit when checking for a commit made by automation.
+				waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
 
-					preChangeCommitId = commitIdFromBranch(localRepo, s.branch)
+				preChangeCommitId = commitIdFromBranch(localRepo, s.branch)
 
-					// Create the automation object and let it make a commit itself.
-					updateStrategy := &imagev1.UpdateStrategy{
-						Strategy: imagev1.UpdateStrategySetters,
-					}
-					err := createImageUpdateAutomation(testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", testCommitTemplate, "", updateStrategy)
-					g.Expect(err).ToNot(HaveOccurred())
+				// Create the automation object and let it make a commit itself.
+				updateStrategy := &imagev1.UpdateStrategy{
+					Strategy: imagev1.UpdateStrategySetters,
+				}
+				err := createImageUpdateAutomation(testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", testCommitTemplate, "", updateStrategy)
+				g.Expect(err).ToNot(HaveOccurred())
 
-					// Wait for a new commit to be made by the controller.
-					waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
+				// Wait for a new commit to be made by the controller.
+				waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
 
-					head, _ := headCommit(localRepo)
-					commit, err := localRepo.LookupCommit(head.Id())
-					g.Expect(err).ToNot(HaveOccurred())
-					g.Expect(commit.Message()).To(Equal(commitMessage))
+				head, _ := localRepo.Head()
+				commit, err := localRepo.CommitObject(head.Hash())
+				g.Expect(err).ToNot(HaveOccurred())
+				g.Expect(commit.Message).To(Equal(commitMessage))
 
-					signature := commit.Author()
-					g.Expect(signature).NotTo(BeNil())
-					g.Expect(signature.Name).To(Equal(testAuthorName))
-					g.Expect(signature.Email).To(Equal(testAuthorEmail))
-				},
-			)
-		})
-	}
+				signature := commit.Author
+				g.Expect(signature).NotTo(BeNil())
+				g.Expect(signature.Name).To(Equal(testAuthorName))
+				g.Expect(signature.Email).To(Equal(testAuthorEmail))
+			},
+		)
+	})
 }
 
 func TestImageAutomationReconciler_crossNamespaceRef(t *testing.T) {
@@ -200,93 +201,90 @@ func TestImageAutomationReconciler_crossNamespaceRef(t *testing.T) {
 	}
 	fixture := "testdata/appconfig"
 	latest := "helloworld:v1.0.0"
-	clients := []string{gogit.ClientName, libgit2.ClientName}
 
 	// Test successful cross namespace reference when NoCrossNamespaceRef=false.
 	args := newRepoAndPolicyArgs()
 	args.gitRepoNamespace = "cross-ns-git-repo" + randStringRunes(5)
-	for _, clientName := range clients {
-		t.Run(clientName, func(t *testing.T) {
-			testWithCustomRepoAndImagePolicy(
-				NewWithT(t), testEnv, fixture, policySpec, latest, clientName, args,
-				func(g *WithT, s repoAndPolicyArgs, repoURL string, localRepo *git2go.Repository) {
-					commitMessage := fmt.Sprintf(testCommitMessageFmt, s.namespace, s.imagePolicyName)
+	t.Run(gogit.ClientName, func(t *testing.T) {
+		testWithCustomRepoAndImagePolicy(
+			NewWithT(t), testEnv, fixture, policySpec, latest, gogit.ClientName, args,
+			func(g *WithT, s repoAndPolicyArgs, repoURL string, localRepo *extgogit.Repository) {
+				commitMessage := fmt.Sprintf(testCommitMessageFmt, s.namespace, s.imagePolicyName)
 
-					// Update the setter marker in the repo.
-					policyKey := types.NamespacedName{
-						Name:      s.imagePolicyName,
-						Namespace: s.namespace,
-					}
-					commitInRepo(g, repoURL, s.branch, "Install setter marker", func(tmp string) {
-						g.Expect(replaceMarker(tmp, policyKey)).To(Succeed())
-					})
+				// Update the setter marker in the repo.
+				policyKey := types.NamespacedName{
+					Name:      s.imagePolicyName,
+					Namespace: s.namespace,
+				}
+				commitInRepo(g, repoURL, s.branch, "Install setter marker", func(tmp string) {
+					g.Expect(replaceMarker(tmp, policyKey)).To(Succeed())
+				})
 
-					// Pull the head commit we just pushed, so it's not
-					// considered a new commit when checking for a commit
-					// made by automation.
-					preChangeCommitId := commitIdFromBranch(localRepo, s.branch)
+				// Pull the head commit we just pushed, so it's not
+				// considered a new commit when checking for a commit
+				// made by automation.
+				preChangeCommitId := commitIdFromBranch(localRepo, s.branch)
 
-					// Pull the head commit that was just pushed, so it's not considered a new
-					// commit when checking for a commit made by automation.
-					waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
+				// Pull the head commit that was just pushed, so it's not considered a new
+				// commit when checking for a commit made by automation.
+				waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
 
-					preChangeCommitId = commitIdFromBranch(localRepo, s.branch)
+				preChangeCommitId = commitIdFromBranch(localRepo, s.branch)
 
-					// Create the automation object and let it make a commit itself.
-					updateStrategy := &imagev1.UpdateStrategy{
-						Strategy: imagev1.UpdateStrategySetters,
-					}
-					err := createImageUpdateAutomation(testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", testCommitTemplate, "", updateStrategy)
-					g.Expect(err).ToNot(HaveOccurred())
+				// Create the automation object and let it make a commit itself.
+				updateStrategy := &imagev1.UpdateStrategy{
+					Strategy: imagev1.UpdateStrategySetters,
+				}
+				err := createImageUpdateAutomation(testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", testCommitTemplate, "", updateStrategy)
+				g.Expect(err).ToNot(HaveOccurred())
 
-					// Wait for a new commit to be made by the controller.
-					waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
+				// Wait for a new commit to be made by the controller.
+				waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
 
-					head, _ := headCommit(localRepo)
-					commit, err := localRepo.LookupCommit(head.Id())
-					g.Expect(err).ToNot(HaveOccurred())
-					g.Expect(commit.Message()).To(Equal(commitMessage))
+				head, _ := localRepo.Head()
+				commit, err := localRepo.CommitObject(head.Hash())
+				g.Expect(err).ToNot(HaveOccurred())
+				g.Expect(commit.Message).To(Equal(commitMessage))
 
-					signature := commit.Author()
-					g.Expect(signature).NotTo(BeNil())
-					g.Expect(signature.Name).To(Equal(testAuthorName))
-					g.Expect(signature.Email).To(Equal(testAuthorEmail))
-				},
-			)
+				signature := commit.Author
+				g.Expect(signature).NotTo(BeNil())
+				g.Expect(signature.Name).To(Equal(testAuthorName))
+				g.Expect(signature.Email).To(Equal(testAuthorEmail))
+			},
+		)
 
-			// Test cross namespace reference failure when NoCrossNamespaceRef=true.
-			builder := fakeclient.NewClientBuilder().WithScheme(testEnv.Scheme())
-			r := &ImageUpdateAutomationReconciler{
-				Client:              builder.Build(),
-				EventRecorder:       testEnv.GetEventRecorderFor("image-automation-controller"),
-				NoCrossNamespaceRef: true,
-			}
-			args = newRepoAndPolicyArgs()
-			args.gitRepoNamespace = "cross-ns-git-repo" + randStringRunes(5)
-			testWithCustomRepoAndImagePolicy(
-				NewWithT(t), r.Client, fixture, policySpec, latest, clientName, args,
-				func(g *WithT, s repoAndPolicyArgs, repoURL string, localRepo *git2go.Repository) {
-					updateStrategy := &imagev1.UpdateStrategy{
-						Strategy: imagev1.UpdateStrategySetters,
-					}
-					err := createImageUpdateAutomation(r.Client, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", testCommitTemplate, "", updateStrategy)
-					g.Expect(err).ToNot(HaveOccurred())
+		// Test cross namespace reference failure when NoCrossNamespaceRef=true.
+		builder := fakeclient.NewClientBuilder().WithScheme(testEnv.Scheme())
+		r := &ImageUpdateAutomationReconciler{
+			Client:              builder.Build(),
+			EventRecorder:       testEnv.GetEventRecorderFor("image-automation-controller"),
+			NoCrossNamespaceRef: true,
+		}
+		args = newRepoAndPolicyArgs()
+		args.gitRepoNamespace = "cross-ns-git-repo" + randStringRunes(5)
+		testWithCustomRepoAndImagePolicy(
+			NewWithT(t), r.Client, fixture, policySpec, latest, gogit.ClientName, args,
+			func(g *WithT, s repoAndPolicyArgs, repoURL string, localRepo *extgogit.Repository) {
+				updateStrategy := &imagev1.UpdateStrategy{
+					Strategy: imagev1.UpdateStrategySetters,
+				}
+				err := createImageUpdateAutomation(r.Client, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", testCommitTemplate, "", updateStrategy)
+				g.Expect(err).ToNot(HaveOccurred())
 
-					imageUpdateKey := types.NamespacedName{
-						Name:      "update-test",
-						Namespace: s.namespace,
-					}
-					_, err = r.Reconcile(context.TODO(), ctrl.Request{NamespacedName: imageUpdateKey})
-					g.Expect(err).To(BeNil())
+				imageUpdateKey := types.NamespacedName{
+					Name:      "update-test",
+					Namespace: s.namespace,
+				}
+				_, err = r.Reconcile(context.TODO(), ctrl.Request{NamespacedName: imageUpdateKey})
+				g.Expect(err).To(BeNil())
 
-					var imageUpdate imagev1.ImageUpdateAutomation
-					_ = r.Client.Get(context.TODO(), imageUpdateKey, &imageUpdate)
-					ready := apimeta.FindStatusCondition(imageUpdate.Status.Conditions, meta.ReadyCondition)
-					g.Expect(ready.Reason).To(Equal(acl.AccessDeniedReason))
-				},
-			)
-		})
-	}
+				var imageUpdate imagev1.ImageUpdateAutomation
+				_ = r.Client.Get(context.TODO(), imageUpdateKey, &imageUpdate)
+				ready := apimeta.FindStatusCondition(imageUpdate.Status.Conditions, meta.ReadyCondition)
+				g.Expect(ready.Reason).To(Equal(acl.AccessDeniedReason))
+			},
+		)
+	})
 }
 
 func TestImageAutomationReconciler_updatePath(t *testing.T) {
@@ -302,57 +300,54 @@ func TestImageAutomationReconciler_updatePath(t *testing.T) {
 	}
 	fixture := "testdata/pathconfig"
 	latest := "helloworld:v1.0.0"
-	clients := []string{gogit.ClientName, libgit2.ClientName}
 
-	for _, clientName := range clients {
-		t.Run(clientName, func(t *testing.T) {
-			testWithRepoAndImagePolicy(
-				NewWithT(t), testEnv, fixture, policySpec, latest, clientName,
-				func(g *WithT, s repoAndPolicyArgs, repoURL string, localRepo *git2go.Repository) {
-					// Update the setter marker in the repo.
-					policyKey := types.NamespacedName{
-						Name:      s.imagePolicyName,
-						Namespace: s.namespace,
-					}
+	t.Run(gogit.ClientName, func(t *testing.T) {
+		testWithRepoAndImagePolicy(
+			NewWithT(t), testEnv, fixture, policySpec, latest, gogit.ClientName,
+			func(g *WithT, s repoAndPolicyArgs, repoURL string, localRepo *extgogit.Repository) {
+				// Update the setter marker in the repo.
+				policyKey := types.NamespacedName{
+					Name:      s.imagePolicyName,
+					Namespace: s.namespace,
+				}
 
-					// pull the head commit we just pushed, so it's not
-					// considered a new commit when checking for a commit
-					// made by automation.
-					preChangeCommitId := commitIdFromBranch(localRepo, s.branch)
+				// pull the head commit we just pushed, so it's not
+				// considered a new commit when checking for a commit
+				// made by automation.
+				preChangeCommitId := commitIdFromBranch(localRepo, s.branch)
 
-					commitInRepo(g, repoURL, s.branch, "Install setter marker", func(tmp string) {
-						g.Expect(replaceMarker(path.Join(tmp, "yes"), policyKey)).To(Succeed())
-					})
-					commitInRepo(g, repoURL, s.branch, "Install setter marker", func(tmp string) {
-						g.Expect(replaceMarker(path.Join(tmp, "no"), policyKey)).To(Succeed())
-					})
+				commitInRepo(g, repoURL, s.branch, "Install setter marker", func(tmp string) {
+					g.Expect(replaceMarker(path.Join(tmp, "yes"), policyKey)).To(Succeed())
+				})
+				commitInRepo(g, repoURL, s.branch, "Install setter marker", func(tmp string) {
+					g.Expect(replaceMarker(path.Join(tmp, "no"), policyKey)).To(Succeed())
+				})
 
-					// Pull the head commit that was just pushed, so it's not considered a new
-					// commit when checking for a commit made by automation.
-					waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
+				// Pull the head commit that was just pushed, so it's not considered a new
+				// commit when checking for a commit made by automation.
+				waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
 
-					preChangeCommitId = commitIdFromBranch(localRepo, s.branch)
+				preChangeCommitId = commitIdFromBranch(localRepo, s.branch)
 
-					// Create the automation object and let it make a commit itself.
-					updateStrategy := &imagev1.UpdateStrategy{
-						Strategy: imagev1.UpdateStrategySetters,
-						Path:     "./yes",
-					}
-					err := createImageUpdateAutomation(testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", testCommitTemplate, "", updateStrategy)
-					g.Expect(err).ToNot(HaveOccurred())
+				// Create the automation object and let it make a commit itself.
+				updateStrategy := &imagev1.UpdateStrategy{
+					Strategy: imagev1.UpdateStrategySetters,
+					Path:     "./yes",
+				}
+				err := createImageUpdateAutomation(testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", testCommitTemplate, "", updateStrategy)
+				g.Expect(err).ToNot(HaveOccurred())
 
-					// Wait for a new commit to be made by the controller.
-					waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
+				// Wait for a new commit to be made by the controller.
+				waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
 
-					head, _ := headCommit(localRepo)
-					commit, err := localRepo.LookupCommit(head.Id())
-					g.Expect(err).ToNot(HaveOccurred())
-					g.Expect(commit.Message()).ToNot(ContainSubstring("update-no"))
-					g.Expect(commit.Message()).To(ContainSubstring("update-yes"))
-				},
-			)
-		})
-	}
+				head, _ := localRepo.Head()
+				commit, err := localRepo.CommitObject(head.Hash())
+				g.Expect(err).ToNot(HaveOccurred())
+				g.Expect(commit.Message).ToNot(ContainSubstring("update-no"))
+				g.Expect(commit.Message).To(ContainSubstring("update-yes"))
+			},
+		)
+	})
 }
 
 func TestImageAutomationReconciler_signedCommit(t *testing.T) {
@@ -368,67 +363,68 @@ func TestImageAutomationReconciler_signedCommit(t *testing.T) {
 	}
 	fixture := "testdata/appconfig"
 	latest := "helloworld:v1.0.0"
-	clients := []string{gogit.ClientName, libgit2.ClientName}
 
-	for _, clientName := range clients {
-		t.Run(clientName, func(t *testing.T) {
-			testWithRepoAndImagePolicy(
-				NewWithT(t), testEnv, fixture, policySpec, latest, clientName,
-				func(g *WithT, s repoAndPolicyArgs, repoURL string, localRepo *git2go.Repository) {
-					signingKeySecretName := "signing-key-secret-" + randStringRunes(5)
-					// Update the setter marker in the repo.
-					policyKey := types.NamespacedName{
-						Name:      s.imagePolicyName,
-						Namespace: s.namespace,
-					}
-					commitInRepo(g, repoURL, s.branch, "Install setter marker", func(tmp string) {
-						g.Expect(replaceMarker(tmp, policyKey)).To(Succeed())
-					})
+	t.Run(gogit.ClientName, func(t *testing.T) {
+		testWithRepoAndImagePolicy(
+			NewWithT(t), testEnv, fixture, policySpec, latest, gogit.ClientName,
+			func(g *WithT, s repoAndPolicyArgs, repoURL string, localRepo *extgogit.Repository) {
+				signingKeySecretName := "signing-key-secret-" + randStringRunes(5)
+				// Update the setter marker in the repo.
+				policyKey := types.NamespacedName{
+					Name:      s.imagePolicyName,
+					Namespace: s.namespace,
+				}
+				commitInRepo(g, repoURL, s.branch, "Install setter marker", func(tmp string) {
+					g.Expect(replaceMarker(tmp, policyKey)).To(Succeed())
+				})
 
-					preChangeCommitId := commitIdFromBranch(localRepo, s.branch)
+				preChangeCommitId := commitIdFromBranch(localRepo, s.branch)
 
-					// Pull the head commit that was just pushed, so it's not considered a new
-					// commit when checking for a commit made by automation.
-					waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
+				// Pull the head commit that was just pushed, so it's not considered a new
+				// commit when checking for a commit made by automation.
+				waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
 
-					pgpEntity, err := createSigningKeyPair(testEnv, signingKeySecretName, s.namespace)
-					g.Expect(err).ToNot(HaveOccurred(), "failed to create signing key pair")
+				pgpEntity, err := createSigningKeyPair(testEnv, signingKeySecretName, s.namespace)
+				g.Expect(err).ToNot(HaveOccurred(), "failed to create signing key pair")
 
-					preChangeCommitId = commitIdFromBranch(localRepo, s.branch)
+				preChangeCommitId = commitIdFromBranch(localRepo, s.branch)
 
-					// Create the automation object and let it make a commit itself.
-					updateStrategy := &imagev1.UpdateStrategy{
-						Strategy: imagev1.UpdateStrategySetters,
-					}
-					err = createImageUpdateAutomation(testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", testCommitTemplate, signingKeySecretName, updateStrategy)
-					g.Expect(err).ToNot(HaveOccurred())
+				// Create the automation object and let it make a commit itself.
+				updateStrategy := &imagev1.UpdateStrategy{
+					Strategy: imagev1.UpdateStrategySetters,
+				}
+				err = createImageUpdateAutomation(testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", testCommitTemplate, signingKeySecretName, updateStrategy)
+				g.Expect(err).ToNot(HaveOccurred())
 
-					// Wait for a new commit to be made by the controller.
-					waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
+				// Wait for a new commit to be made by the controller.
+				waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
 
-					head, _ := headCommit(localRepo)
-					g.Expect(err).ToNot(HaveOccurred())
-					commit, err := localRepo.LookupCommit(head.Id())
-					g.Expect(err).ToNot(HaveOccurred())
+				head, _ := localRepo.Head()
+				g.Expect(err).ToNot(HaveOccurred())
+				commit, err := localRepo.CommitObject(head.Hash())
+				g.Expect(err).ToNot(HaveOccurred())
 
-					commitSig, commitContent, err := commit.ExtractSignature()
-					g.Expect(err).ToNot(HaveOccurred())
+				c2 := *commit
+				c2.PGPSignature = ""
 
-					kr := openpgp.EntityList([]*openpgp.Entity{pgpEntity})
-					signature := strings.NewReader(commitSig)
-					content := strings.NewReader(commitContent)
+				encoded := &plumbing.MemoryObject{}
+				err = c2.Encode(encoded)
+				g.Expect(err).ToNot(HaveOccurred())
+				content, err := encoded.Reader()
+				g.Expect(err).ToNot(HaveOccurred())
 
-					_, err = openpgp.CheckArmoredDetachedSignature(kr, content, signature)
-					g.Expect(err).ToNot(HaveOccurred())
-				},
-			)
-		})
-	}
+				kr := openpgp.EntityList([]*openpgp.Entity{pgpEntity})
+				signature := strings.NewReader(commit.PGPSignature)
+
+				_, err = openpgp.CheckArmoredDetachedSignature(kr, content, signature)
+				g.Expect(err).ToNot(HaveOccurred())
+			},
+		)
+	})
 }
 
 func TestImageAutomationReconciler_e2e(t *testing.T) {
 	protos := []string{"http", "ssh"}
-	clients := []string{gogit.ClientName, libgit2.ClientName}
 
 	testFunc := func(t *testing.T, proto, clientName string) {
 		g := NewWithT(t)
@@ -506,9 +502,8 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 			// Clone the repo locally.
 			cloneCtx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
-			localRepo, err := clone(cloneCtx, cloneLocalRepoURL, branch, nil)
+			localRepo, err := clone(cloneCtx, cloneLocalRepoURL, branch)
 			g.Expect(err).ToNot(HaveOccurred(), "failed to clone git repo")
-			defer localRepo.Free()
 
 			// NB not testing the image reflector controller; this
 			// will make a "fully formed" ImagePolicy object.
@@ -541,7 +536,6 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 
 				initialHead, err := headFromBranch(localRepo, branch)
 				g.Expect(err).ToNot(HaveOccurred())
-				defer initialHead.Free()
 
 				preChangeCommitId = commitIdFromBranch(localRepo, branch)
 				// Wait for a new commit to be made by the controller.
@@ -549,14 +543,13 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 
 				head, err := getRemoteHead(localRepo, pushBranch)
 				g.Expect(err).NotTo(HaveOccurred())
-				commit, err := localRepo.LookupCommit(head)
+				commit, err := localRepo.CommitObject(head)
 				g.Expect(err).ToNot(HaveOccurred())
-				defer commit.Free()
-				g.Expect(commit.Message()).To(Equal(commitMessage))
+				g.Expect(commit.Message).To(Equal(commitMessage))
 
 				// previous commits should still exist in the tree.
 				// regression check to ensure previous commits were not squashed.
-				oldCommit, err := localRepo.LookupCommit(initialHead.Id())
+				oldCommit, err := localRepo.CommitObject(initialHead.Hash)
 				g.Expect(err).ToNot(HaveOccurred())
 				g.Expect(oldCommit).ToNot(BeNil())
 			})
@@ -566,7 +559,6 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 
 				initialHead, err := headFromBranch(localRepo, branch)
 				g.Expect(err).ToNot(HaveOccurred())
-				defer initialHead.Free()
 
 				// Get the head hash before update.
 				head, err := getRemoteHead(localRepo, pushBranch)
@@ -588,7 +580,7 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 
 				// previous commits should still exist in the tree.
 				// regression check to ensure previous commits were not squashed.
-				oldCommit, err := localRepo.LookupCommit(initialHead.Id())
+				oldCommit, err := localRepo.CommitObject(initialHead.Hash)
 				g.Expect(err).ToNot(HaveOccurred())
 				g.Expect(oldCommit).ToNot(BeNil())
 			})
@@ -598,7 +590,6 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 
 				initialHead, err := headFromBranch(localRepo, branch)
 				g.Expect(err).ToNot(HaveOccurred())
-				defer initialHead.Free()
 
 				// Get the head hash before.
 				head, err := getRemoteHead(localRepo, pushBranch)
@@ -609,11 +600,18 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 				// upstream.
 				// waitForNewHead() leaves the repo at the head of the branch given, i.e., the
 				// push branch), so we have to check out the "main" branch first.
-				r, err := rebase(g, localRepo, pushBranch, branch)
+				w, err := localRepo.Worktree()
 				g.Expect(err).ToNot(HaveOccurred())
-				err = r.Finish()
+				w.Pull(&extgogit.PullOptions{
+					RemoteName:    originRemote,
+					ReferenceName: plumbing.ReferenceName(fmt.Sprintf("refs/remotes/origin/%s", pushBranch)),
+				})
+				err = localRepo.Push(&extgogit.PushOptions{
+					RemoteName: originRemote,
+					RefSpecs: []extgogitcfg.RefSpec{
+						extgogitcfg.RefSpec(fmt.Sprintf("refs/heads/%s:refs/remotes/origin/%s", branch, pushBranch))},
+				})
 				g.Expect(err).ToNot(HaveOccurred())
-				defer r.Free()
 
 				preChangeCommitId := commitIdFromBranch(localRepo, branch)
 
@@ -630,7 +628,7 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 
 				// previous commits should still exist in the tree.
 				// regression check to ensure previous commits were not squashed.
-				oldCommit, err := localRepo.LookupCommit(initialHead.Id())
+				oldCommit, err := localRepo.CommitObject(initialHead.Hash)
 				g.Expect(err).ToNot(HaveOccurred())
 				g.Expect(oldCommit).ToNot(BeNil())
 			})
@@ -650,9 +648,8 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 			// separate localRepo.
 			cloneCtx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
-			localRepo, err := clone(cloneCtx, cloneLocalRepoURL, branch, nil)
+			localRepo, err := clone(cloneCtx, cloneLocalRepoURL, branch)
 			g.Expect(err).ToNot(HaveOccurred(), "failed to clone git repo")
-			defer localRepo.Free()
 
 			g.Expect(checkoutBranch(localRepo, branch)).ToNot(HaveOccurred())
 			err = createImagePolicyWithLatestImage(testEnv, imagePolicyName, namespace, "not-expected-to-exist", "1.x", latestImage)
@@ -693,14 +690,14 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 
 			// Check if the repo head matches with the ImageUpdateAutomation
 			// last push commit status.
-			commit, err := headCommit(localRepo)
+			head, _ := localRepo.Head()
+			commit, err := localRepo.CommitObject(head.Hash())
 			g.Expect(err).ToNot(HaveOccurred())
-			defer commit.Free()
-			g.Expect(commit.Message()).To(Equal(commitMessage))
+			g.Expect(commit.Message).To(Equal(commitMessage))
 
 			var newObj imagev1.ImageUpdateAutomation
 			g.Expect(testEnv.Get(context.Background(), updateKey, &newObj)).To(Succeed())
-			g.Expect(newObj.Status.LastPushCommit).To(Equal(commit.Id().String()))
+			g.Expect(newObj.Status.LastPushCommit).To(Equal(commit.Hash.String()))
 			g.Expect(newObj.Status.LastPushTime).ToNot(BeNil())
 
 			compareRepoWithExpected(g, cloneLocalRepoURL, branch, "testdata/appconfig-setters-expected", func(tmp string) {
@@ -779,11 +776,9 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 	}
 
 	for _, proto := range protos {
-		for _, clientName := range clients {
-			t.Run(fmt.Sprintf("%s/%s", clientName, proto), func(t *testing.T) {
-				testFunc(t, proto, clientName)
-			})
-		}
+		t.Run(fmt.Sprintf("%s/%s", gogit.ClientName, proto), func(t *testing.T) {
+			testFunc(t, proto, gogit.ClientName)
+		})
 	}
 }
 
@@ -850,30 +845,24 @@ func TestImageAutomationReconciler_defaulting(t *testing.T) {
 		To(Equal(&imagev1.UpdateStrategy{Strategy: imagev1.UpdateStrategySetters}))
 }
 
-func checkoutBranch(repo *git2go.Repository, branch string) error {
-	sl, err := repo.StatusList(&git2go.StatusOptions{
-		Show: git2go.StatusShowIndexAndWorkdir,
+func checkoutBranch(repo *extgogit.Repository, branch string) error {
+	wt, err := repo.Worktree()
+	if err != nil {
+		return err
+	}
+
+	status, err := wt.Status()
+	if err != nil {
+		return err
+	}
+
+	for _, s := range status {
+		fmt.Println(s)
+	}
+
+	return wt.Checkout(&extgogit.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(branch),
 	})
-	if err != nil {
-		return err
-	}
-	defer sl.Free()
-
-	count, err := sl.EntryCount()
-	if err != nil {
-		return err
-	}
-	// check that there's no local changes, as a sanity check
-	if count > 0 {
-		for i := 0; i < count; i++ {
-			s, err := sl.ByIndex(i)
-			if err == nil {
-				fmt.Println(s.HeadToIndex.NewFile, " is changed")
-			}
-		}
-	} // the checkout next will fail if there are changed files
-
-	return repo.SetHead(fmt.Sprintf("refs/heads/%s", branch))
 }
 
 func replaceMarker(path string, policyKey types.NamespacedName) error {
@@ -903,75 +892,41 @@ func compareRepoWithExpected(g *WithT, repoURL, branch, fixture string, changeFi
 	changeFixture(expected)
 	cloneCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	repo, err := clone(cloneCtx, repoURL, branch, nil)
+	repo, err := clone(cloneCtx, repoURL, branch)
 	g.Expect(err).ToNot(HaveOccurred())
-	defer repo.Free()
+
 	// NOTE: The workdir contains a trailing /. Clean it to not confuse the
 	// DiffDirectories().
-	actual := filepath.Clean(repo.Workdir())
-	defer os.RemoveAll(actual)
+	wt, err := repo.Worktree()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	defer wt.Filesystem.Remove(".")
 
 	g.Expect(err).ToNot(HaveOccurred())
-	test.ExpectMatchingDirectories(g, actual, expected)
+	test.ExpectMatchingDirectories(g, wt.Filesystem.Root(), expected)
 }
 
-// configureTransportOptsForRepo registers the transport options for this repository
-// and sets the remote url of origin to the transport options url. If repoURL is empty
-// it tries to figure it out by looking at the remote url of origin. It returns a function
-// which removes the transport options for this repo and sets the remote url of the origin
-// back to the actual url. Callers are expected to call this function in a deferred manner.
-func configureTransportOptsForRepo(repo *git2go.Repository, authOpts *git.AuthOptions) (func(), error) {
-	origin, err := repo.Remotes.Lookup(originRemote)
-	if err != nil {
-		return nil, err
-	}
-	defer origin.Free()
-	repoURL := origin.Url()
-	u, err := url.Parse(repoURL)
-	if err != nil {
-		return nil, err
-	}
-	transportOptsURL := u.Scheme + "://" + randStringRunes(5)
-	transport.AddTransportOptions(transportOptsURL, transport.TransportOptions{
-		TargetURL: repoURL,
-		AuthOpts:  authOpts,
-	})
-
-	err = repo.Remotes.SetUrl(originRemote, transportOptsURL)
-	if err != nil {
-		return nil, fmt.Errorf("could not set remote origin url: %v", err)
-	}
-	return func() {
-		transport.RemoveTransportOptions(transportOptsURL)
-		repo.Remotes.SetUrl(originRemote, repoURL)
-	}, nil
-}
-
-func commitInRepo(g *WithT, repoURL, branch, msg string, changeFiles func(path string)) *git2go.Oid {
+func commitInRepo(g *WithT, repoURL, branch, msg string, changeFiles func(path string)) plumbing.Hash {
 	cloneCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	repo, err := clone(cloneCtx, repoURL, branch, nil)
-	g.Expect(err).ToNot(HaveOccurred())
-	defer repo.Free()
-
-	changeFiles(repo.Workdir())
-
-	sig := &git2go.Signature{
-		Name:  "Testbot",
-		Email: "test@example.com",
-		When:  time.Now(),
-	}
-	id, err := commitWorkDir(repo, branch, msg, sig)
+	repo, err := clone(cloneCtx, repoURL, branch)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	cleanup, err := configureTransportOptsForRepo(repo, nil)
+	wt, err := repo.Worktree()
 	g.Expect(err).ToNot(HaveOccurred())
-	defer cleanup()
-	origin, err := repo.Remotes.Lookup(originRemote)
-	g.Expect(err).ToNot(HaveOccurred())
-	defer origin.Free()
 
-	g.Expect(origin.Push([]string{branchRefName(branch)}, &git2go.PushOptions{})).To(Succeed())
+	changeFiles(wt.Filesystem.Root())
+
+	id, err := commitWorkDir(repo, branch, msg)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	origin, err := repo.Remote(originRemote)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	g.Expect(origin.Push(&extgogit.PushOptions{
+		RemoteName: originRemote,
+		RefSpecs:   []extgogitcfg.RefSpec{extgogitcfg.RefSpec(branchRefName(branch))},
+	})).To(Succeed())
 	return id
 }
 
@@ -987,20 +942,24 @@ func initGitRepo(gitServer *gittestserver.GitServer, fixture, branch, repository
 		return err
 	}
 
-	commitID, err := headCommit(repo)
+	headRef, err := repo.Head()
 	if err != nil {
 		return err
 	}
 
-	_, err = repo.CreateBranch(branch, commitID, false)
-	if err != nil {
-		return err
-	}
-	return repo.Remotes.AddPush(originRemote, branchRefName(branch))
+	ref := plumbing.NewHashReference(
+		plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", branch)),
+		headRef.Hash())
+
+	return repo.Storer.SetReference(ref)
 }
 
-func initGitRepoPlain(fixture, repositoryPath string) (*git2go.Repository, error) {
-	repo, err := git2go.InitRepository(repositoryPath, false)
+func initGitRepoPlain(fixture, repositoryPath string) (*extgogit.Repository, error) {
+	wt := fs.New(repositoryPath)
+	dot := fs.New(filepath.Join(repositoryPath, extgogit.GitDirName))
+	storer := filesystem.NewStorage(dot, cache.NewObjectLRUDefault())
+
+	repo, err := extgogit.Init(storer, wt)
 	if err != nil {
 		return nil, err
 	}
@@ -1010,7 +969,7 @@ func initGitRepoPlain(fixture, repositoryPath string) (*git2go.Repository, error
 		return nil, err
 	}
 
-	_, err = commitWorkDir(repo, "main", "Initial commit", mockSignature(time.Now()))
+	_, err = commitWorkDir(repo, "main", "Initial commit")
 	if err != nil {
 		return nil, err
 	}
@@ -1018,74 +977,65 @@ func initGitRepoPlain(fixture, repositoryPath string) (*git2go.Repository, error
 	return repo, nil
 }
 
-func headFromBranch(repo *git2go.Repository, branchName string) (*git2go.Commit, error) {
-	branch, err := repo.LookupBranch(branchName, git2go.BranchLocal)
+func headFromBranch(repo *extgogit.Repository, branchName string) (*object.Commit, error) {
+	ref, err := repo.Storer.Reference(plumbing.ReferenceName("refs/heads/" + branchName))
 	if err != nil {
 		return nil, err
 	}
-	defer branch.Free()
 
-	return repo.LookupCommit(branch.Reference.Target())
+	return repo.CommitObject(ref.Hash())
 }
 
-func commitWorkDir(repo *git2go.Repository, branchName, message string, sig *git2go.Signature) (*git2go.Oid, error) {
-	var parentC []*git2go.Commit
-	head, err := headFromBranch(repo, branchName)
-	if err == nil {
-		defer head.Free()
-		parentC = append(parentC, head)
-	}
-
-	index, err := repo.Index()
+func commitWorkDir(repo *extgogit.Repository, branchName, message string) (plumbing.Hash, error) {
+	wt, err := repo.Worktree()
 	if err != nil {
-		return nil, err
-	}
-	defer index.Free()
-
-	// add to index any files that are not within .git/
-	if err = filepath.Walk(repo.Workdir(),
-		func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			rel, err := filepath.Rel(repo.Workdir(), path)
-			if err != nil {
-				return err
-			}
-			f, err := os.Stat(path)
-			if err != nil {
-				return err
-			}
-			if f.IsDir() || strings.HasPrefix(rel, ".git") || rel == "." {
-				return nil
-			}
-			if err := index.AddByPath(rel); err != nil {
-				return err
-			}
-			return nil
-		}); err != nil {
-		return nil, err
+		return plumbing.ZeroHash, err
 	}
 
-	if err := index.Write(); err != nil {
-		return nil, err
-	}
+	// Checkout to an existing branch. If this is the first commit,
+	// this is a no-op.
+	_ = wt.Checkout(&extgogit.CheckoutOptions{
+		Branch: plumbing.ReferenceName("refs/heads/" + branchName),
+	})
 
-	treeID, err := index.WriteTree()
+	status, err := wt.Status()
 	if err != nil {
-		return nil, err
+		return plumbing.ZeroHash, err
 	}
 
-	tree, err := repo.LookupTree(treeID)
-	if err != nil {
-		return nil, err
+	for file := range status {
+		wt.Add(file)
 	}
-	defer tree.Free()
 
-	c, err := repo.CreateCommit("HEAD", sig, sig, message, tree, parentC...)
+	sig := mockSignature(time.Now())
+	c, err := wt.Commit(message, &extgogit.CommitOptions{
+		All:       true,
+		Author:    sig,
+		Committer: sig,
+	})
 	if err != nil {
-		return nil, err
+		return plumbing.ZeroHash, err
 	}
+
+	_, err = repo.Branch(branchName)
+	if err == extgogit.ErrBranchNotFound {
+		ref := plumbing.NewHashReference(
+			plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", branchName)), c)
+
+		err = repo.Storer.SetReference(ref)
+	}
+	if err != nil {
+		return plumbing.ZeroHash, err
+	}
+
+	// Now the target branch exists, we can checkout to it.
+	err = wt.Checkout(&extgogit.CheckoutOptions{
+		Branch: plumbing.ReferenceName("refs/heads/" + branchName),
+	})
+	if err != nil {
+		return plumbing.ZeroHash, err
+	}
+
 	return c, nil
 }
 
@@ -1141,164 +1091,144 @@ func branchRefName(branch string) string {
 	return fmt.Sprintf("refs/heads/%s:refs/heads/%s", branch, branch)
 }
 
-// copied from source-controller/pkg/git/libgit2/checkout.go
-func commitFile(repo *git2go.Repository, path, content string, time time.Time) (*git2go.Oid, error) {
-	var parentC []*git2go.Commit
-	head, err := headCommit(repo)
-	if err == nil {
-		defer head.Free()
-		parentC = append(parentC, head)
-	}
-
-	index, err := repo.Index()
+func commitFile(repo *extgogit.Repository, path, content string, time time.Time) (plumbing.Hash, error) {
+	wt, err := repo.Worktree()
 	if err != nil {
-		return nil, err
+		return plumbing.ZeroHash, err
 	}
-	defer index.Free()
 
-	blobOID, err := repo.CreateBlobFromBuffer([]byte(content))
+	f, err := wt.Filesystem.Create(path)
 	if err != nil {
-		return nil, err
+		return plumbing.ZeroHash, err
 	}
 
-	entry := &git2go.IndexEntry{
-		Mode: git2go.FilemodeBlob,
-		Id:   blobOID,
-		Path: path,
+	if _, err := f.Write([]byte(content)); err != nil {
+		return plumbing.ZeroHash, err
 	}
 
-	if err := index.Add(entry); err != nil {
-		return nil, err
-	}
-	if err := index.Write(); err != nil {
-		return nil, err
-	}
-
-	treeID, err := index.WriteTree()
+	wt.Add(path)
+	sig := mockSignature(time)
+	c, err := wt.Commit("Committing "+path, &extgogit.CommitOptions{
+		Author:    sig,
+		Committer: sig,
+	})
 	if err != nil {
-		return nil, err
-	}
-
-	tree, err := repo.LookupTree(treeID)
-	if err != nil {
-		return nil, err
-	}
-	defer tree.Free()
-
-	c, err := repo.CreateCommit("HEAD", mockSignature(time), mockSignature(time), "Committing "+path, tree, parentC...)
-	if err != nil {
-		return nil, err
+		return plumbing.ZeroHash, err
 	}
 	return c, nil
 }
 
-// copied from source-controller/pkg/git/libgit2/checkout.go
-func mockSignature(time time.Time) *git2go.Signature {
-	return &git2go.Signature{
+func mockSignature(time time.Time) *object.Signature {
+	return &object.Signature{
 		Name:  "Jane Doe",
 		Email: "author@example.com",
 		When:  time,
 	}
 }
 
-func clone(ctx context.Context, repoURL, branchName string, authOpts *git.AuthOptions) (*git2go.Repository, error) {
+func clone(ctx context.Context, repoURL, branchName string) (*extgogit.Repository, error) {
 	dir, err := os.MkdirTemp("", "iac-clone-*")
 	if err != nil {
 		return nil, err
 	}
 
-	u, err := url.Parse(repoURL)
+	opts := &extgogit.CloneOptions{
+		URL:           repoURL,
+		RemoteName:    originRemote,
+		ReferenceName: plumbing.NewBranchReferenceName(branchName),
+	}
+
+	wt := fs.New(dir)
+	dot := fs.New(filepath.Join(dir, extgogit.GitDirName))
+	storer := filesystem.NewStorage(dot, cache.NewObjectLRUDefault())
+
+	repo, err := extgogit.Clone(storer, wt, opts)
 	if err != nil {
 		return nil, err
 	}
 
-	transportOptsURL := u.Scheme + "://" + randStringRunes(5)
-	transport.AddTransportOptions(transportOptsURL, transport.TransportOptions{
-		TargetURL: repoURL,
-		Context:   ctx,
-		AuthOpts:  authOpts,
+	w, err := repo.Worktree()
+	if err != nil {
+		return nil, err
+	}
+
+	err = w.Checkout(&extgogit.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(branchName),
+		Create: false,
 	})
-	defer transport.RemoveTransportOptions(transportOptsURL)
-
-	opts := &git2go.CloneOptions{
-		Bare:           false,
-		CheckoutBranch: branchName,
-		CheckoutOptions: git2go.CheckoutOptions{
-			Strategy: git2go.CheckoutForce,
-		},
-	}
-	repo, err := git2go.Clone(transportOptsURL, dir, opts)
 	if err != nil {
 		return nil, err
 	}
 
-	// set the origin remote url to the actual repo url, since
-	// the origin remote will have transportOptsURl as the it's url
-	// because that's the url used to clone the repo.
-	err = repo.Remotes.SetUrl(originRemote, repoURL)
-	if err != nil {
-		return nil, err
-	}
 	return repo, nil
 }
 
-func waitForNewHead(g *WithT, repo *git2go.Repository, branch, preChangeHash string) {
-	var commitToResetTo *git2go.Commit
+func waitForNewHead(g *WithT, repo *extgogit.Repository, branch, preChangeHash string) {
+	var commitToResetTo *object.Commit
 
-	cleanup, err := configureTransportOptsForRepo(repo, nil)
+	origin, err := repo.Remote(originRemote)
 	g.Expect(err).ToNot(HaveOccurred())
-	defer cleanup()
-
-	origin, err := repo.Remotes.Lookup(originRemote)
-	g.Expect(err).ToNot(HaveOccurred())
-	defer origin.Free()
 
 	// Now try to fetch new commits from that remote branch
 	g.Eventually(func() bool {
-		if err := origin.Fetch(
-			[]string{branchRefName(branch)},
-			&git2go.FetchOptions{}, "",
-		); err != nil {
-			return false
-		}
-
-		remoteBranch, err := repo.LookupBranch(branch, git2go.BranchAll)
+		err := origin.Fetch(&extgogit.FetchOptions{
+			RemoteName: originRemote,
+			RefSpecs:   []config.RefSpec{config.RefSpec(branchRefName(branch))},
+		})
 		if err != nil {
 			return false
 		}
-		defer remoteBranch.Free()
 
-		remoteHeadRef, err := repo.LookupCommit(remoteBranch.Reference.Target())
+		wt, err := repo.Worktree()
 		if err != nil {
 			return false
 		}
-		defer remoteHeadRef.Free()
 
-		if preChangeHash != remoteHeadRef.Id().String() {
-			commitToResetTo, _ = repo.LookupCommit(remoteBranch.Reference.Target())
+		err = wt.Checkout(&extgogit.CheckoutOptions{
+			Branch: plumbing.NewBranchReferenceName(branch),
+		})
+		if err != nil {
+			return false
+		}
+
+		remoteHeadRef, err := repo.Head()
+		if err != nil {
+			return false
+		}
+
+		remoteHeadHash := remoteHeadRef.Hash()
+		if err != nil {
+			return false
+		}
+
+		if preChangeHash != remoteHeadHash.String() {
+			commitToResetTo, _ = repo.CommitObject(remoteHeadHash)
 			return true
 		}
 		return false
 	}, timeout, time.Second).Should(BeTrue())
 
 	if commitToResetTo != nil {
-		defer commitToResetTo.Free()
+		wt, err := repo.Worktree()
+		g.Expect(err).ToNot(HaveOccurred())
+
 		// New commits in the remote branch -- reset the working tree head
 		// to that. Note this does not create a local branch tracking the
 		// remote, so it is a detached head.
-		g.Expect(repo.ResetToCommit(commitToResetTo, git2go.ResetHard,
-			&git2go.CheckoutOptions{})).To(Succeed())
+		g.Expect(wt.Reset(&extgogit.ResetOptions{
+			Commit: commitToResetTo.Hash,
+			Mode:   extgogit.HardReset,
+		})).To(Succeed())
 	}
 }
 
-func headCommit(repo *git2go.Repository) (*git2go.Commit, error) {
+func headCommit(repo *extgogit.Repository) (*object.Commit, error) {
 	head, err := repo.Head()
 	if err != nil {
 		return nil, err
 
 	}
-	defer head.Free()
-	c, err := repo.LookupCommit(head.Target())
+	c, err := repo.CommitObject(head.Hash())
 	if err != nil {
 		return nil, err
 
@@ -1306,123 +1236,36 @@ func headCommit(repo *git2go.Repository) (*git2go.Commit, error) {
 	return c, nil
 }
 
-func commitIdFromBranch(repo *git2go.Repository, branchName string) string {
+func commitIdFromBranch(repo *extgogit.Repository, branchName string) string {
 	commitId := ""
 	head, err := headFromBranch(repo, branchName)
 
-	defer head.Free()
 	if err == nil {
-		commitId = head.Id().String()
+		commitId = head.Hash.String()
 	}
 	return commitId
 }
 
-func getRemoteHead(repo *git2go.Repository, branchName string) (*git2go.Oid, error) {
-	cleanup, err := configureTransportOptsForRepo(repo, nil)
+func getRemoteHead(repo *extgogit.Repository, branchName string) (plumbing.Hash, error) {
+	remote, err := repo.Remote(originRemote)
 	if err != nil {
-		return nil, err
+		return plumbing.ZeroHash, err
 	}
-	defer cleanup()
 
-	remote, err := repo.Remotes.Lookup(originRemote)
+	err = remote.Fetch(&extgogit.FetchOptions{
+		RemoteName: originRemote,
+		RefSpecs:   []config.RefSpec{config.RefSpec(branchRefName(branchName))},
+	})
+	if err != nil && !errors.Is(err, extgogit.NoErrAlreadyUpToDate) {
+		return plumbing.ZeroHash, err
+	}
+
+	remoteHeadRef, err := headFromBranch(repo, branchName)
 	if err != nil {
-		return nil, err
-	}
-	defer remote.Free()
-
-	err = remote.Fetch([]string{branchRefName(branchName)}, nil, "")
-	if err != nil {
-		return nil, err
+		return plumbing.ZeroHash, err
 	}
 
-	remoteBranch, err := repo.LookupBranch(branchName, git2go.BranchAll)
-	if err != nil {
-		return nil, err
-	}
-	defer remoteBranch.Free()
-
-	remoteHeadRef, err := repo.LookupCommit(remoteBranch.Reference.Target())
-	if err != nil {
-		return nil, err
-	}
-	defer remoteHeadRef.Free()
-
-	return remoteHeadRef.Id(), nil
-}
-
-// This merges the push branch into HEAD, and pushes upstream. This is
-// to simulate e.g., a PR being merged.
-func rebase(g *WithT, repo *git2go.Repository, sourceBranch, targetBranch string) (*git2go.Rebase, error) {
-	rebaseOpts, err := git2go.DefaultRebaseOptions()
-	g.Expect(err).NotTo(HaveOccurred())
-
-	err = checkoutBranch(repo, sourceBranch)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	master, err := repo.LookupBranch(targetBranch, git2go.BranchLocal)
-	if err != nil {
-		return nil, err
-	}
-	defer master.Free()
-
-	onto, err := repo.AnnotatedCommitFromRef(master.Reference)
-	if err != nil {
-		return nil, err
-	}
-	defer onto.Free()
-
-	// Init rebase
-	rebase, err := repo.InitRebase(nil, nil, onto, &rebaseOpts)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check no operation has been started yet
-	rebaseOperationIndex, err := rebase.CurrentOperationIndex()
-	if rebaseOperationIndex != git2go.RebaseNoOperation && err != git2go.ErrRebaseNoOperation {
-		return nil, errors.New("No operation should have been started yet")
-	}
-
-	// Iterate in rebase operations regarding operation count
-	opCount := int(rebase.OperationCount())
-	for op := 0; op < opCount; op++ {
-		operation, err := rebase.Next()
-		if err != nil {
-			return nil, err
-		}
-
-		// Check operation index is correct
-		rebaseOperationIndex, err = rebase.CurrentOperationIndex()
-		if err != nil {
-			return nil, err
-		}
-
-		if int(rebaseOperationIndex) != op {
-			return nil, errors.New("Bad operation index")
-		}
-		if !operationsAreEqual(rebase.OperationAt(uint(op)), operation) {
-			return nil, errors.New("Rebase operations should be equal")
-		}
-
-		// Get current rebase operation created commit
-		commit, err := repo.LookupCommit(operation.Id)
-		if err != nil {
-			return nil, err
-		}
-		defer commit.Free()
-
-		// Apply commit
-		err = rebase.Commit(operation.Id, commit.Author(), commit.Author(), commit.Message())
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return rebase, nil
-}
-
-func operationsAreEqual(l, r *git2go.RebaseOperation) bool {
-	return l.Exec == r.Exec && l.Type == r.Type && l.Id.String() == r.Id.String()
+	return remoteHeadRef.Hash, nil
 }
 
 type repoAndPolicyArgs struct {
@@ -1446,7 +1289,7 @@ func newRepoAndPolicyArgs() repoAndPolicyArgs {
 
 // testWithRepoAndImagePolicyTestFunc is the test closure function type passed
 // to testWithRepoAndImagePolicy.
-type testWithRepoAndImagePolicyTestFunc func(g *WithT, s repoAndPolicyArgs, repoURL string, localRepo *git2go.Repository)
+type testWithRepoAndImagePolicyTestFunc func(g *WithT, s repoAndPolicyArgs, repoURL string, localRepo *extgogit.Repository)
 
 // testWithRepoAndImagePolicy generates a repoAndPolicyArgs with all the
 // resource in the same namespace and runs the given repo and image policy test.
@@ -1506,14 +1349,16 @@ func testWithCustomRepoAndImagePolicy(
 	repoURL := gitServer.HTTPAddressWithCredentials() + repositoryPath
 	cloneCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	localRepo, err := clone(cloneCtx, repoURL, args.branch, nil)
+	localRepo, err := clone(cloneCtx, repoURL, args.branch)
 	g.Expect(err).ToNot(HaveOccurred(), "failed to clone git repo")
-	defer localRepo.Free()
 
-	origin, err := localRepo.Remotes.Lookup(originRemote)
-	g.Expect(err).ToNot(HaveOccurred(), "failed to look up remote origin")
-	defer origin.Free()
-	localRepo.Remotes.SetUrl(originRemote, repoURL)
+	err = localRepo.DeleteRemote(originRemote)
+	g.Expect(err).ToNot(HaveOccurred(), "failed to delete existing remote origin")
+	localRepo.CreateRemote(&extgogitcfg.RemoteConfig{
+		Name: originRemote,
+		URLs: []string{repoURL},
+	})
+	g.Expect(err).ToNot(HaveOccurred(), "failed to create new remote origin")
 
 	// Create GitRepository resource for the above repo.
 	err = createGitRepository(kClient, args.gitRepoName, args.gitRepoNamespace, repoURL, "", gitImpl)
@@ -1745,15 +1590,11 @@ func getRepoURL(gitServer *gittestserver.GitServer, repoPath, proto string) (str
 	if proto == "http" {
 		return gitServer.HTTPAddressWithCredentials() + repoPath, nil
 	} else if proto == "ssh" {
-		return getSSHRepoURL(gitServer.SSHAddress(), repoPath), nil
+		// This is expected to use 127.0.0.1, but host key
+		// checking usually wants a hostname, so use
+		// "localhost".
+		sshURL := strings.Replace(gitServer.SSHAddress(), "127.0.0.1", "localhost", 1)
+		return sshURL + repoPath, nil
 	}
 	return "", fmt.Errorf("proto not set to http or ssh")
-}
-
-func getSSHRepoURL(sshAddress, repoPath string) string {
-	// This is expected to use 127.0.0.1, but host key
-	// checking usually wants a hostname, so use
-	// "localhost".
-	sshURL := strings.Replace(sshAddress, "127.0.0.1", "localhost", 1)
-	return sshURL + repoPath
 }

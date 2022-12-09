@@ -52,7 +52,6 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/git/gogit"
-	"github.com/fluxcd/pkg/git/libgit2"
 	"github.com/fluxcd/pkg/git/repository"
 	"github.com/fluxcd/pkg/runtime/acl"
 	helper "github.com/fluxcd/pkg/runtime/controller"
@@ -258,33 +257,16 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		return failWithError(err)
 	}
 
-	gitImplementation := origin.Spec.GitImplementation
-	if goGitOnly, _ := r.features[features.ForceGoGitImplementation]; goGitOnly {
-		gitImplementation = sourcev1.GoGitImplementation
+	clientOpts := []gogit.ClientOption{gogit.WithDiskStorage()}
+	forcePush, _ := features.Enabled(features.GitForcePushBranch)
+	if forcePush && pushBranch != ref.Branch {
+		clientOpts = append(clientOpts, gogit.WithForcePush())
+	}
+	if authOpts.Transport == git.HTTP {
+		clientOpts = append(clientOpts, gogit.WithInsecureCredentialsOverHTTP())
 	}
 
-	var gitClient repository.Client
-	switch gitImplementation {
-	case sourcev1.LibGit2Implementation:
-		clientOpts := []libgit2.ClientOption{libgit2.WithDiskStorage()}
-		if authOpts.Transport == git.HTTP {
-			clientOpts = append(clientOpts, libgit2.WithInsecureCredentialsOverHTTP())
-		}
-		gitClient, err = libgit2.NewClient(tmp, authOpts, clientOpts...)
-	case sourcev1.GoGitImplementation, "":
-		clientOpts := []gogit.ClientOption{gogit.WithDiskStorage()}
-		forcePush, _ := features.Enabled(features.GitForcePushBranch)
-		if forcePush && pushBranch != ref.Branch {
-			clientOpts = append(clientOpts, gogit.WithForcePush())
-		}
-		if authOpts.Transport == git.HTTP {
-			clientOpts = append(clientOpts, gogit.WithInsecureCredentialsOverHTTP())
-		}
-
-		gitClient, err = gogit.NewClient(tmp, authOpts, clientOpts...)
-	default:
-		err = fmt.Errorf("failed to create git client; referred GitRepository has invalid implementation: %s", gitImplementation)
-	}
+	gitClient, err := gogit.NewClient(tmp, authOpts, clientOpts...)
 	if err != nil {
 		return failWithError(err)
 	}

@@ -111,9 +111,8 @@ To be able to commit changes back, the referenced `GitRepository` object must re
 with write access; e.g., if using a GitHub deploy key, "Allow write access" should be checked when
 creating it. Only the `url`, `ref`, and `secretRef` fields of the `GitRepository` are used.
 
-The [`gitImplementation` field][source-docs] in the referenced `GitRepository` is ignored. The
-automation controller automatically uses the go-git implementation rather than libgit2.
-To change this behavor, start the controller with `--feature-gates=ForceGoGitImplementation=false`.
+The [`gitImplementation` field][source-docs] in the referenced `GitRepository` is ignored. All
+reconciliations are executed using the `go-git` implementation.
 
 Other fields particular to how the Git repository is used are in the `git` field, [described
 below](#git-specific-specification).

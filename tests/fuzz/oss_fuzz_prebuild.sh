@@ -24,36 +24,6 @@ set -euxo pipefail
 mkdir -p controllers/testdata/crd
 cp config/crd/bases/*.yaml controllers/testdata/crd
 
-LIBGIT2_TAG="${LIBGIT2_TAG:-v0.4.0}"
-
-export TARGET_DIR="$(/bin/pwd)/build/libgit2/${LIBGIT2_TAG}"
-export CGO_ENABLED=1
-export LIBRARY_PATH="${TARGET_DIR}/lib"
-export PKG_CONFIG_PATH="${TARGET_DIR}/lib/pkgconfig"
-export CGO_CFLAGS="-I${TARGET_DIR}/include"
-export CGO_LDFLAGS="$(pkg-config --libs --static --cflags libgit2)"
-
-# For most cases, libgit2 will already be present.
-# The exception being at the oss-fuzz integration.
-if [ ! -d "${TARGET_DIR}" ]; then
-    curl -o output.tar.gz -LO "https://github.com/fluxcd/golang-with-libgit2/releases/download/${LIBGIT2_TAG}/linux-$(uname -m)-libgit2-only.tar.gz"
-
-    DIR=linux-libgit2-only
-    NEW_DIR="$(/bin/pwd)/build/libgit2/${LIBGIT2_TAG}"
-    INSTALLED_DIR="/home/runner/work/golang-with-libgit2/golang-with-libgit2/build/${DIR}"
-
-    mkdir -p ./build/libgit2
-
-    tar -xf output.tar.gz
-    rm output.tar.gz
-    mv "${DIR}" "${LIBGIT2_TAG}"
-    mv "${LIBGIT2_TAG}/" "./build/libgit2"
-
-    # Update the prefix paths included in the .pc files.
-    # This will make it easier to update to the location in which they will be used.
-    find "${NEW_DIR}" -type f -name "*.pc" | xargs -I {} sed -i "s;${INSTALLED_DIR};${NEW_DIR};g" {}
-fi
-
 # Version of the source-controller from which to get the GitRepository CRD.
 # Pulls source-controller/api's version set in go.mod.
 SOURCE_VER=$(go list -m github.com/fluxcd/source-controller/api | awk '{print $2}')
@@ -69,16 +39,3 @@ else
     curl -s --fail https://raw.githubusercontent.com/fluxcd/source-controller/${SOURCE_VER}/config/crd/bases/source.toolkit.fluxcd.io_gitrepositories.yaml -o controllers/testdata/crd/gitrepositories.yaml
     curl -s --fail https://raw.githubusercontent.com/fluxcd/image-reflector-controller/${REFLECTOR_VER}/config/crd/bases/image.toolkit.fluxcd.io_imagepolicies.yaml -o controllers/testdata/crd/imagepolicies.yaml
 fi
-
-# Temporary hack whilst libgit2 is still in use.
-# Enables the fuzzing compilation to link libgit2.
-#
-# After building the fuzzers, the value of
-# LIB_FUZZING_ENGINE is reset to what it was before
-# it to avoid side effects onto other repositories.
-#
-# For context refer to:
-# https://github.com/google/oss-fuzz/pull/9063
-export PRE_LIB_FUZZING_ENGINE="${LIB_FUZZING_ENGINE}"
-
-export LIB_FUZZING_ENGINE="${LIB_FUZZING_ENGINE} -Wl,--start-group ${TARGET_DIR}/lib/libgit2.a"
