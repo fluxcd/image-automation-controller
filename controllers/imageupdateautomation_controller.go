@@ -52,7 +52,6 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/git/gogit"
-	"github.com/fluxcd/pkg/git/libgit2"
 	"github.com/fluxcd/pkg/git/repository"
 	"github.com/fluxcd/pkg/runtime/acl"
 	helper "github.com/fluxcd/pkg/runtime/controller"
@@ -265,13 +264,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	var gitClient repository.Client
 	switch gitImplementation {
-	case sourcev1.LibGit2Implementation:
-		clientOpts := []libgit2.ClientOption{libgit2.WithDiskStorage()}
-		if authOpts.Transport == git.HTTP {
-			clientOpts = append(clientOpts, libgit2.WithInsecureCredentialsOverHTTP())
-		}
-		gitClient, err = libgit2.NewClient(tmp, authOpts, clientOpts...)
-	case sourcev1.GoGitImplementation, "":
+	case sourcev1.LibGit2Implementation, sourcev1.GoGitImplementation, "":
 		clientOpts := []gogit.ClientOption{gogit.WithDiskStorage()}
 		forcePush, _ := features.Enabled(features.GitForcePushBranch)
 		if forcePush && pushBranch != ref.Branch {
