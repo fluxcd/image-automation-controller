@@ -261,15 +261,24 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	clientOpts := []gogit.ClientOption{gogit.WithDiskStorage()}
-	forcePush, _ := features.Enabled(features.GitForcePushBranch)
+	forcePush := r.features[features.GitForcePushBranch]
 	if forcePush && pushBranch != ref.Branch {
 		clientOpts = append(clientOpts, gogit.WithForcePush())
 	}
 	if authOpts.Transport == git.HTTP {
 		clientOpts = append(clientOpts, gogit.WithInsecureCredentialsOverHTTP())
 	}
+
+	// If the push branch is different from the checkout ref, we need to
+	// have all the references downloaded at clone time, to ensure that
+	// SwitchBranch will have access to the target branch state. fluxcd/flux2#3384
+	//
+	// To always overwrite the push branch, the feature gate
+	// GitAllBranchReferences can be set to false, which will cause
+	// the SwitchBranch operation to ignore the remote branch state.
+	allReferences := r.features[features.GitAllBranchReferences]
 	if pushBranch != ref.Branch {
-		clientOpts = append(clientOpts, gogit.WithSingleBranch(false))
+		clientOpts = append(clientOpts, gogit.WithSingleBranch(!allReferences))
 	}
 
 	gitClient, err := gogit.NewClient(tmp, authOpts, clientOpts...)
