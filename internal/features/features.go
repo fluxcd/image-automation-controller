@@ -28,6 +28,9 @@ const (
 	// GitShallowClone enables the use of shallow clones when pulling source from
 	// Git repositories.
 	GitShallowClone = "GitShallowClone"
+	// GitAllBranchReferences enables the download of all branch head references
+	// when push branches are configured. When enabled fixes fluxcd/flux2#3384.
+	GitAllBranchReferences = "GitAllBranchReferences"
 )
 
 var features = map[string]bool{
@@ -38,6 +41,10 @@ var features = map[string]bool{
 	// GitShallowClone
 	// opt-out from v0.28
 	GitShallowClone: true,
+
+	// GitAllBranchReferences
+	// opt-out from v0.28
+	GitAllBranchReferences: true,
 }
 
 // DefaultFeatureGates contains a list of all supported feature gates and

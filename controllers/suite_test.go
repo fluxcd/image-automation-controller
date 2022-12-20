@@ -33,7 +33,6 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
-	"github.com/fluxcd/image-automation-controller/internal/features"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -60,12 +59,7 @@ func TestMain(m *testing.M) {
 	code := runTestsWithFeatures(m, nil)
 	if code != 0 {
 		fmt.Println("failed with default feature values")
-		os.Exit(code)
 	}
-
-	code = runTestsWithFeatures(m, map[string]bool{
-		features.GitShallowClone: true,
-	})
 
 	os.Exit(code)
 }

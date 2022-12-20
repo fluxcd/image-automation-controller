@@ -62,6 +62,7 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
+	"github.com/fluxcd/image-automation-controller/internal/features"
 	"github.com/fluxcd/image-automation-controller/pkg/test"
 	"github.com/fluxcd/image-automation-controller/pkg/update"
 )
@@ -426,7 +427,7 @@ func TestImageAutomationReconciler_signedCommit(t *testing.T) {
 func TestImageAutomationReconciler_e2e(t *testing.T) {
 	protos := []string{"http", "ssh"}
 
-	testFunc := func(t *testing.T, proto, clientName string) {
+	testFunc := func(t *testing.T, proto string, feats map[string]bool) {
 		g := NewWithT(t)
 
 		const latestImage = "helloworld:1.0.1"
@@ -441,8 +442,18 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 			Strategy: imagev1.UpdateStrategySetters,
 		}
 
+		controllerName := "image-automation-controller"
+		// Create ImagePolicy and ImageUpdateAutomation resource for each of the
+		// test cases and cleanup at the end.
+		builder := fakeclient.NewClientBuilder().WithScheme(testEnv.Scheme())
+		r := &ImageUpdateAutomationReconciler{
+			Client:        builder.Build(),
+			EventRecorder: testEnv.GetEventRecorderFor(controllerName),
+			features:      feats,
+		}
+
 		// Create a test namespace.
-		nsCleanup, err := createNamespace(testEnv, namespace)
+		nsCleanup, err := createNamespace(r.Client, namespace)
 		g.Expect(err).ToNot(HaveOccurred(), "failed to create test namespace")
 		defer func() {
 			g.Expect(nsCleanup()).To(Succeed())
@@ -478,12 +489,12 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 		if proto == "ssh" {
 			// SSH requires an identity (private key) and known_hosts file
 			// in a secret.
-			err = createSSHIdentitySecret(testEnv, gitSecretName, namespace, repoURL)
+			err = createSSHIdentitySecret(r.Client, gitSecretName, namespace, repoURL)
 			g.Expect(err).ToNot(HaveOccurred())
-			err = createGitRepository(testEnv, gitRepoName, namespace, repoURL, gitSecretName, clientName)
+			err = createGitRepository(r.Client, gitRepoName, namespace, repoURL, gitSecretName)
 			g.Expect(err).ToNot(HaveOccurred())
 		} else {
-			err = createGitRepository(testEnv, gitRepoName, namespace, repoURL, "", clientName)
+			err = createGitRepository(r.Client, gitRepoName, namespace, repoURL, "")
 			g.Expect(err).ToNot(HaveOccurred())
 		}
 
@@ -492,9 +503,6 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 			Name:      imagePolicyName,
 			Namespace: namespace,
 		}
-
-		// Create ImagePolicy and ImageUpdateAutomation resource for each of the
-		// test cases and cleanup at the end.
 
 		t.Run("PushSpec", func(t *testing.T) {
 			g := NewWithT(t)
@@ -507,15 +515,20 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 
 			// NB not testing the image reflector controller; this
 			// will make a "fully formed" ImagePolicy object.
-			err = createImagePolicyWithLatestImage(testEnv, imagePolicyName, namespace, "not-expected-to-exist", "1.x", latestImage)
+			err = createImagePolicyWithLatestImage(r.Client, imagePolicyName, namespace, "not-expected-to-exist", "1.x", latestImage)
 			g.Expect(err).ToNot(HaveOccurred(), "failed to create ImagePolicy resource")
 
 			defer func() {
-				g.Expect(deleteImagePolicy(testEnv, imagePolicyName, namespace)).ToNot(HaveOccurred())
+				g.Expect(deleteImagePolicy(r.Client, imagePolicyName, namespace)).ToNot(HaveOccurred())
 			}()
 
 			imageUpdateAutomationName := "update-" + randStringRunes(5)
 			pushBranch := "pr-" + randStringRunes(5)
+
+			automationKey := types.NamespacedName{
+				Name:      imageUpdateAutomationName,
+				Namespace: namespace,
+			}
 
 			t.Run("update with PushSpec", func(t *testing.T) {
 				g := NewWithT(t)
@@ -531,8 +544,11 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 
 				// Now create the automation object, and let it (one
 				// hopes!) make a commit itself.
-				err = createImageUpdateAutomation(testEnv, imageUpdateAutomationName, namespace, gitRepoName, namespace, branch, pushBranch, commitMessage, "", updateStrategy)
+				err = createImageUpdateAutomation(r.Client, imageUpdateAutomationName, namespace, gitRepoName, namespace, branch, pushBranch, commitMessage, "", updateStrategy)
 				g.Expect(err).ToNot(HaveOccurred())
+
+				_, err = r.Reconcile(context.TODO(), ctrl.Request{NamespacedName: automationKey})
+				g.Expect(err).To(BeNil())
 
 				initialHead, err := headFromBranch(localRepo, branch)
 				g.Expect(err).ToNot(HaveOccurred())
@@ -555,6 +571,10 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 			})
 
 			t.Run("push branch gets updated", func(t *testing.T) {
+				if !feats[features.GitAllBranchReferences] {
+					t.Skip("GitAllBranchReferences feature not enabled")
+				}
+
 				g := NewWithT(t)
 
 				initialHead, err := headFromBranch(localRepo, branch)
@@ -569,8 +589,11 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 
 				// Update the policy and expect another commit in the push
 				// branch.
-				err = updateImagePolicyWithLatestImage(testEnv, imagePolicyName, namespace, "helloworld:v1.3.0")
+				err = updateImagePolicyWithLatestImage(r.Client, imagePolicyName, namespace, "helloworld:v1.3.0")
 				g.Expect(err).ToNot(HaveOccurred())
+
+				_, err = r.Reconcile(context.TODO(), ctrl.Request{NamespacedName: automationKey})
+				g.Expect(err).To(BeNil())
 
 				waitForNewHead(g, localRepo, pushBranch, preChangeCommitId)
 
@@ -586,6 +609,10 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 			})
 
 			t.Run("still pushes to the push branch after it's merged", func(t *testing.T) {
+				if !feats[features.GitAllBranchReferences] {
+					t.Skip("GitAllBranchReferences feature not enabled")
+				}
+
 				g := NewWithT(t)
 
 				initialHead, err := headFromBranch(localRepo, branch)
@@ -617,8 +644,11 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 
 				// Update the policy and expect another commit in the push
 				// branch.
-				err = updateImagePolicyWithLatestImage(testEnv, imagePolicyName, namespace, "helloworld:v1.3.1")
+				err = updateImagePolicyWithLatestImage(r.Client, imagePolicyName, namespace, "helloworld:v1.3.1")
 				g.Expect(err).ToNot(HaveOccurred())
+
+				_, err = r.Reconcile(context.TODO(), ctrl.Request{NamespacedName: automationKey})
+				g.Expect(err).To(BeNil())
 
 				waitForNewHead(g, localRepo, pushBranch, preChangeCommitId)
 
@@ -634,7 +664,7 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 			})
 
 			// Cleanup the image update automation used above.
-			g.Expect(deleteImageUpdateAutomation(testEnv, imageUpdateAutomationName, namespace)).To(Succeed())
+			g.Expect(deleteImageUpdateAutomation(r.Client, imageUpdateAutomationName, namespace)).To(Succeed())
 		})
 
 		t.Run("with update strategy setters", func(t *testing.T) {
@@ -652,11 +682,11 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 			g.Expect(err).ToNot(HaveOccurred(), "failed to clone git repo")
 
 			g.Expect(checkoutBranch(localRepo, branch)).ToNot(HaveOccurred())
-			err = createImagePolicyWithLatestImage(testEnv, imagePolicyName, namespace, "not-expected-to-exist", "1.x", latestImage)
+			err = createImagePolicyWithLatestImage(r.Client, imagePolicyName, namespace, "not-expected-to-exist", "1.x", latestImage)
 			g.Expect(err).ToNot(HaveOccurred(), "failed to create ImagePolicy resource")
 
 			defer func() {
-				g.Expect(deleteImagePolicy(testEnv, imagePolicyName, namespace)).ToNot(HaveOccurred())
+				g.Expect(deleteImagePolicy(r.Client, imagePolicyName, namespace)).ToNot(HaveOccurred())
 			}()
 
 			preChangeCommitId := commitIdFromBranch(localRepo, branch)
@@ -679,11 +709,14 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 				Namespace: namespace,
 				Name:      "update-" + randStringRunes(5),
 			}
-			err = createImageUpdateAutomation(testEnv, updateKey.Name, namespace, gitRepoName, namespace, branch, "", commitMessage, "", updateStrategy)
+			err = createImageUpdateAutomation(r.Client, updateKey.Name, namespace, gitRepoName, namespace, branch, "", commitMessage, "", updateStrategy)
 			g.Expect(err).ToNot(HaveOccurred())
 			defer func() {
-				g.Expect(deleteImageUpdateAutomation(testEnv, updateKey.Name, namespace)).To(Succeed())
+				g.Expect(deleteImageUpdateAutomation(r.Client, updateKey.Name, namespace)).To(Succeed())
 			}()
+
+			_, err = r.Reconcile(context.TODO(), ctrl.Request{NamespacedName: updateKey})
+			g.Expect(err).To(BeNil())
 
 			// Wait for a new commit to be made by the controller.
 			waitForNewHead(g, localRepo, branch, preChangeCommitId)
@@ -696,7 +729,7 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 			g.Expect(commit.Message).To(Equal(commitMessage))
 
 			var newObj imagev1.ImageUpdateAutomation
-			g.Expect(testEnv.Get(context.Background(), updateKey, &newObj)).To(Succeed())
+			g.Expect(r.Client.Get(context.Background(), updateKey, &newObj)).To(Succeed())
 			g.Expect(newObj.Status.LastPushCommit).To(Equal(commit.Hash.String()))
 			g.Expect(newObj.Status.LastPushTime).ToNot(BeNil())
 
@@ -707,6 +740,12 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 
 		t.Run("no reconciliation when object is suspended", func(t *testing.T) {
 			g := NewWithT(t)
+
+			nsCleanup, err := createNamespace(testEnv, namespace)
+			g.Expect(err).ToNot(HaveOccurred(), "failed to create test namespace")
+			defer func() {
+				g.Expect(nsCleanup()).To(Succeed())
+			}()
 
 			err = createImagePolicyWithLatestImage(testEnv, imagePolicyName, namespace, "not-expected-to-exist", "1.x", latestImage)
 			g.Expect(err).ToNot(HaveOccurred(), "failed to create ImagePolicy resource")
@@ -725,6 +764,9 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 			defer func() {
 				g.Expect(deleteImageUpdateAutomation(testEnv, updateKey.Name, namespace)).To(Succeed())
 			}()
+
+			_, err = r.Reconcile(context.TODO(), ctrl.Request{NamespacedName: updateKey})
+			g.Expect(err).To(BeNil())
 
 			// Wait for the object to be available in the cache before
 			// attempting update.
@@ -775,10 +817,16 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 		})
 	}
 
-	for _, proto := range protos {
-		t.Run(fmt.Sprintf("%s/%s", gogit.ClientName, proto), func(t *testing.T) {
-			testFunc(t, proto, gogit.ClientName)
-		})
+	for _, enabled := range []bool{true, false} {
+		feats := features.FeatureGates()
+		for k := range feats {
+			feats[k] = enabled
+		}
+		for _, proto := range protos {
+			t.Run(fmt.Sprintf("%s/features=%t", proto, enabled), func(t *testing.T) {
+				testFunc(t, proto, feats)
+			})
+		}
 	}
 }
 
@@ -1361,7 +1409,7 @@ func testWithCustomRepoAndImagePolicy(
 	g.Expect(err).ToNot(HaveOccurred(), "failed to create new remote origin")
 
 	// Create GitRepository resource for the above repo.
-	err = createGitRepository(kClient, args.gitRepoName, args.gitRepoNamespace, repoURL, "", gitImpl)
+	err = createGitRepository(kClient, args.gitRepoName, args.gitRepoNamespace, repoURL, "")
 	g.Expect(err).ToNot(HaveOccurred(), "failed to create GitRepository resource")
 
 	// Create ImagePolicy with populated latest image in the status.
@@ -1412,11 +1460,12 @@ func createNamespace(kClient client.Client, name string) (cleanup, error) {
 	return cleanup, nil
 }
 
-func createGitRepository(kClient client.Client, name, namespace, repoURL, secretRef, gitImpl string) error {
+func createGitRepository(kClient client.Client, name, namespace, repoURL, secretRef string) error {
 	gitRepo := &sourcev1.GitRepository{
 		Spec: sourcev1.GitRepositorySpec{
 			URL:      repoURL,
 			Interval: metav1.Duration{Duration: time.Minute},
+			Timeout:  &metav1.Duration{Duration: time.Minute},
 		},
 	}
 	gitRepo.Name = name
@@ -1424,7 +1473,6 @@ func createGitRepository(kClient client.Client, name, namespace, repoURL, secret
 	if secretRef != "" {
 		gitRepo.Spec.SecretRef = &meta.LocalObjectReference{Name: secretRef}
 	}
-	gitRepo.Spec.GitImplementation = gitImpl
 	return kClient.Create(context.Background(), gitRepo)
 }
 
@@ -1579,6 +1627,12 @@ func createSSHIdentitySecret(kClient client.Client, name, namespace, repoURL str
 			"known_hosts":  string(knownhosts),
 			"identity":     string(pair.PrivateKey),
 			"identity.pub": string(pair.PublicKey),
+		},
+		// Without KAS, StringData and Data must be kept in sync manually.
+		Data: map[string][]byte{
+			"known_hosts":  knownhosts,
+			"identity":     pair.PrivateKey,
+			"identity.pub": pair.PublicKey,
 		},
 	}
 	sec.Name = name
