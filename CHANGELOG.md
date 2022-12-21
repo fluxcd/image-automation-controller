@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.28.0
+
+**Release date:** 2022-12-21
+
+This prerelease removes all code references to `libgit2` and `git2go`, from
+this release onwards the controller will use `go-git` as the only git implementation.
+For more information, refer to version 0.27.0's changelog, which started `libgit2`'s
+deprecation process.
+
+The feature gate `ForceGoGitImplementation` was removed, users passing it as their
+controller's startup args will need to remove it before upgrading.
+
+Two new feature gates were introduced and are enabled by default:
+- `GitShallowClone`: enables the use of shallow clones when pulling source
+from Git repositories.
+- `GitAllBranchReferences`: enables users to toggle the download of all branch
+head references when push branches are configured.
+
+To opt-out from the feature gates above, start the controller with:
+`--feature-gates=GitShallowClone=false,GitAllBranchReferences=false`.
+
+Fixes:
+- Block the creation of empty commits
+  [#470](https://github.com/fluxcd/image-automation-controller/pull/470)
+
+Improvements:
+- Add GitShallowClone feature
+  [#463](https://github.com/fluxcd/image-automation-controller/pull/463)
+- Add feature gate GitAllBranchReferences
+  [#469](https://github.com/fluxcd/image-automation-controller/pull/469)
+- Remove libgit2 and git2go from codebase
+  [#468](https://github.com/fluxcd/image-automation-controller/pull/468)
+- build: Link libgit2 via LIB_FUZZING_ENGINE
+  [#465](https://github.com/fluxcd/image-automation-controller/pull/465)
+- build: Add postbuild script for fuzzing
+  [#464](https://github.com/fluxcd/image-automation-controller/pull/464)
+- build: Fix cifuzz and improve fuzz tests' reliability
+  [#462](https://github.com/fluxcd/image-automation-controller/pull/462)
+- Update dependencies
+  [#471](https://github.com/fluxcd/image-automation-controller/pull/471)
+
 ## 0.27.0
 
 **Release date:** 2022-11-21
