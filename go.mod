@@ -38,7 +38,7 @@ require (
 	k8s.io/client-go v0.25.4
 	k8s.io/kube-openapi v0.0.0-20221110221610-a28e98eb7c70
 	sigs.k8s.io/controller-runtime v0.13.1
-	sigs.k8s.io/kustomize/kyaml v0.13.9
+	sigs.k8s.io/kustomize/kyaml v0.13.10
 )
 
 // Fix CVE-2022-32149
