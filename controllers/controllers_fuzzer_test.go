@@ -38,26 +38,27 @@ import (
 	"github.com/fluxcd/go-git/v5/plumbing"
 	"github.com/fluxcd/go-git/v5/plumbing/object"
 	"github.com/fluxcd/go-git/v5/storage/memory"
-	"github.com/fluxcd/image-automation-controller/pkg/update"
-	"github.com/fluxcd/pkg/gittestserver"
-	"github.com/fluxcd/pkg/runtime/testenv"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
-
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	image_automationv1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
 	image_reflectv1 "github.com/fluxcd/image-reflector-controller/api/v1beta1"
+	"github.com/fluxcd/pkg/gittestserver"
+	"github.com/fluxcd/pkg/runtime/controller"
+	"github.com/fluxcd/pkg/runtime/testenv"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	image_automationv1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
+	"github.com/fluxcd/image-automation-controller/pkg/update"
 )
 
 var (
@@ -84,7 +85,10 @@ func Fuzz_ImageUpdateReconciler(f *testing.F) {
 			utilruntime.Must(ensureDependencies(func(m manager.Manager) {
 				utilruntime.Must((&ImageUpdateAutomationReconciler{
 					Client: m.GetClient(),
-				}).SetupWithManager(m, ImageUpdateAutomationReconcilerOptions{MaxConcurrentReconciles: 4}))
+				}).SetupWithManager(m, ImageUpdateAutomationReconcilerOptions{
+					MaxConcurrentReconciles: 4,
+					RateLimiter:             controller.GetDefaultRateLimiter(),
+				}))
 			}))
 		})
 
