@@ -21,11 +21,13 @@ import (
 	"os"
 
 	flag "github.com/spf13/pflag"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
 	"github.com/fluxcd/pkg/runtime/acl"
@@ -117,6 +119,16 @@ func main() {
 		watchNamespace = os.Getenv("RUNTIME_NAMESPACE")
 	}
 
+	var disableCacheFor []ctrlclient.Object
+	shouldCache, err := features.Enabled(features.CacheSecretsAndConfigMaps)
+	if err != nil {
+		setupLog.Error(err, "unable to check feature gate "+features.CacheSecretsAndConfigMaps)
+		os.Exit(1)
+	}
+	if !shouldCache {
+		disableCacheFor = append(disableCacheFor, &corev1.Secret{}, &corev1.ConfigMap{})
+	}
+
 	restConfig := client.GetConfigOrDie(clientOptions)
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                        scheme,
@@ -130,6 +142,7 @@ func main() {
 		RetryPeriod:                   &leaderElectionOptions.RetryPeriod,
 		LeaderElectionID:              fmt.Sprintf("%s-leader-election", controllerName),
 		Namespace:                     watchNamespace,
+		ClientDisableCacheFor:         disableCacheFor,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

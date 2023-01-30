@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 // Package features sets the feature gates that
-// source-controller supports, and their default
+// image-automation-controller supports, and their default
 // states.
 package features
 
@@ -31,6 +31,12 @@ const (
 	// GitAllBranchReferences enables the download of all branch head references
 	// when push branches are configured. When enabled fixes fluxcd/flux2#3384.
 	GitAllBranchReferences = "GitAllBranchReferences"
+	// CacheSecretsAndConfigMaps controls whether Secrets and ConfigMaps should
+	// be cached.
+	//
+	// When enabled, it will cache both object types, resulting in increased
+	// memory usage and cluster-wide RBAC permissions (list and watch).
+	CacheSecretsAndConfigMaps = "CacheSecretsAndConfigMaps"
 )
 
 var features = map[string]bool{
@@ -45,9 +51,13 @@ var features = map[string]bool{
 	// GitAllBranchReferences
 	// opt-out from v0.28
 	GitAllBranchReferences: true,
+
+	// CacheSecretsAndConfigMaps
+	// opt-in from v0.29
+	CacheSecretsAndConfigMaps: false,
 }
 
-// DefaultFeatureGates contains a list of all supported feature gates and
+// FeatureGates contains a list of all supported feature gates and
 // their default values.
 func FeatureGates() map[string]bool {
 	return features
