@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.29.0
+
+**Release date:** 2023-02-01
+
+This prerelease disables caching of Secrets and ConfigMaps to improve memory
+usage. To opt-out from this behavior, start the controller with:
+`--feature-gates=CacheSecretsAndConfigMaps=true`.
+
+In addition, the controller dependencies have been updated to Kubernetes
+v1.26.1 and controller-runtime v0.14.2. The controller base image has been
+updated to Alpine 3.17.
+
+Improvements:
+- build: Enable SBOM and SLSA Provenance
+  [#478](https://github.com/fluxcd/image-automation-controller/pull/478)
+- Disable caching of Secrets and ConfigMaps
+  [#479](https://github.com/fluxcd/image-automation-controller/pull/479)
+- Update dependencies
+  [#480](https://github.com/fluxcd/image-automation-controller/pull/480)
+
 ## 0.28.0
 
 **Release date:** 2022-12-21
