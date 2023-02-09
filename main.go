@@ -120,6 +120,10 @@ func main() {
 	}
 
 	var disableCacheFor []ctrlclient.Object
+
+	// disable caching of ImagePolicies to avoid downgrades
+	disableCacheFor = append(disableCacheFor, &imagev1_reflect.ImagePolicy{})
+
 	shouldCache, err := features.Enabled(features.CacheSecretsAndConfigMaps)
 	if err != nil {
 		setupLog.Error(err, "unable to check feature gate "+features.CacheSecretsAndConfigMaps)
