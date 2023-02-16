@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.30.0
+
+**Release date:** 2023-02-16
+
+This prerelease comes with support for the new `ImagePolicy` v1beta2 API. See
+[image-reflector-controller
+changelog](https://github.com/fluxcd/image-reflector-controller/blob/v0.25.0/CHANGELOG.md#0250)
+for instructions about updating the `ImagePolicies`.
+
+:warning: Also note that the autologin flags in image-reflector-controller have
+been deprecated and the `ImageRepositories` that use the autologin feature have
+to be updated with `.spec.provider` field to continue working. Refer the
+[docs](https://fluxcd.io/flux/components/image/imagerepositories/#provider) for
+details and examples.
+
+In addition, the controller dependencies have been updated to their latest
+versions.
+
+Improvements:
+- Set rate limiter option in test reconcilers
+  [#475](https://github.com/fluxcd/image-automation-controller/pull/475)
+- Update dependencies
+  [#486](https://github.com/fluxcd/image-automation-controller/pull/486)
+- Update image-reflector API to v1beta2
+  [#485](https://github.com/fluxcd/image-automation-controller/pull/485)
+
 ## 0.29.0
 
 **Release date:** 2023-02-01
