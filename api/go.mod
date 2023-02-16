@@ -4,9 +4,9 @@ go 1.18
 
 require (
 	github.com/fluxcd/pkg/apis/meta v0.19.0
-	github.com/fluxcd/source-controller/api v0.34.0
+	github.com/fluxcd/source-controller/api v0.35.0
 	k8s.io/apimachinery v0.26.1
-	sigs.k8s.io/controller-runtime v0.14.2
+	sigs.k8s.io/controller-runtime v0.14.4
 )
 
 // Fix CVE-2022-32149
