@@ -36,9 +36,6 @@ require (
 	sigs.k8s.io/kustomize/kyaml v0.13.9
 )
 
-// Fix CVE-2022-32149
-replace golang.org/x/text => golang.org/x/text v0.4.0
-
 // Fix CVE-2022-1996 (for v2, Go Modules incompatible)
 replace github.com/emicklei/go-restful => github.com/emicklei/go-restful v2.16.0+incompatible
 

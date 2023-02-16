@@ -9,9 +9,6 @@ require (
 	sigs.k8s.io/controller-runtime v0.14.4
 )
 
-// Fix CVE-2022-32149
-replace golang.org/x/text => golang.org/x/text v0.4.0
-
 require (
 	github.com/fluxcd/pkg/apis/acl v0.1.0 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
