@@ -52,7 +52,7 @@ import (
 	"github.com/fluxcd/go-git/v5/plumbing/cache"
 	"github.com/fluxcd/go-git/v5/plumbing/object"
 	"github.com/fluxcd/go-git/v5/storage/filesystem"
-	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta1"
+	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	"github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/git/gogit"
