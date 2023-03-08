@@ -7,37 +7,34 @@ replace github.com/fluxcd/image-automation-controller/api => ./api
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230106234847-43070de90fa1
 	github.com/Masterminds/sprig/v3 v3.2.3
-	github.com/ProtonMail/go-crypto v0.0.0-20230214155104-81033d7f4442
+	github.com/ProtonMail/go-crypto v0.0.0-20230217124315-7d5c6f04bbb8
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/fluxcd/go-git/v5 v5.0.0-20221219190809-2e5c9d01cfc4
 	github.com/fluxcd/image-automation-controller/api v0.30.0
 	github.com/fluxcd/image-reflector-controller/api v0.25.0
 	github.com/fluxcd/pkg/apis/acl v0.1.0
-	github.com/fluxcd/pkg/apis/event v0.4.0
-	github.com/fluxcd/pkg/apis/meta v0.19.0
-	github.com/fluxcd/pkg/git v0.10.0
-	github.com/fluxcd/pkg/git/gogit v0.7.1
-	github.com/fluxcd/pkg/gittestserver v0.8.1
+	github.com/fluxcd/pkg/apis/event v0.4.1
+	github.com/fluxcd/pkg/apis/meta v0.19.1
+	github.com/fluxcd/pkg/git v0.11.0
+	github.com/fluxcd/pkg/git/gogit v0.8.1
+	github.com/fluxcd/pkg/gittestserver v0.8.2
 	github.com/fluxcd/pkg/runtime v0.29.0
-	github.com/fluxcd/pkg/ssh v0.7.1
-	github.com/fluxcd/source-controller/api v0.35.0
+	github.com/fluxcd/pkg/ssh v0.7.3
+	github.com/fluxcd/source-controller/api v0.35.2
 	github.com/go-git/go-billy/v5 v5.4.1
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-containerregistry v0.13.0
-	github.com/onsi/gomega v1.26.0
+	github.com/onsi/gomega v1.27.2
 	github.com/otiai10/copy v1.9.0
 	github.com/spf13/pflag v1.0.5
-	golang.org/x/crypto v0.6.0
-	k8s.io/api v0.26.1
-	k8s.io/apimachinery v0.26.1
-	k8s.io/client-go v0.26.1
-	k8s.io/kube-openapi v0.0.0-20230131224050-76d406abb92a
-	sigs.k8s.io/controller-runtime v0.14.4
+	golang.org/x/crypto v0.7.0
+	k8s.io/api v0.26.2
+	k8s.io/apimachinery v0.26.2
+	k8s.io/client-go v0.26.2
+	k8s.io/kube-openapi v0.0.0-20230303024457-afdc3dddf62d
+	sigs.k8s.io/controller-runtime v0.14.5
 	sigs.k8s.io/kustomize/kyaml v0.13.9
 )
-
-// Fix CVE-2022-1996 (for v2, Go Modules incompatible)
-replace github.com/emicklei/go-restful => github.com/emicklei/go-restful v2.16.0+incompatible
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
@@ -124,11 +121,11 @@ require (
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
 	golang.org/x/mod v0.8.0 // indirect
-	golang.org/x/net v0.7.0 // indirect
+	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/oauth2 v0.2.0 // indirect
-	golang.org/x/sys v0.5.0 // indirect
-	golang.org/x/term v0.5.0 // indirect
-	golang.org/x/text v0.7.0 // indirect
+	golang.org/x/sys v0.6.0 // indirect
+	golang.org/x/term v0.6.0 // indirect
+	golang.org/x/text v0.8.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.6.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
@@ -141,8 +138,8 @@ require (
 	gotest.tools/v3 v3.1.0 // indirect
 	k8s.io/apiextensions-apiserver v0.26.1 // indirect
 	k8s.io/cli-runtime v0.25.4 // indirect
-	k8s.io/component-base v0.26.1 // indirect
-	k8s.io/klog/v2 v2.90.0 // indirect
+	k8s.io/component-base v0.26.2 // indirect
+	k8s.io/klog/v2 v2.90.1 // indirect
 	k8s.io/kubectl v0.25.4 // indirect
 	k8s.io/utils v0.0.0-20221128185143-99ec85e7a448 // indirect
 	sigs.k8s.io/cli-utils v0.34.0 // indirect
