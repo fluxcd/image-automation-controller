@@ -104,8 +104,7 @@ func main() {
 
 	flag.Parse()
 
-	log := logger.NewLogger(logOptions)
-	ctrl.SetLogger(log)
+	logger.SetLogger(logger.NewLogger(logOptions))
 
 	err := featureGates.WithLogger(setupLog).
 		SupportedFeatures(features.FeatureGates())
