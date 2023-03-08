@@ -33,9 +33,6 @@ REFLECTOR_VER ?= $(shell go list -m github.com/fluxcd/image-reflector-controller
 REPOSITORY_ROOT := $(shell git rev-parse --show-toplevel)
 BUILD_DIR := $(REPOSITORY_ROOT)/build
 
-# Other dependency versions
-ENVTEST_BIN_VERSION ?= 1.19.2
-
 # FUZZ_TIME defines the max amount of time, in Go Duration,
 # each fuzzer should run for.
 FUZZ_TIME ?= 1m
