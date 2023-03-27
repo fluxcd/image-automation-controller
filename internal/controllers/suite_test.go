@@ -67,7 +67,7 @@ func TestMain(m *testing.M) {
 
 func runTestsWithFeatures(m *testing.M, feats map[string]bool) int {
 	testEnv = testenv.New(testenv.WithCRDPath(
-		filepath.Join("..", "config", "crd", "bases"),
+		filepath.Join("..", "..", "config", "crd", "bases"),
 		filepath.Join("testdata", "crds"),
 	))
 
