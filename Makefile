@@ -69,7 +69,7 @@ ifeq ($(shell uname -s),Darwin)
 ENVTEST_ARCH=amd64
 endif
 
-TEST_CRDS := controllers/testdata/crds
+TEST_CRDS := internal/controllers/testdata/crds
 
 # Log level for `make run`
 LOG_LEVEL ?= info

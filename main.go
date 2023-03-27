@@ -46,7 +46,7 @@ import (
 	"github.com/fluxcd/pkg/git"
 
 	// +kubebuilder:scaffold:imports
-	"github.com/fluxcd/image-automation-controller/controllers"
+	"github.com/fluxcd/image-automation-controller/internal/controllers"
 )
 
 const (
