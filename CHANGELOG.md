@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.32.0
+
+**Release date:** 2023-03-31
+
+This release updates the dependencies to their latest versions.
+
+In addition, the controller now supports horizontal scaling using sharding based on a label selector.
+
+### Highlights
+
+#### API Changes
+
+This prerelease is only compatible with `GitRepository` API version `v1`, first shipped with 
+[source-controller](https://github.com/fluxcd/source-controller) v1.0.0-rc.1.
+
+#### Sharding
+
+Starting with this release, the controller can be configured with `--watch-label-selector`, after 
+which only objects with this label will be reconciled by the controller.
+
+This allows for horizontal scaling, where image-automation-controller can be deployed multiple times
+with a unique label selector which is used as the sharding key.
+
+### Full Changelog
+
+Improvements:
+- move `controllers` to `internal/controllers`
+  [#500](https://github.com/fluxcd/image-automation-controller/pull/500)
+- Add reconciler sharding capability based on label selector
+  [#504](https://github.com/fluxcd/image-automation-controller/pull/504)
+- Update dependencies and GitRepository API to v1
+  [#505](https://github.com/fluxcd/image-automation-controller/pull/505)
+- bump google.golang.org/protobuf from 1.29.0 to 1.29.1
+  [#506](https://github.com/fluxcd/image-automation-controller/pull/506)
+
 ## 0.31.0
 
 **Release date:** 2023-03-08
