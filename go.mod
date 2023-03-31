@@ -7,32 +7,32 @@ replace github.com/fluxcd/image-automation-controller/api => ./api
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230106234847-43070de90fa1
 	github.com/Masterminds/sprig/v3 v3.2.3
-	github.com/ProtonMail/go-crypto v0.0.0-20230217124315-7d5c6f04bbb8
+	github.com/ProtonMail/go-crypto v0.0.0-20230321155629-9a39f2531310
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/fluxcd/go-git/v5 v5.0.0-20221219190809-2e5c9d01cfc4
 	github.com/fluxcd/image-automation-controller/api v0.31.0
 	github.com/fluxcd/image-reflector-controller/api v0.26.0
 	github.com/fluxcd/pkg/apis/acl v0.1.0
 	github.com/fluxcd/pkg/apis/event v0.4.1
-	github.com/fluxcd/pkg/apis/meta v0.19.1
+	github.com/fluxcd/pkg/apis/meta v1.0.0
 	github.com/fluxcd/pkg/git v0.11.0
 	github.com/fluxcd/pkg/git/gogit v0.8.1
 	github.com/fluxcd/pkg/gittestserver v0.8.2
-	github.com/fluxcd/pkg/runtime v0.31.0
+	github.com/fluxcd/pkg/runtime v0.35.0
 	github.com/fluxcd/pkg/ssh v0.7.3
-	github.com/fluxcd/source-controller/api v0.36.0
+	github.com/fluxcd/source-controller/api v1.0.0-rc.1
 	github.com/go-git/go-billy/v5 v5.4.1
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-containerregistry v0.13.0
-	github.com/onsi/gomega v1.27.2
+	github.com/onsi/gomega v1.27.5
 	github.com/otiai10/copy v1.9.0
 	github.com/spf13/pflag v1.0.5
 	golang.org/x/crypto v0.7.0
-	k8s.io/api v0.26.2
-	k8s.io/apimachinery v0.26.2
-	k8s.io/client-go v0.26.2
+	k8s.io/api v0.26.3
+	k8s.io/apimachinery v0.26.3
+	k8s.io/client-go v0.26.3
 	k8s.io/kube-openapi v0.0.0-20230303024457-afdc3dddf62d
-	sigs.k8s.io/controller-runtime v0.14.5
+	sigs.k8s.io/controller-runtime v0.14.6
 	sigs.k8s.io/kustomize/kyaml v0.13.9
 )
 
@@ -42,7 +42,7 @@ require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.2.0 // indirect
 	github.com/Microsoft/go-winio v0.6.0 // indirect
-	github.com/acomagu/bufpipe v1.0.3 // indirect
+	github.com/acomagu/bufpipe v1.0.4 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
@@ -66,7 +66,7 @@ require (
 	github.com/gofrs/uuid v4.2.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/gnostic v0.6.9 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
@@ -78,7 +78,7 @@ require (
 	github.com/hashicorp/go-hclog v1.3.1 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.2 // indirect
 	github.com/huandu/xstrings v1.3.3 // indirect
-	github.com/imdario/mergo v0.3.13 // indirect
+	github.com/imdario/mergo v0.3.15 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
@@ -101,7 +101,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
-	github.com/pjbgf/sha1cd v0.2.3 // indirect
+	github.com/pjbgf/sha1cd v0.3.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
@@ -120,14 +120,14 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
-	golang.org/x/mod v0.8.0 // indirect
+	golang.org/x/mod v0.9.0 // indirect
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/oauth2 v0.2.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/term v0.6.0 // indirect
 	golang.org/x/text v0.8.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	golang.org/x/tools v0.6.0 // indirect
+	golang.org/x/tools v0.7.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
@@ -138,7 +138,7 @@ require (
 	gotest.tools/v3 v3.1.0 // indirect
 	k8s.io/apiextensions-apiserver v0.26.1 // indirect
 	k8s.io/cli-runtime v0.25.4 // indirect
-	k8s.io/component-base v0.26.2 // indirect
+	k8s.io/component-base v0.26.3 // indirect
 	k8s.io/klog/v2 v2.90.1 // indirect
 	k8s.io/kubectl v0.25.4 // indirect
 	k8s.io/utils v0.0.0-20221128185143-99ec85e7a448 // indirect
