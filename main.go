@@ -40,7 +40,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/pprof"
 	"github.com/fluxcd/pkg/runtime/probes"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
 	"github.com/fluxcd/image-automation-controller/internal/features"

@@ -9,7 +9,7 @@
   "externalPackages": [
     {
       "typeMatchPrefix": "^k8s\\.io/apimachinery/pkg/apis/meta/v1\\.Duration$",
-      "docsURLTemplate": "https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration"
+      "docsURLTemplate": "https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration"
     },
     {
       "typeMatchPrefix": "^k8s\\.io/(api|apimachinery/pkg/apis)/",
@@ -17,15 +17,15 @@
     },
     {
       "typeMatchPrefix": "^github.com/fluxcd/pkg/runtime/dependency\\.CrossNamespaceDependencyReference$",
-      "docsURLTemplate": "https://godoc.org/github.com/fluxcd/pkg/runtime/dependency#CrossNamespaceDependencyReference"
+      "docsURLTemplate": "https://pkg.go.dev/github.com/fluxcd/pkg/runtime/dependency#CrossNamespaceDependencyReference"
     },
     {
       "typeMatchPrefix": "^github.com/fluxcd/pkg/apis/meta",
-      "docsURLTemplate": "https://godoc.org/github.com/fluxcd/pkg/apis/meta#{{ .TypeIdentifier }}"
+      "docsURLTemplate": "https://pkg.go.dev/github.com/fluxcd/pkg/apis/meta#{{ .TypeIdentifier }}"
     },
     {
-      "typeMatchPrefix": "^github.com/fluxcd/source-controller/api/v1beta1",
-      "docsURLTemplate": "https://godoc.org/github.com/fluxcd/source-controller/api/v1beta2#{{ .TypeIdentifier }}"
+      "typeMatchPrefix": "^github.com/fluxcd/source-controller/api/v1",
+      "docsURLTemplate": "https://pkg.go.dev/github.com/fluxcd/source-controller/api/v1#{{ .TypeIdentifier }}"
     }
   ],
   "typeDisplayNamePrefixOverrides": {

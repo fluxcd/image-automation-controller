@@ -55,7 +55,7 @@ import (
 	"github.com/fluxcd/pkg/gittestserver"
 	"github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/testenv"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	image_automationv1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
 	"github.com/fluxcd/image-automation-controller/pkg/update"
