@@ -207,7 +207,9 @@ string
 <td>
 <code>ref</code><br>
 <em>
-Source /v1beta2.GitRepositoryRef
+<a href="https://pkg.go.dev/github.com/fluxcd/source-controller/api/v1#GitRepositoryRef">
+Source /v1.GitRepositoryRef
+</a>
 </em>
 </td>
 <td>
@@ -358,7 +360,7 @@ other kinds of source allowed.</p>
 <td>
 <code>interval</code><br>
 <em>
-<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
 Kubernetes meta/v1.Duration
 </a>
 </em>
@@ -466,7 +468,7 @@ other kinds of source allowed.</p>
 <td>
 <code>interval</code><br>
 <em>
-<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
 Kubernetes meta/v1.Duration
 </a>
 </em>
@@ -596,7 +598,7 @@ int64
 <td>
 <code>ReconcileRequestStatus</code><br>
 <em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#ReconcileRequestStatus">
+<a href="https://pkg.go.dev/github.com/fluxcd/pkg/apis/meta#ReconcileRequestStatus">
 github.com/fluxcd/pkg/apis/meta.ReconcileRequestStatus
 </a>
 </em>
@@ -666,7 +668,7 @@ starting point, if it doesn&rsquo;t already exist.</p>
 <td>
 <code>secretRef</code><br>
 <em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#LocalObjectReference">
+<a href="https://pkg.go.dev/github.com/fluxcd/pkg/apis/meta#LocalObjectReference">
 github.com/fluxcd/pkg/apis/meta.LocalObjectReference
 </a>
 </em>
