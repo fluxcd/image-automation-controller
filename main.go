@@ -27,6 +27,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
@@ -80,15 +81,13 @@ func main() {
 		leaderElectionOptions leaderelection.Options
 		rateLimiterOptions    helper.RateLimiterOptions
 		featureGates          feathelper.FeatureGates
-		watchAllNamespaces    bool
+		watchOptions          helper.WatchOptions
 		concurrent            int
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&eventsAddr, "events-addr", "", "The address of the events receiver.")
 	flag.StringVar(&healthAddr, "health-addr", ":9440", "The address the health endpoint binds to.")
-	flag.BoolVar(&watchAllNamespaces, "watch-all-namespaces", true,
-		"Watch for custom resources in all namespaces, if set to false it will only watch the runtime namespace.")
 	flag.IntVar(&concurrent, "concurrent", 4, "The number of concurrent resource reconciles.")
 	flag.StringSliceVar(&git.KexAlgos, "ssh-kex-algos", []string{},
 		"The list of key exchange algorithms to use for ssh connections, arranged from most preferred to the least.")
@@ -101,6 +100,7 @@ func main() {
 	aclOptions.BindFlags(flag.CommandLine)
 	rateLimiterOptions.BindFlags(flag.CommandLine)
 	featureGates.BindFlags(flag.CommandLine)
+	watchOptions.BindFlags(flag.CommandLine)
 
 	flag.Parse()
 
@@ -114,7 +114,7 @@ func main() {
 	}
 
 	watchNamespace := ""
-	if !watchAllNamespaces {
+	if !watchOptions.AllNamespaces {
 		watchNamespace = os.Getenv("RUNTIME_NAMESPACE")
 	}
 
@@ -129,6 +129,24 @@ func main() {
 	}
 
 	restConfig := client.GetConfigOrDie(clientOptions)
+
+	watchSelector, err := helper.GetWatchSelector(watchOptions)
+	if err != nil {
+		setupLog.Error(err, "unable to configure watch label selector for manager")
+		os.Exit(1)
+	}
+
+	selectingCacheFunc := cache.BuilderWithOptions(cache.Options{
+		SelectorsByObject: cache.SelectorsByObject{
+			&imagev1.ImageUpdateAutomation{}: {Label: watchSelector},
+		},
+	})
+
+	leaderElectionID := fmt.Sprintf("%s-leader-election", controllerName)
+	if watchOptions.LabelSelector != "" {
+		leaderElectionID = leaderelection.GenerateID(leaderElectionID, watchOptions.LabelSelector)
+	}
+
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                        scheme,
 		MetricsBindAddress:            metricsAddr,
@@ -137,9 +155,10 @@ func main() {
 		LeaderElection:                leaderElectionOptions.Enable,
 		LeaderElectionReleaseOnCancel: leaderElectionOptions.ReleaseOnCancel,
 		LeaseDuration:                 &leaderElectionOptions.LeaseDuration,
+		NewCache:                      selectingCacheFunc,
 		RenewDeadline:                 &leaderElectionOptions.RenewDeadline,
 		RetryPeriod:                   &leaderElectionOptions.RetryPeriod,
-		LeaderElectionID:              fmt.Sprintf("%s-leader-election", controllerName),
+		LeaderElectionID:              leaderElectionID,
 		Namespace:                     watchNamespace,
 		ClientDisableCacheFor:         disableCacheFor,
 	})
@@ -159,7 +178,7 @@ func main() {
 
 	metricsH := helper.MustMakeMetrics(mgr)
 
-	if err = (&controllers.ImageUpdateAutomationReconciler{
+	if err := (&controllers.ImageUpdateAutomationReconciler{
 		Client:              mgr.GetClient(),
 		EventRecorder:       eventRecorder,
 		Metrics:             metricsH,

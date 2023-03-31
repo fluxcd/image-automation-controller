@@ -3,10 +3,10 @@ module github.com/fluxcd/image-automation-controller/api
 go 1.18
 
 require (
-	github.com/fluxcd/pkg/apis/meta v0.19.1
-	github.com/fluxcd/source-controller/api v0.36.0
-	k8s.io/apimachinery v0.26.2
-	sigs.k8s.io/controller-runtime v0.14.5
+	github.com/fluxcd/pkg/apis/meta v1.0.0
+	github.com/fluxcd/source-controller/api v1.0.0-rc.1
+	k8s.io/apimachinery v0.26.3
+	sigs.k8s.io/controller-runtime v0.14.6
 )
 
 require (
