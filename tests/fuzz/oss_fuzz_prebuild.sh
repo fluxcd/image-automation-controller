@@ -31,6 +31,7 @@ SOURCE_VER=$(go list -m github.com/fluxcd/source-controller/api | awk '{print $2
 # Version of the image-reflector-controller from which to get the ImagePolicy CRD.
 # Pulls image-reflector-controller/api's version set in go.mod.
 REFLECTOR_VER=$(go list -m github.com/fluxcd/image-reflector-controller/api | awk '{print $2}')
+REFLECTOR_VER=d19d5eaff610
 
 if [ -d "../../internal/controllers/testdata/crds" ]; then
     cp ../../internal/controllers/testdata/crds/*.yaml testdata/crds

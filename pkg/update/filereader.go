@@ -129,7 +129,7 @@ func (r *ScreeningLocalReader) Read() ([]*yaml.RNode, error) {
 		// doesn't need to be the end of the matter; we can record
 		// this file as problematic, and continue.
 		if err != nil {
-			tracelog.Info("problem file", "path", path)
+			tracelog.Info("problem file", "path", path, "error", err)
 			r.ProblemFiles = append(r.ProblemFiles, path)
 			return nil
 		}

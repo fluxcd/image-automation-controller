@@ -137,7 +137,7 @@ func TestImageAutomationReconciler_commitMessage(t *testing.T) {
 		},
 	}
 	fixture := "testdata/appconfig"
-	latest := "helloworld:v1.0.0"
+	latest := imageRef{"helloworld", "v1.0.0", "sha256:ad4e2469d34488bd10adf92a2c33105e393a44d3fc781078a1a540916000a257"}
 
 	t.Run(gogit.ClientName, func(t *testing.T) {
 		testWithRepoAndImagePolicy(
@@ -201,7 +201,7 @@ func TestImageAutomationReconciler_crossNamespaceRef(t *testing.T) {
 		},
 	}
 	fixture := "testdata/appconfig"
-	latest := "helloworld:v1.0.0"
+	latest := imageRef{"helloworld", "v1.0.0", "sha256:aaiei33423"}
 
 	// Test successful cross namespace reference when NoCrossNamespaceRef=false.
 	args := newRepoAndPolicyArgs()
@@ -300,7 +300,7 @@ func TestImageAutomationReconciler_updatePath(t *testing.T) {
 		},
 	}
 	fixture := "testdata/pathconfig"
-	latest := "helloworld:v1.0.0"
+	latest := imageRef{"helloworld", "v1.0.0", "sha256:2b83a008244a02ffbc4703ba9b61cf5e8dcadf3a02dc976a3502b2b9e8871694"}
 
 	t.Run(gogit.ClientName, func(t *testing.T) {
 		testWithRepoAndImagePolicy(
@@ -363,7 +363,7 @@ func TestImageAutomationReconciler_signedCommit(t *testing.T) {
 		},
 	}
 	fixture := "testdata/appconfig"
-	latest := "helloworld:v1.0.0"
+	latest := imageRef{"helloworld", "v1.0.0", "sha256:1e634e7c249b0582d771fb090fb51223a73e42e52736dd8dac10840b223f9d0c"}
 
 	t.Run(gogit.ClientName, func(t *testing.T) {
 		testWithRepoAndImagePolicy(
@@ -424,13 +424,18 @@ func TestImageAutomationReconciler_signedCommit(t *testing.T) {
 	})
 }
 
+// imageRef simplifies passing an image name, tag and digest between functions without having to use 3 different parameters.
+type imageRef struct {
+	name, tag, digest string
+}
+
 func TestImageAutomationReconciler_e2e(t *testing.T) {
 	protos := []string{"http", "ssh"}
 
 	testFunc := func(t *testing.T, proto string, feats map[string]bool) {
 		g := NewWithT(t)
 
-		const latestImage = "helloworld:1.0.1"
+		var latestImage = imageRef{"helloworld", "1.0.1", "sha256:foobar"}
 
 		namespace := "image-auto-test-" + randStringRunes(5)
 		branch := randStringRunes(8)
@@ -483,7 +488,7 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 		commitMessage := "Commit a difference " + randStringRunes(5)
 
 		// Initialize a git repo.
-		g.Expect(initGitRepo(gitServer, "testdata/appconfig", branch, repositoryPath)).To(Succeed())
+		g.Expect(initGitRepo(gitServer, "testdata/e2e", branch, repositoryPath)).To(Succeed())
 
 		// Create GitRepository resource for the above repo.
 		if proto == "ssh" {
@@ -694,6 +699,7 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 			// before creating the automation object itself.
 			commitInRepo(g, cloneLocalRepoURL, branch, "Install setter marker", func(tmp string) {
 				g.Expect(replaceMarker(tmp, policyKey)).To(Succeed())
+				g.Expect(replaceMarkerWith(filepath.Join(tmp, "digest"), policyKey, setterRefDigest)).To(Succeed())
 			})
 
 			// Pull the head commit we just pushed, so it's not
@@ -735,6 +741,7 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 
 			compareRepoWithExpected(g, cloneLocalRepoURL, branch, "testdata/appconfig-setters-expected", func(tmp string) {
 				g.Expect(replaceMarker(tmp, policyKey)).To(Succeed())
+				g.Expect(replaceMarkerWith(filepath.Join(tmp, "digest"), policyKey, setterRefDigest)).To(Succeed())
 			})
 		})
 
@@ -914,17 +921,25 @@ func checkoutBranch(repo *extgogit.Repository, branch string) error {
 }
 
 func replaceMarker(path string, policyKey types.NamespacedName) error {
+	return replaceMarkerWith(path, policyKey, setterRef)
+}
+
+func replaceMarkerWith(path string, policyKey types.NamespacedName, setterRefFn func(types.NamespacedName) string) error {
 	// NB this requires knowledge of what's in the git repo, so a little brittle
 	deployment := filepath.Join(path, "deploy.yaml")
 	filebytes, err := os.ReadFile(deployment)
 	if err != nil {
 		return err
 	}
-	newfilebytes := bytes.ReplaceAll(filebytes, []byte("SETTER_SITE"), []byte(setterRef(policyKey)))
+	newfilebytes := bytes.ReplaceAll(filebytes, []byte("SETTER_SITE"), []byte(setterRefFn(policyKey)))
 	if err = os.WriteFile(deployment, newfilebytes, os.FileMode(0666)); err != nil {
 		return err
 	}
 	return nil
+}
+
+func setterRefDigest(name types.NamespacedName) string {
+	return fmt.Sprintf(`{"%s": "%s:%s:digest"}`, update.SetterShortHand, name.Namespace, name.Name)
 }
 
 func setterRef(name types.NamespacedName) string {
@@ -1346,7 +1361,7 @@ func testWithRepoAndImagePolicy(
 	kClient client.Client,
 	fixture string,
 	policySpec imagev1_reflect.ImagePolicySpec,
-	latest, gitImpl string,
+	latest imageRef, gitImpl string,
 	testFunc testWithRepoAndImagePolicyTestFunc) {
 	// Generate unique repo and policy arguments.
 	args := newRepoAndPolicyArgs()
@@ -1362,7 +1377,7 @@ func testWithCustomRepoAndImagePolicy(
 	kClient client.Client,
 	fixture string,
 	policySpec imagev1_reflect.ImagePolicySpec,
-	latest, gitImpl string,
+	latest imageRef, gitImpl string,
 	args repoAndPolicyArgs,
 	testFunc testWithRepoAndImagePolicyTestFunc) {
 	repositoryPath := "/config-" + randStringRunes(6) + ".git"
@@ -1476,7 +1491,7 @@ func createGitRepository(kClient client.Client, name, namespace, repoURL, secret
 	return kClient.Create(context.Background(), gitRepo)
 }
 
-func createImagePolicyWithLatestImage(kClient client.Client, name, namespace, repoRef, semverRange, latest string) error {
+func createImagePolicyWithLatestImage(kClient client.Client, name, namespace, repoRef, semverRange string, latest imageRef) error {
 	policySpec := imagev1_reflect.ImagePolicySpec{
 		ImageRepositoryRef: meta.NamespacedObjectReference{
 			Name: repoRef,
@@ -1490,7 +1505,7 @@ func createImagePolicyWithLatestImage(kClient client.Client, name, namespace, re
 	return createImagePolicyWithLatestImageForSpec(kClient, name, namespace, policySpec, latest)
 }
 
-func createImagePolicyWithLatestImageForSpec(kClient client.Client, name, namespace string, policySpec imagev1_reflect.ImagePolicySpec, latest string) error {
+func createImagePolicyWithLatestImageForSpec(kClient client.Client, name, namespace string, policySpec imagev1_reflect.ImagePolicySpec, latest imageRef) error {
 	policy := &imagev1_reflect.ImagePolicy{
 		Spec: policySpec,
 	}
@@ -1501,7 +1516,8 @@ func createImagePolicyWithLatestImageForSpec(kClient client.Client, name, namesp
 		return err
 	}
 	patch := client.MergeFrom(policy.DeepCopy())
-	policy.Status.LatestImage = latest
+	policy.Status.LatestImage = fmt.Sprintf("%s:%s", latest.name, latest.tag)
+	policy.Status.LatestDigest = latest.digest
 	return kClient.Status().Patch(context.Background(), policy, patch)
 }
 
