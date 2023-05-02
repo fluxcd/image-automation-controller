@@ -226,7 +226,21 @@ will result in commits with the author `Fluxbot <flux@example.com>`.
 
 The optional `signingKey` field can be used to provide a key to sign commits with. It holds a
 reference to a secret, which is expected to have a file called `git.asc` containing an
-ASCII-armoured PGP key.
+ASCII-armoured PGP key. If the private key is protected by a password, you can specify the same
+in the secret using the `passphrase` key.
+
+```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: signing-key
+  namespace: default
+stringData:
+  git.asc: |
+    <ARMOR ENCODED PGP KEY>
+  passphrase: <private-key-passphrase>
+```
 
 The `messageTemplate` field is a string which will be used as a template for the commit message. If
 empty, there is a default message; but you will likely want to provide your own, especially if you
