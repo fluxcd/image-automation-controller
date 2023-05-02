@@ -67,13 +67,13 @@ import (
 	"github.com/fluxcd/image-automation-controller/pkg/update"
 )
 
-const originRemote = "origin"
-
-const defaultMessageTemplate = `Update from image update automation`
-
-const repoRefKey = ".spec.gitRepository"
-
-const signingSecretKey = "git.asc"
+const (
+	originRemote           = "origin"
+	defaultMessageTemplate = `Update from image update automation`
+	repoRefKey             = ".spec.gitRepository"
+	signingSecretKey       = "git.asc"
+	signingPassphraseKey   = "passphrase"
+)
 
 // TemplateData is the type of the value given to the commit message
 // template.
@@ -590,7 +590,19 @@ func (r *ImageUpdateAutomationReconciler) getSigningEntity(ctx context.Context, 
 	if len(entities) > 1 {
 		return nil, fmt.Errorf("multiple entities read from secret '%s', could not determine which signing key to use", secretName)
 	}
-	return entities[0], nil
+
+	entity := entities[0]
+	if entity.PrivateKey.Encrypted {
+		passphrase, ok := secret.Data[signingPassphraseKey]
+		if !ok {
+			return nil, fmt.Errorf("can not use passphrase protected signing key without '%s' field present in secret %s",
+				signingPassphraseKey, secretName)
+		}
+		if err = entity.PrivateKey.Decrypt([]byte(passphrase)); err != nil {
+			return nil, fmt.Errorf("could not decrypt private key of the signing key present in secret %s: %w", secretName, err)
+		}
+	}
+	return entity, nil
 }
 
 // --- events, metrics
