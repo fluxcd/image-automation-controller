@@ -31,12 +31,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ProtonMail/go-crypto/openpgp"
+	"github.com/ProtonMail/go-crypto/openpgp/armor"
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
 	"github.com/otiai10/copy"
-	"golang.org/x/crypto/openpgp"
-	"golang.org/x/crypto/openpgp/armor"
 	corev1 "k8s.io/api/core/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -417,7 +417,7 @@ func TestImageAutomationReconciler_signedCommit(t *testing.T) {
 				kr := openpgp.EntityList([]*openpgp.Entity{pgpEntity})
 				signature := strings.NewReader(commit.PGPSignature)
 
-				_, err = openpgp.CheckArmoredDetachedSignature(kr, content, signature)
+				_, err = openpgp.CheckArmoredDetachedSignature(kr, content, signature, nil)
 				g.Expect(err).ToNot(HaveOccurred())
 			},
 		)
@@ -1581,6 +1581,7 @@ func createSigningKeyPair(kClient client.Client, name, namespace string) (*openp
 	if err != nil {
 		return nil, err
 	}
+
 	// Configure OpenPGP armor encoder.
 	b := bytes.NewBuffer(nil)
 	w, err := armor.Encode(b, openpgp.PrivateKeyType, nil)
@@ -1594,10 +1595,16 @@ func createSigningKeyPair(kClient client.Client, name, namespace string) (*openp
 	if err = w.Close(); err != nil {
 		return nil, err
 	}
+
+	passphrase := "abcde12345"
+	if err = pgpEntity.PrivateKey.Encrypt([]byte(passphrase)); err != nil {
+		return nil, err
+	}
 	// Create the secret containing signing key.
 	sec := &corev1.Secret{
 		Data: map[string][]byte{
-			"git.asc": b.Bytes(),
+			signingSecretKey:     b.Bytes(),
+			signingPassphraseKey: []byte(passphrase),
 		},
 	}
 	sec.Name = name
