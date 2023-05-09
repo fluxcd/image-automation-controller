@@ -3,8 +3,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/fluxcd/pkg/apis/meta v1.0.0 h1:i9IGHd/VNEZELX7mepkiYFbJxs2J5znaB4cN9z2nPm8=
 github.com/fluxcd/pkg/apis/meta v1.0.0/go.mod h1:04ZdpZYm1x+aL93K4daNHW1UX6E8K7Gyf5za9OhrE+U=
-github.com/fluxcd/source-controller/api v1.0.0-rc.1 h1:MZaP5utClMG95Aw/AVu1l05WEfmpEw/RIlCLnkCQl14=
-github.com/fluxcd/source-controller/api v1.0.0-rc.1/go.mod h1:CvGNdS8g/MqwpERUK6aJp4lndsrm+JBzGpoyyZ4u0c8=
+github.com/fluxcd/source-controller/api v1.0.0-rc.2 h1:14S47wfNrN92KqLkpbfSgWr84ALhogbFgaRapit/9XI=
+github.com/fluxcd/source-controller/api v1.0.0-rc.2/go.mod h1:CvGNdS8g/MqwpERUK6aJp4lndsrm+JBzGpoyyZ4u0c8=
 github.com/go-logr/logr v1.2.0/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
 github.com/go-logr/logr v1.2.3 h1:2DntVwHkVopvECVRSlL5PSo9eG+cAkDCuckLubN+rq0=
 github.com/go-logr/logr v1.2.3/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
