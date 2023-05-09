@@ -1,10 +1,25 @@
 # Changelog
 
+## 0.33.0
+
+**Release date:** 2023-05-09
+
+This prerelease comes with support for signing commits using password protected OpenPGP keys.
+
+In addition, the controller dependencies have been updated to their latest
+versions.
+
+Improvements:
+- Add support for commit signing PGP key passphrases
+  [#510](https://github.com/fluxcd/image-automation-controller/pull/510)
+- Update dependencies
+  [#511](https://github.com/fluxcd/image-automation-controller/pull/511)
+
 ## 0.32.0
 
 **Release date:** 2023-03-31
 
-This release updates the dependencies to their latest versions.
+This prerelease updates the dependencies to their latest versions.
 
 In addition, the controller now supports horizontal scaling using sharding based on a label selector.
 
