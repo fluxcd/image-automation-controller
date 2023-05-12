@@ -11,7 +11,7 @@ require (
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/fluxcd/go-git/v5 v5.0.0-20221219190809-2e5c9d01cfc4
 	github.com/fluxcd/image-automation-controller/api v0.33.0
-	github.com/fluxcd/image-reflector-controller/api v0.27.1
+	github.com/fluxcd/image-reflector-controller/api v0.27.2
 	github.com/fluxcd/pkg/apis/acl v0.1.0
 	github.com/fluxcd/pkg/apis/event v0.4.1
 	github.com/fluxcd/pkg/apis/meta v1.0.0
@@ -20,7 +20,7 @@ require (
 	github.com/fluxcd/pkg/gittestserver v0.8.2
 	github.com/fluxcd/pkg/runtime v0.35.0
 	github.com/fluxcd/pkg/ssh v0.7.3
-	github.com/fluxcd/source-controller/api v1.0.0-rc.2
+	github.com/fluxcd/source-controller/api v1.0.0-rc.3
 	github.com/go-git/go-billy/v5 v5.4.1
 	github.com/go-logr/logr v1.2.4
 	github.com/google/go-containerregistry v0.15.1
