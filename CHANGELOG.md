@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.33.1
+
+**Release date:** 2023-05-12
+
+This prerelease comes with updates to the controller dependencies
+to patch CVE-2023-1732.
+
+In addition, the controller base image has been updated to Alpine 3.18.
+
+Improvements:
+- Update Alpine to 3.18
+  [#513](https://github.com/fluxcd/image-automation-controller/pull/513)
+- Update dependencies
+  [#516](https://github.com/fluxcd/image-automation-controller/pull/516)
+- build(deps): bump github.com/cloudflare/circl from 1.3.2 to 1.3.3
+  [#515](https://github.com/fluxcd/image-automation-controller/pull/515)
+
 ## 0.33.0
 
 **Release date:** 2023-05-09
