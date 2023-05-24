@@ -21,7 +21,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"net/url"
 	"os"
 	"strings"
@@ -45,8 +44,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	extgogit "github.com/fluxcd/go-git/v5"
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	apiacl "github.com/fluxcd/pkg/apis/acl"
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
@@ -59,8 +58,6 @@ import (
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
-
-	extgogit "github.com/fluxcd/go-git/v5"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
 	"github.com/fluxcd/image-automation-controller/internal/features"
@@ -94,9 +91,7 @@ type ImageUpdateAutomationReconciler struct {
 }
 
 type ImageUpdateAutomationReconcilerOptions struct {
-	MaxConcurrentReconciles int
-	RateLimiter             ratelimiter.RateLimiter
-	RecoverPanic            bool
+	RateLimiter ratelimiter.RateLimiter
 }
 
 // +kubebuilder:rbac:groups=image.toolkit.fluxcd.io,resources=imageupdateautomations,verbs=get;list;watch;create;update;patch;delete
@@ -261,10 +256,6 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	clientOpts := []gogit.ClientOption{gogit.WithDiskStorage()}
-	forcePush := r.features[features.GitForcePushBranch]
-	if forcePush && pushBranch != ref.Branch {
-		clientOpts = append(clientOpts, gogit.WithForcePush())
-	}
 	if authOpts.Transport == git.HTTP {
 		clientOpts = append(clientOpts, gogit.WithInsecureCredentialsOverHTTP())
 	}
@@ -287,7 +278,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	}
 	defer gitClient.Close()
 
-	opts := repository.CloneOptions{}
+	opts := repository.CloneConfig{}
 	if ref != nil {
 		opts.Tag = ref.Tag
 		opts.SemVer = ref.SemVer
@@ -410,7 +401,12 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		// Use the git operations timeout for the repo.
 		pushCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
 		defer cancel()
-		if err := gitClient.Push(pushCtx); err != nil {
+		opts := repository.PushConfig{}
+		forcePush := r.features[features.GitForcePushBranch]
+		if forcePush && pushBranch != ref.Branch {
+			opts.Force = true
+		}
+		if err := gitClient.Push(pushCtx, opts); err != nil {
 			return failWithError(err)
 		}
 
@@ -437,8 +433,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	return ctrl.Result{RequeueAfter: interval}, nil
 }
 
-func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager, opts ImageUpdateAutomationReconcilerOptions) error {
-	ctx := context.Background()
+func (r *ImageUpdateAutomationReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, opts ImageUpdateAutomationReconcilerOptions) error {
 	// Index the git repository object that each I-U-A refers to
 	if err := mgr.GetFieldIndexer().IndexField(ctx, &imagev1.ImageUpdateAutomation{}, repoRefKey, func(obj client.Object) []string {
 		updater := obj.(*imagev1.ImageUpdateAutomation)
@@ -455,12 +450,10 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(mgr ctrl.Manager, opt
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&imagev1.ImageUpdateAutomation{}, builder.WithPredicates(
 			predicate.Or(predicate.GenerationChangedPredicate{}, predicates.ReconcileRequestedPredicate{}))).
-		Watches(&source.Kind{Type: &sourcev1.GitRepository{}}, handler.EnqueueRequestsFromMapFunc(r.automationsForGitRepo)).
-		Watches(&source.Kind{Type: &imagev1_reflect.ImagePolicy{}}, handler.EnqueueRequestsFromMapFunc(r.automationsForImagePolicy)).
+		Watches(&sourcev1.GitRepository{}, handler.EnqueueRequestsFromMapFunc(r.automationsForGitRepo)).
+		Watches(&imagev1_reflect.ImagePolicy{}, handler.EnqueueRequestsFromMapFunc(r.automationsForImagePolicy)).
 		WithOptions(controller.Options{
-			MaxConcurrentReconciles: opts.MaxConcurrentReconciles,
-			RateLimiter:             opts.RateLimiter,
-			RecoverPanic:            &opts.RecoverPanic,
+			RateLimiter: opts.RateLimiter,
 		}).
 		Complete(r)
 }
@@ -488,24 +481,13 @@ func intervalOrDefault(auto *imagev1.ImageUpdateAutomation) time.Duration {
 	return auto.Spec.Interval.Duration
 }
 
-// durationSinceLastRun calculates how long it's been since the last
-// time the automation ran (which you can then use to find how long to
-// wait until the next run).
-func durationSinceLastRun(auto *imagev1.ImageUpdateAutomation, now time.Time) time.Duration {
-	last := auto.Status.LastAutomationRunTime
-	if last == nil {
-		return time.Duration(math.MaxInt64) // a fairly long time
-	}
-	return now.Sub(last.Time)
-}
-
 // automationsForGitRepo fetches all the automations that refer to a
 // particular source.GitRepository object.
-func (r *ImageUpdateAutomationReconciler) automationsForGitRepo(obj client.Object) []reconcile.Request {
-	ctx := context.Background()
+func (r *ImageUpdateAutomationReconciler) automationsForGitRepo(ctx context.Context, obj client.Object) []reconcile.Request {
 	var autoList imagev1.ImageUpdateAutomationList
 	if err := r.List(ctx, &autoList, client.InNamespace(obj.GetNamespace()),
 		client.MatchingFields{repoRefKey: obj.GetName()}); err != nil {
+		ctrl.LoggerFrom(ctx).Error(err, "failed to list ImageUpdateAutomations for GitRepository change")
 		return nil
 	}
 	reqs := make([]reconcile.Request, len(autoList.Items), len(autoList.Items))
@@ -520,10 +502,10 @@ func (r *ImageUpdateAutomationReconciler) automationsForGitRepo(obj client.Objec
 // might depend on a image policy object. Since the link is via
 // markers in the git repo, _any_ automation object in the same
 // namespace could be affected.
-func (r *ImageUpdateAutomationReconciler) automationsForImagePolicy(obj client.Object) []reconcile.Request {
-	ctx := context.Background()
+func (r *ImageUpdateAutomationReconciler) automationsForImagePolicy(ctx context.Context, obj client.Object) []reconcile.Request {
 	var autoList imagev1.ImageUpdateAutomationList
 	if err := r.List(ctx, &autoList, client.InNamespace(obj.GetNamespace())); err != nil {
+		ctrl.LoggerFrom(ctx).Error(err, "failed to list ImageUpdateAutomations for ImagePolicy change")
 		return nil
 	}
 	reqs := make([]reconcile.Request, len(autoList.Items), len(autoList.Items))
