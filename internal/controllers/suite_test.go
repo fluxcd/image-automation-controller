@@ -66,17 +66,20 @@ func TestMain(m *testing.M) {
 }
 
 func runTestsWithFeatures(m *testing.M, feats map[string]bool) int {
-	testEnv = testenv.New(testenv.WithCRDPath(
-		filepath.Join("..", "..", "config", "crd", "bases"),
-		filepath.Join("testdata", "crds"),
-	))
+	testEnv = testenv.New(
+		testenv.WithCRDPath(
+			filepath.Join("..", "..", "config", "crd", "bases"),
+			filepath.Join("testdata", "crds"),
+		),
+		testenv.WithMaxConcurrentReconciles(2),
+	)
 
 	controllerName := "image-automation-controller"
 	if err := (&ImageUpdateAutomationReconciler{
 		Client:        testEnv,
 		EventRecorder: testEnv.GetEventRecorderFor(controllerName),
 		features:      feats,
-	}).SetupWithManager(testEnv, ImageUpdateAutomationReconcilerOptions{
+	}).SetupWithManager(ctx, testEnv, ImageUpdateAutomationReconcilerOptions{
 		RateLimiter: controller.GetDefaultRateLimiter(),
 	}); err != nil {
 		panic(fmt.Sprintf("failed to start ImageUpdateAutomationReconciler: %v", err))
