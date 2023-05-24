@@ -2,7 +2,7 @@ notes
 
 # Thes are downloaded in the Makefile
 cache/*
-internal/controllers/testdata/crds/*
+internal/controller/testdata/crds/*
 
 # Binaries for programs and plugins
 *.exe
@@ -33,4 +33,4 @@ testbin
 build/
 
 # CRDs for fuzzing tests.
-internal/controllers/testdata/crd
+internal/controller/testdata/crd

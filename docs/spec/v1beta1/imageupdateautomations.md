@@ -264,7 +264,7 @@ The message template is a [Go text template][go-text-template]. The data availab
 have this structure (not reproduced verbatim):
 
 ```go
-// controllers/imageupdateautomation_controller.go
+// internal/controller/imageupdateautomation_controller.go
 
 // TemplateData is the type of the value given to the commit message
 // template.
