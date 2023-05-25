@@ -34,6 +34,12 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/armor"
 	securejoin "github.com/cyphar/filepath-securejoin"
+	extgogit "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/cache"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/storage/filesystem"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
 	"github.com/otiai10/copy"
@@ -45,13 +51,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	extgogit "github.com/fluxcd/go-git/v5"
-	"github.com/fluxcd/go-git/v5/config"
-	extgogitcfg "github.com/fluxcd/go-git/v5/config"
-	"github.com/fluxcd/go-git/v5/plumbing"
-	"github.com/fluxcd/go-git/v5/plumbing/cache"
-	"github.com/fluxcd/go-git/v5/plumbing/object"
-	"github.com/fluxcd/go-git/v5/storage/filesystem"
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	"github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
@@ -639,8 +638,8 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 				})
 				err = localRepo.Push(&extgogit.PushOptions{
 					RemoteName: originRemote,
-					RefSpecs: []extgogitcfg.RefSpec{
-						extgogitcfg.RefSpec(fmt.Sprintf("refs/heads/%s:refs/remotes/origin/%s", branch, pushBranch))},
+					RefSpecs: []config.RefSpec{
+						config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/remotes/origin/%s", branch, pushBranch))},
 				})
 				g.Expect(err).ToNot(HaveOccurred())
 
@@ -977,7 +976,7 @@ func commitInRepo(g *WithT, repoURL, branch, msg string, changeFiles func(path s
 
 	g.Expect(origin.Push(&extgogit.PushOptions{
 		RemoteName: originRemote,
-		RefSpecs:   []extgogitcfg.RefSpec{extgogitcfg.RefSpec(branchRefName(branch))},
+		RefSpecs:   []config.RefSpec{config.RefSpec(branchRefName(branch))},
 	})).To(Succeed())
 	return id
 }
@@ -1406,7 +1405,7 @@ func testWithCustomRepoAndImagePolicy(
 
 	err = localRepo.DeleteRemote(originRemote)
 	g.Expect(err).ToNot(HaveOccurred(), "failed to delete existing remote origin")
-	localRepo.CreateRemote(&extgogitcfg.RemoteConfig{
+	localRepo.CreateRemote(&config.RemoteConfig{
 		Name: originRemote,
 		URLs: []string{repoURL},
 	})
