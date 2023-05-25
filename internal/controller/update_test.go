@@ -255,9 +255,11 @@ func TestImageAutomationReconciler_crossNamespaceRef(t *testing.T) {
 		)
 
 		// Test cross namespace reference failure when NoCrossNamespaceRef=true.
-		builder := fakeclient.NewClientBuilder().WithScheme(testEnv.Scheme())
 		r := &ImageUpdateAutomationReconciler{
-			Client:              builder.Build(),
+			Client: fakeclient.NewClientBuilder().
+				WithScheme(testEnv.Scheme()).
+				WithStatusSubresource(&imagev1.ImageUpdateAutomation{}, &imagev1_reflect.ImagePolicy{}).
+				Build(),
 			EventRecorder:       testEnv.GetEventRecorderFor("image-automation-controller"),
 			NoCrossNamespaceRef: true,
 		}
@@ -445,9 +447,11 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 		controllerName := "image-automation-controller"
 		// Create ImagePolicy and ImageUpdateAutomation resource for each of the
 		// test cases and cleanup at the end.
-		builder := fakeclient.NewClientBuilder().WithScheme(testEnv.Scheme())
 		r := &ImageUpdateAutomationReconciler{
-			Client:        builder.Build(),
+			Client: fakeclient.NewClientBuilder().
+				WithScheme(testEnv.Scheme()).
+				WithStatusSubresource(&imagev1.ImageUpdateAutomation{}, &imagev1_reflect.ImagePolicy{}).
+				Build(),
 			EventRecorder: testEnv.GetEventRecorderFor(controllerName),
 			features:      feats,
 		}

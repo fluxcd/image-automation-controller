@@ -26,9 +26,11 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
+	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlcfg "sigs.k8s.io/controller-runtime/pkg/config"
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	"github.com/fluxcd/pkg/runtime/acl"
@@ -47,7 +49,7 @@ import (
 	"github.com/fluxcd/pkg/git"
 
 	// +kubebuilder:scaffold:imports
-	"github.com/fluxcd/image-automation-controller/internal/controllers"
+	"github.com/fluxcd/image-automation-controller/internal/controller"
 )
 
 const (
@@ -136,12 +138,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	selectingCacheFunc := cache.BuilderWithOptions(cache.Options{
-		SelectorsByObject: cache.SelectorsByObject{
-			&imagev1.ImageUpdateAutomation{}: {Label: watchSelector},
-		},
-	})
-
 	leaderElectionID := fmt.Sprintf("%s-leader-election", controllerName)
 	if watchOptions.LabelSelector != "" {
 		leaderElectionID = leaderelection.GenerateID(leaderElectionID, watchOptions.LabelSelector)
@@ -155,12 +151,24 @@ func main() {
 		LeaderElection:                leaderElectionOptions.Enable,
 		LeaderElectionReleaseOnCancel: leaderElectionOptions.ReleaseOnCancel,
 		LeaseDuration:                 &leaderElectionOptions.LeaseDuration,
-		NewCache:                      selectingCacheFunc,
 		RenewDeadline:                 &leaderElectionOptions.RenewDeadline,
 		RetryPeriod:                   &leaderElectionOptions.RetryPeriod,
 		LeaderElectionID:              leaderElectionID,
-		Namespace:                     watchNamespace,
-		ClientDisableCacheFor:         disableCacheFor,
+		Client: ctrlclient.Options{
+			Cache: &ctrlclient.CacheOptions{
+				DisableFor: disableCacheFor,
+			},
+		},
+		Cache: ctrlcache.Options{
+			ByObject: map[ctrlclient.Object]ctrlcache.ByObject{
+				&imagev1.ImageUpdateAutomation{}: {Label: watchSelector},
+			},
+			Namespaces: []string{watchNamespace},
+		},
+		Controller: ctrlcfg.Controller{
+			RecoverPanic:            pointer.Bool(true),
+			MaxConcurrentReconciles: concurrent,
+		},
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -178,15 +186,15 @@ func main() {
 
 	metricsH := helper.MustMakeMetrics(mgr)
 
+	ctx := ctrl.SetupSignalHandler()
+
 	if err := (&controllers.ImageUpdateAutomationReconciler{
 		Client:              mgr.GetClient(),
 		EventRecorder:       eventRecorder,
 		Metrics:             metricsH,
 		NoCrossNamespaceRef: aclOptions.NoCrossNamespaceRefs,
-	}).SetupWithManager(mgr, controllers.ImageUpdateAutomationReconcilerOptions{
-		MaxConcurrentReconciles: concurrent,
-		RateLimiter:             helper.GetRateLimiter(rateLimiterOptions),
-		RecoverPanic:            recoverPanic,
+	}).SetupWithManager(ctx, mgr, controllers.ImageUpdateAutomationReconcilerOptions{
+		RateLimiter: helper.GetRateLimiter(rateLimiterOptions),
 	}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ImageUpdateAutomation")
 		os.Exit(1)
@@ -194,7 +202,7 @@ func main() {
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
