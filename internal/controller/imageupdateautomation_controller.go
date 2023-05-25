@@ -30,6 +30,7 @@ import (
 	"github.com/Masterminds/sprig/v3"
 	"github.com/ProtonMail/go-crypto/openpgp"
 	securejoin "github.com/cyphar/filepath-securejoin"
+	extgogit "github.com/go-git/go-git/v5"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,7 +46,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	extgogit "github.com/fluxcd/go-git/v5"
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	apiacl "github.com/fluxcd/pkg/apis/acl"
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"

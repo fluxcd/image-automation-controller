@@ -34,6 +34,11 @@ import (
 
 	fuzz "github.com/AdaLogics/go-fuzz-headers"
 	"github.com/go-git/go-billy/v5/memfs"
+	gogit "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,11 +51,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	gogit "github.com/fluxcd/go-git/v5"
-	"github.com/fluxcd/go-git/v5/config"
-	"github.com/fluxcd/go-git/v5/plumbing"
-	"github.com/fluxcd/go-git/v5/plumbing/object"
-	"github.com/fluxcd/go-git/v5/storage/memory"
 	image_reflectv1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	"github.com/fluxcd/pkg/gittestserver"
 	"github.com/fluxcd/pkg/runtime/controller"
