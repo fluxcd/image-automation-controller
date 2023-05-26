@@ -19,7 +19,7 @@ require (
 	github.com/fluxcd/pkg/gittestserver v0.8.4
 	github.com/fluxcd/pkg/runtime v0.38.1
 	github.com/fluxcd/pkg/ssh v0.7.4
-	github.com/fluxcd/source-controller/api v1.0.0-rc.3
+	github.com/fluxcd/source-controller/api v1.0.0-rc.4
 	github.com/go-git/go-billy/v5 v5.4.1
 	github.com/go-git/go-git/v5 v5.7.0
 	github.com/go-logr/logr v1.2.4
