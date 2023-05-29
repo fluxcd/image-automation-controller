@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.34.0
+
+**Release date:** 2023-05-29
+
+This prerelease comes with support for Kubernetes v1.27 and updates to the
+controller's dependencies.
+
+Improvements:
+- Update controller-runtime, Kubernetes and kyaml dependencies
+  [#518](https://github.com/fluxcd/image-automation-controller/pull/518)
+- Drop go-git fork in favor of go-git v5.7.0
+  [#519](https://github.com/fluxcd/image-automation-controller/pull/519)
+- Update workflows and enable dependabot
+  [#520](https://github.com/fluxcd/image-automation-controller/pull/520)
+- build(deps): bump github/codeql-action from 2.3.3 to 2.3.4
+  [#521](https://github.com/fluxcd/image-automation-controller/pull/521)
+- Update source-controller to v1.0.0-rc.4
+  [#523](https://github.com/fluxcd/image-automation-controller/pull/523)
+
 ## 0.33.1
 
 **Release date:** 2023-05-12
