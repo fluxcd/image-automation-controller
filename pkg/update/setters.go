@@ -178,10 +178,16 @@ func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []
 		defs[fieldmeta.SetterDefinitionPrefix+nameSetter] = setterSchema(nameSetter, name)
 		imageRefs[nameSetter] = ref
 
-		digest := name + "@" + policy.Status.LatestDigest
+		digest := policy.Status.LatestImage + "@" + policy.Status.LatestDigest
 		digestSetter := imageSetter + ":digest"
 		tracelog.Info("adding setter", "name", digestSetter)
 		defs[fieldmeta.SetterDefinitionPrefix+digestSetter] = setterSchema(digestSetter, digest)
+		imageRefs[digestSetter] = ref
+
+		tagDigest := tag + "@" + policy.Status.LatestDigest
+		tagDigestSetter := tagSetter + ":digest"
+		tracelog.Info("adding setter", "name", tagDigestSetter)
+		defs[fieldmeta.SetterDefinitionPrefix+tagDigestSetter] = setterSchema(digestSetter, tagDigest)
 		imageRefs[digestSetter] = ref
 	}
 
