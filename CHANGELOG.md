@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.34.1
+
+**Release date:** 2023-06-01
+
+This prerelease fixes a regression introduced in `v0.34.0` where
+support for Git servers that exclusively use v2 of the wire protocol like Azure
+Devops and AWS CodeCommit was broken.
+Furthermore, the reconciler now errors out if it fails to get the signing entity
+to be used for Git commit signing.
+
+Fixes:
+- Return signing entity parsing error
+  [#527](https://github.com/fluxcd/image-automation-controller/pull/527)
+- Set controller package name
+  [#529](https://github.com/fluxcd/image-automation-controller/pull/529)
+- Bump `fluxcd/pkg/git/gogit` to v0.12.0
+  [#530](https://github.com/fluxcd/image-automation-controller/pull/530)
+
 ## 0.34.0
 
 **Release date:** 2023-05-29
