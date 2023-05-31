@@ -188,12 +188,12 @@ func main() {
 
 	ctx := ctrl.SetupSignalHandler()
 
-	if err := (&controllers.ImageUpdateAutomationReconciler{
+	if err := (&controller.ImageUpdateAutomationReconciler{
 		Client:              mgr.GetClient(),
 		EventRecorder:       eventRecorder,
 		Metrics:             metricsH,
 		NoCrossNamespaceRef: aclOptions.NoCrossNamespaceRefs,
-	}).SetupWithManager(ctx, mgr, controllers.ImageUpdateAutomationReconcilerOptions{
+	}).SetupWithManager(ctx, mgr, controller.ImageUpdateAutomationReconcilerOptions{
 		RateLimiter: helper.GetRateLimiter(rateLimiterOptions),
 	}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ImageUpdateAutomation")
