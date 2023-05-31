@@ -356,7 +356,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	var signingEntity *openpgp.Entity
 	if gitSpec.Commit.SigningKey != nil {
 		if signingEntity, err = r.getSigningEntity(ctx, auto); err != nil {
-			failWithError(err)
+			return failWithError(err)
 		}
 	}
 
