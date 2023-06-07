@@ -574,7 +574,7 @@ func (r *ImageUpdateAutomationReconciler) getSigningEntity(ctx context.Context, 
 	}
 
 	entity := entities[0]
-	if entity.PrivateKey.Encrypted {
+	if entity.PrivateKey != nil && entity.PrivateKey.Encrypted {
 		passphrase, ok := secret.Data[signingPassphraseKey]
 		if !ok {
 			return nil, fmt.Errorf("can not use passphrase protected signing key without '%s' field present in secret %s",
