@@ -7,24 +7,24 @@ replace github.com/fluxcd/image-automation-controller/api => ./api
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230106234847-43070de90fa1
 	github.com/Masterminds/sprig/v3 v3.2.3
-	github.com/ProtonMail/go-crypto v0.0.0-20230518184743-7afd39499903
+	github.com/ProtonMail/go-crypto v0.0.0-20230619160724-3fbb1f12458c
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/fluxcd/image-automation-controller/api v0.34.1
 	github.com/fluxcd/image-reflector-controller/api v0.28.0
 	github.com/fluxcd/pkg/apis/acl v0.1.0
 	github.com/fluxcd/pkg/apis/event v0.5.0
 	github.com/fluxcd/pkg/apis/meta v1.1.0
-	github.com/fluxcd/pkg/git v0.12.2
-	github.com/fluxcd/pkg/git/gogit v0.12.0
+	github.com/fluxcd/pkg/git v0.12.3
+	github.com/fluxcd/pkg/git/gogit v0.12.1
 	github.com/fluxcd/pkg/gittestserver v0.8.4
 	github.com/fluxcd/pkg/runtime v0.38.1
-	github.com/fluxcd/pkg/ssh v0.7.4
+	github.com/fluxcd/pkg/ssh v0.8.0
 	github.com/fluxcd/source-controller/api v1.0.0-rc.5
 	github.com/go-git/go-billy/v5 v5.4.1
 	github.com/go-git/go-git/v5 v5.7.0
 	github.com/go-logr/logr v1.2.4
 	github.com/google/go-containerregistry v0.15.2
-	github.com/onsi/gomega v1.27.7
+	github.com/onsi/gomega v1.27.8
 	github.com/otiai10/copy v1.11.0
 	github.com/spf13/pflag v1.0.5
 	k8s.io/api v0.27.2
@@ -118,13 +118,13 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
-	golang.org/x/crypto v0.9.0 // indirect
+	golang.org/x/crypto v0.10.0 // indirect
 	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/oauth2 v0.7.0 // indirect
-	golang.org/x/sys v0.8.0 // indirect
-	golang.org/x/term v0.8.0 // indirect
-	golang.org/x/text v0.9.0 // indirect
+	golang.org/x/sys v0.9.0 // indirect
+	golang.org/x/term v0.9.0 // indirect
+	golang.org/x/text v0.10.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.9.1 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.3.0 // indirect
