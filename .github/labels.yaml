@@ -1,0 +1,14 @@
+# Configuration file to declaratively configure labels
+# Ref: https://github.com/EndBug/label-sync#Config-files
+
+- name: area/git
+  description: Git related issues and pull requests
+  color: '#863faf'
+- name: area/kyaml
+  description: YAML patching related issues and pull requests
+  color: '#86dbf2'
+
+# TODO: enable this when we have a release/v1.0.x branch
+#- name: backport:release/v1.0.x
+#  description: To be backported to release/v1.0.x
+#  color: '#ffd700'
