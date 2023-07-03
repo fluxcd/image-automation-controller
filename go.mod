@@ -4,6 +4,9 @@ go 1.20
 
 replace github.com/fluxcd/image-automation-controller/api => ./api
 
+// Replace go-git to unreleased v5.8.0 to improve support for Git v2.41+.
+replace github.com/go-git/go-git/v5 => github.com/go-git/go-git/v5 v5.7.1-0.20230702134234-dd4e2b7f4b01
+
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230106234847-43070de90fa1
 	github.com/Masterminds/sprig/v3 v3.2.3
