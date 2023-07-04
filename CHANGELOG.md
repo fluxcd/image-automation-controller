@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.35.0
+
+**Release date:** 2023-07-04
+
+This prerelease comes with support for Kubernetes v1.27.3 and updates to the
+controller's dependencies.
+It has better error reporting for situations where the Git repository deploy key
+does not have write acceess. Additionally, it improves support for
+Git >= v2.41.0.
+Furthermore, a bug related to GPG commit signing that could cause panics has
+been fixed.
+
+Starting with this version, the build, release and provenance portions of the
+Flux project supply chain [provisionally meet SLSA Build Level 3](https://fluxcd.io/flux/security/slsa-assessment/).
+
+Fixes:
+- Check if GPG private key is nil before decrypting
+  [#534](https://github.com/fluxcd/image-automation-controller/pull/534)
+
+Improvements:
+- Align `go.mod` version with Kubernetes (Go 1.20)
+  [#545](https://github.com/fluxcd/image-automation-controller/pull/545)
+- Update Git packages
+  [#549](https://github.com/fluxcd/image-automation-controller/pull/549)
+- Update go-git to unreleased v5.8.0
+  [#553](https://github.com/fluxcd/image-automation-controller/pull/553)
+- Update Go dependencies
+  [#554](https://github.com/fluxcd/image-automation-controller/pull/554)
+
 ## 0.34.1
 
 **Release date:** 2023-06-01
