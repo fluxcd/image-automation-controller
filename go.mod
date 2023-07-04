@@ -18,7 +18,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/ProtonMail/go-crypto v0.0.0-20230626094100-7e9e0395ebec
 	github.com/cyphar/filepath-securejoin v0.2.3
-	github.com/fluxcd/image-automation-controller/api v0.34.1
+	github.com/fluxcd/image-automation-controller/api v0.35.0
 	github.com/fluxcd/image-reflector-controller/api v0.28.0
 	github.com/fluxcd/pkg/apis/acl v0.1.0
 	github.com/fluxcd/pkg/apis/event v0.5.1
@@ -28,7 +28,7 @@ require (
 	github.com/fluxcd/pkg/gittestserver v0.8.4
 	github.com/fluxcd/pkg/runtime v0.40.0
 	github.com/fluxcd/pkg/ssh v0.8.0
-	github.com/fluxcd/source-controller/api v1.0.0-rc.5
+	github.com/fluxcd/source-controller/api v1.0.0
 	github.com/go-git/go-billy/v5 v5.4.1
 	github.com/go-git/go-git/v5 v5.7.0
 	github.com/go-logr/logr v1.2.4
