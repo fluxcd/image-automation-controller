@@ -1,6 +1,8 @@
 <!-- -*- fill-column: 100 -*- -->
 # Image Update Automations
 
+<!-- menuweight:50 -->
+
 The `ImageUpdateAutomation` type defines an automation process that will update a git repository,
 based on image policy objects in the same namespace.
 
