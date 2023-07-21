@@ -1,4 +1,4 @@
-<h1>Image update automation API reference</h1>
+<h1>Image update automation API reference v1beta1</h1>
 <p>Packages:</p>
 <ul class="simple">
 <li>
