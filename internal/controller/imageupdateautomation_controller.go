@@ -110,16 +110,6 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// Add our finalizer if it does not exist.
-	if !controllerutil.ContainsFinalizer(&auto, imagev1.ImageUpdateAutomationFinalizer) {
-		patch := client.MergeFrom(auto.DeepCopy())
-		controllerutil.AddFinalizer(&auto, imagev1.ImageUpdateAutomationFinalizer)
-		if err := r.Patch(ctx, &auto, patch); err != nil {
-			log.Error(err, "unable to register finalizer")
-			return ctrl.Result{}, err
-		}
-	}
-
 	// If the object is under deletion, record the readiness, and remove our finalizer.
 	if !auto.ObjectMeta.DeletionTimestamp.IsZero() {
 		controllerutil.RemoveFinalizer(&auto, imagev1.ImageUpdateAutomationFinalizer)
@@ -127,6 +117,18 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
+	}
+
+	// Add our finalizer if it does not exist.
+	// Note: Finalizers in general can only be added when the deletionTimestamp
+	// is not set.
+	if !controllerutil.ContainsFinalizer(&auto, imagev1.ImageUpdateAutomationFinalizer) {
+		patch := client.MergeFrom(auto.DeepCopy())
+		controllerutil.AddFinalizer(&auto, imagev1.ImageUpdateAutomationFinalizer)
+		if err := r.Patch(ctx, &auto, patch); err != nil {
+			log.Error(err, "unable to register finalizer")
+			return ctrl.Result{}, err
+		}
 	}
 
 	// record suspension metrics
