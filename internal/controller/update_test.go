@@ -47,6 +47,7 @@ import (
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -122,6 +123,43 @@ func randStringRunes(n int) string {
 		b[i] = letterRunes[rand.Intn(len(letterRunes))]
 	}
 	return string(b)
+}
+
+func TestImageUpdateAutomationReconciler_deleteBeforeFinalizer(t *testing.T) {
+	g := NewWithT(t)
+
+	namespaceName := "imageupdate-" + randStringRunes(5)
+	namespace := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: namespaceName},
+	}
+	g.Expect(k8sClient.Create(ctx, namespace)).ToNot(HaveOccurred())
+	t.Cleanup(func() {
+		g.Expect(k8sClient.Delete(ctx, namespace)).NotTo(HaveOccurred())
+	})
+
+	imageUpdate := &imagev1.ImageUpdateAutomation{}
+	imageUpdate.Name = "test-imageupdate"
+	imageUpdate.Namespace = namespaceName
+	imageUpdate.Spec = imagev1.ImageUpdateAutomationSpec{
+		Interval: metav1.Duration{Duration: time.Second},
+		SourceRef: imagev1.CrossNamespaceSourceReference{
+			Kind: "GitRepository",
+			Name: "foo",
+		},
+	}
+	// Add a test finalizer to prevent the object from getting deleted.
+	imageUpdate.SetFinalizers([]string{"test-finalizer"})
+	g.Expect(k8sClient.Create(ctx, imageUpdate)).NotTo(HaveOccurred())
+	// Add deletion timestamp by deleting the object.
+	g.Expect(k8sClient.Delete(ctx, imageUpdate)).NotTo(HaveOccurred())
+
+	r := &ImageUpdateAutomationReconciler{
+		Client:        k8sClient,
+		EventRecorder: record.NewFakeRecorder(32),
+	}
+	// NOTE: Only a real API server responds with an error in this scenario.
+	_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(imageUpdate)})
+	g.Expect(err).NotTo(HaveOccurred())
 }
 
 func TestImageAutomationReconciler_commitMessage(t *testing.T) {

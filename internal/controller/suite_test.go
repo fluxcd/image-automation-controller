@@ -27,6 +27,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	"github.com/fluxcd/pkg/runtime/controller"
@@ -44,8 +45,9 @@ import (
 // Gomega.
 
 var (
-	testEnv *testenv.Environment
-	ctx     = ctrl.SetupSignalHandler()
+	k8sClient client.Client
+	testEnv   *testenv.Environment
+	ctx       = ctrl.SetupSignalHandler()
 )
 
 func init() {
@@ -73,6 +75,13 @@ func runTestsWithFeatures(m *testing.M, feats map[string]bool) int {
 		),
 		testenv.WithMaxConcurrentReconciles(2),
 	)
+
+	var err error
+	// Initialize a cacheless client for tests that need the latest objects.
+	k8sClient, err = client.New(testEnv.Config, client.Options{Scheme: scheme.Scheme})
+	if err != nil {
+		panic(fmt.Sprintf("failed to create k8s client: %v", err))
+	}
 
 	controllerName := "image-automation-controller"
 	if err := (&ImageUpdateAutomationReconciler{
