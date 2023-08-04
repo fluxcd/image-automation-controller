@@ -20,12 +20,12 @@ require (
 	github.com/fluxcd/pkg/apis/acl v0.1.0
 	github.com/fluxcd/pkg/apis/event v0.5.2
 	github.com/fluxcd/pkg/apis/meta v1.1.2
-	github.com/fluxcd/pkg/git v0.12.4
-	github.com/fluxcd/pkg/git/gogit v0.12.1
-	github.com/fluxcd/pkg/gittestserver v0.8.5
+	github.com/fluxcd/pkg/git v0.13.0
+	github.com/fluxcd/pkg/git/gogit v0.13.0
+	github.com/fluxcd/pkg/gittestserver v0.8.6
 	github.com/fluxcd/pkg/runtime v0.42.0
-	github.com/fluxcd/pkg/ssh v0.8.1
-	github.com/fluxcd/source-controller/api v1.0.1
+	github.com/fluxcd/pkg/ssh v0.8.2
+	github.com/fluxcd/source-controller/api v1.1.0
 	github.com/go-git/go-billy/v5 v5.4.1
 	github.com/go-git/go-git/v5 v5.8.1
 	github.com/go-logr/logr v1.2.4
@@ -125,13 +125,13 @@ require (
 	go.starlark.net v0.0.0-20221028183056-acb66ad56dd2 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	go.uber.org/zap v1.25.0 // indirect
-	golang.org/x/crypto v0.11.0 // indirect
+	golang.org/x/crypto v0.12.0 // indirect
 	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/net v0.13.0 // indirect
 	golang.org/x/oauth2 v0.8.0 // indirect
-	golang.org/x/sys v0.10.0 // indirect
-	golang.org/x/term v0.10.0 // indirect
-	golang.org/x/text v0.11.0 // indirect
+	golang.org/x/sys v0.11.0 // indirect
+	golang.org/x/term v0.11.0 // indirect
+	golang.org/x/text v0.12.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.9.3 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.3.0 // indirect

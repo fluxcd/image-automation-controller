@@ -39,6 +39,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/cache"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/storage/filesystem"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
@@ -55,6 +56,7 @@ import (
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	"github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/git/gogit"
 	"github.com/fluxcd/pkg/git/gogit/fs"
 	"github.com/fluxcd/pkg/gittestserver"
@@ -987,6 +989,124 @@ func TestImageAutomationReconciler_defaulting(t *testing.T) {
 	}, timeout, time.Second).Should(BeTrue())
 	g.Expect(fetchedAuto.Spec.Update).
 		To(Equal(&imagev1.UpdateStrategy{Strategy: imagev1.UpdateStrategySetters}))
+}
+
+func TestImageUpdateAutomationReconciler_getProxyOpts(t *testing.T) {
+	invalidProxy := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "invalid-proxy",
+			Namespace: "default",
+		},
+		Data: map[string][]byte{
+			"url": []byte("https://example.com"),
+		},
+	}
+	validProxy := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "valid-proxy",
+			Namespace: "default",
+		},
+		Data: map[string][]byte{
+			"address":  []byte("https://example.com"),
+			"username": []byte("user"),
+			"password": []byte("pass"),
+		},
+	}
+
+	clientBuilder := fakeclient.NewClientBuilder().
+		WithScheme(testEnv.GetScheme()).
+		WithObjects(invalidProxy, validProxy)
+
+	r := &ImageUpdateAutomationReconciler{
+		Client: clientBuilder.Build(),
+	}
+
+	tests := []struct {
+		name      string
+		secret    string
+		err       string
+		proxyOpts *transport.ProxyOptions
+	}{
+		{
+			name:   "non-existent secret",
+			secret: "non-existent",
+			err:    "failed to get proxy secret 'default/non-existent': ",
+		},
+		{
+			name:   "invalid proxy secret",
+			secret: "invalid-proxy",
+			err:    "invalid proxy secret 'default/invalid-proxy': key 'address' is missing",
+		},
+		{
+			name:   "valid proxy secret",
+			secret: "valid-proxy",
+			proxyOpts: &transport.ProxyOptions{
+				URL:      "https://example.com",
+				Username: "user",
+				Password: "pass",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+			opts, err := r.getProxyOpts(context.TODO(), tt.secret, "default")
+			if opts != nil {
+				g.Expect(err).ToNot(HaveOccurred())
+				g.Expect(opts).To(Equal(tt.proxyOpts))
+			} else {
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(err.Error()).To(ContainSubstring(tt.err))
+			}
+		})
+	}
+}
+
+func TestImageAutomationReconciler_getGitClientOpts(t *testing.T) {
+	tests := []struct {
+		name           string
+		gitTransport   git.TransportType
+		proxyOpts      *transport.ProxyOptions
+		diffPushBranch bool
+		clientOptsN    int
+	}{
+		{
+			name:         "default client opts",
+			gitTransport: git.HTTPS,
+			clientOptsN:  1,
+		},
+		{
+			name:         "http transport adds insecure credentials client opt",
+			gitTransport: git.HTTP,
+			clientOptsN:  2,
+		},
+		{
+			name:         "http transport and providing proxy options adds insecure crednetials and proxy client opt",
+			gitTransport: git.HTTP,
+			proxyOpts:    &transport.ProxyOptions{},
+			clientOptsN:  3,
+		},
+		{
+			name:           "push branch different from checkout branch adds single branch client opt",
+			gitTransport:   git.HTTPS,
+			diffPushBranch: true,
+			clientOptsN:    2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+			r := &ImageUpdateAutomationReconciler{
+				features: map[string]bool{
+					features.GitAllBranchReferences: true,
+				},
+			}
+			clientOpts := r.getGitClientOpts(tt.gitTransport, tt.proxyOpts, tt.diffPushBranch)
+			g.Expect(len(clientOpts)).To(Equal(tt.clientOptsN))
+		})
+	}
 }
 
 func checkoutBranch(repo *extgogit.Repository, branch string) error {
