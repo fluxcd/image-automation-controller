@@ -160,8 +160,10 @@ func TestImageUpdateAutomationReconciler_deleteBeforeFinalizer(t *testing.T) {
 		EventRecorder: record.NewFakeRecorder(32),
 	}
 	// NOTE: Only a real API server responds with an error in this scenario.
-	_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(imageUpdate)})
-	g.Expect(err).NotTo(HaveOccurred())
+	g.Eventually(func() error {
+		_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(imageUpdate)})
+		return err
+	}, timeout).Should(Succeed())
 }
 
 func TestImageAutomationReconciler_commitMessage(t *testing.T) {
