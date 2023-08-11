@@ -4,9 +4,6 @@ go 1.20
 
 replace github.com/fluxcd/image-automation-controller/api => ./api
 
-// Replace go-git to unreleased v5.8.0 to improve support for Git v2.41+.
-replace github.com/go-git/go-git/v5 => github.com/go-git/go-git/v5 v5.7.1-0.20230702134234-dd4e2b7f4b01
-
 // Pin kustomize to v5.0.3
 replace (
 	sigs.k8s.io/kustomize/api => sigs.k8s.io/kustomize/api v0.13.4
@@ -16,36 +13,37 @@ replace (
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230106234847-43070de90fa1
 	github.com/Masterminds/sprig/v3 v3.2.3
-	github.com/ProtonMail/go-crypto v0.0.0-20230626094100-7e9e0395ebec
+	github.com/ProtonMail/go-crypto v0.0.0-20230717121422-5aa5874ade95
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/fluxcd/image-automation-controller/api v0.35.0
-	github.com/fluxcd/image-reflector-controller/api v0.29.0
+	github.com/fluxcd/image-reflector-controller/api v0.29.1
 	github.com/fluxcd/pkg/apis/acl v0.1.0
-	github.com/fluxcd/pkg/apis/event v0.5.1
-	github.com/fluxcd/pkg/apis/meta v1.1.1
-	github.com/fluxcd/pkg/git v0.12.3
+	github.com/fluxcd/pkg/apis/event v0.5.2
+	github.com/fluxcd/pkg/apis/meta v1.1.2
+	github.com/fluxcd/pkg/git v0.12.4
 	github.com/fluxcd/pkg/git/gogit v0.12.1
-	github.com/fluxcd/pkg/gittestserver v0.8.4
-	github.com/fluxcd/pkg/runtime v0.40.0
-	github.com/fluxcd/pkg/ssh v0.8.0
-	github.com/fluxcd/source-controller/api v1.0.0
+	github.com/fluxcd/pkg/gittestserver v0.8.5
+	github.com/fluxcd/pkg/runtime v0.41.0
+	github.com/fluxcd/pkg/ssh v0.8.1
+	github.com/fluxcd/source-controller/api v1.0.1
 	github.com/go-git/go-billy/v5 v5.4.1
-	github.com/go-git/go-git/v5 v5.7.0
+	github.com/go-git/go-git/v5 v5.8.1
 	github.com/go-logr/logr v1.2.4
-	github.com/google/go-containerregistry v0.15.2
-	github.com/onsi/gomega v1.27.8
+	github.com/google/go-containerregistry v0.16.1
+	github.com/onsi/gomega v1.27.10
 	github.com/otiai10/copy v1.12.0
 	github.com/spf13/pflag v1.0.5
-	k8s.io/api v0.27.3
-	k8s.io/apimachinery v0.27.3
-	k8s.io/client-go v0.27.3
+	k8s.io/api v0.27.4
+	k8s.io/apimachinery v0.27.4
+	k8s.io/client-go v0.27.4
 	k8s.io/kube-openapi v0.0.0-20230501164219-8b0f38b5fd1f
 	k8s.io/utils v0.0.0-20230505201702-9f6742963106
-	sigs.k8s.io/controller-runtime v0.15.0
+	sigs.k8s.io/controller-runtime v0.15.1
 	sigs.k8s.io/kustomize/kyaml v0.14.2
 )
 
 require (
+	dario.cat/mergo v1.0.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
@@ -116,27 +114,26 @@ require (
 	github.com/prometheus/client_model v0.4.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect
 	github.com/prometheus/procfs v0.10.1 // indirect
-	github.com/russross/blackfriday v1.6.0 // indirect
+	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sergi/go-diff v1.3.1 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
-	github.com/skeema/knownhosts v1.1.1 // indirect
+	github.com/skeema/knownhosts v1.2.0 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/cobra v1.7.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
 	go.starlark.net v0.0.0-20221028183056-acb66ad56dd2 // indirect
-	go.uber.org/atomic v1.10.0 // indirect
-	go.uber.org/multierr v1.8.0 // indirect
-	go.uber.org/zap v1.24.0 // indirect
-	golang.org/x/crypto v0.10.0 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
+	go.uber.org/zap v1.25.0 // indirect
+	golang.org/x/crypto v0.11.0 // indirect
 	golang.org/x/mod v0.10.0 // indirect
-	golang.org/x/net v0.10.0 // indirect
-	golang.org/x/oauth2 v0.7.0 // indirect
-	golang.org/x/sys v0.9.0 // indirect
-	golang.org/x/term v0.9.0 // indirect
-	golang.org/x/text v0.10.0 // indirect
+	golang.org/x/net v0.13.0 // indirect
+	golang.org/x/oauth2 v0.8.0 // indirect
+	golang.org/x/sys v0.10.0 // indirect
+	golang.org/x/term v0.10.0 // indirect
+	golang.org/x/text v0.11.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	golang.org/x/tools v0.9.1 // indirect
+	golang.org/x/tools v0.9.3 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.3.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
@@ -146,10 +143,10 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiextensions-apiserver v0.27.3 // indirect
 	k8s.io/cli-runtime v0.27.2 // indirect
-	k8s.io/component-base v0.27.3 // indirect
+	k8s.io/component-base v0.27.4 // indirect
 	k8s.io/klog/v2 v2.100.1 // indirect
-	k8s.io/kubectl v0.25.4 // indirect
-	sigs.k8s.io/cli-utils v0.34.0 // indirect
+	k8s.io/kubectl v0.26.0 // indirect
+	sigs.k8s.io/cli-utils v0.35.0 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/kustomize/api v0.13.4 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
