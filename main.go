@@ -40,6 +40,7 @@ import (
 	feathelper "github.com/fluxcd/pkg/runtime/features"
 	"github.com/fluxcd/pkg/runtime/leaderelection"
 	"github.com/fluxcd/pkg/runtime/logger"
+	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/pprof"
 	"github.com/fluxcd/pkg/runtime/probes"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
@@ -184,7 +185,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	metricsH := helper.MustMakeMetrics(mgr)
+	metricsH := helper.NewMetrics(mgr, metrics.MustMakeRecorder(), imagev1.ImageUpdateAutomationFinalizer)
 
 	ctx := ctrl.SetupSignalHandler()
 

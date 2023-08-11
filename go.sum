@@ -95,8 +95,8 @@ github.com/fluxcd/pkg/git/gogit v0.12.1 h1:06jzHOTntYN5xCSQvyFXtLXdqoP8crLh7VYgt
 github.com/fluxcd/pkg/git/gogit v0.12.1/go.mod h1:Z4Ysp8VifKTvWpjJMKncJsgb2iBqHuIeK80VGjlU41Y=
 github.com/fluxcd/pkg/gittestserver v0.8.5 h1:EGqDF4240xPRgW1FFrQAs0Du7fZb8OGXC5qKDIqyXD8=
 github.com/fluxcd/pkg/gittestserver v0.8.5/go.mod h1:SyGEh+OBzFpdlTWWqv3XBkiLB42Iu+mijfIQ4hPlEZQ=
-github.com/fluxcd/pkg/runtime v0.41.0 h1:hjWUwVRCKDuGEUhovWrygt/6PRry4p278yKuJNgTfv8=
-github.com/fluxcd/pkg/runtime v0.41.0/go.mod h1:1GN+nxoQ7LmSsLJwjH8JW8pA27tBSO+KLH43HpywCDM=
+github.com/fluxcd/pkg/runtime v0.42.0 h1:a5DQ/f90YjoHBmiXZUpnp4bDSLORjInbmqP7K11L4uY=
+github.com/fluxcd/pkg/runtime v0.42.0/go.mod h1:p6A3xWVV8cKLLQW0N90GehKgGMMmbNYv+OSJ/0qB0vg=
 github.com/fluxcd/pkg/ssh v0.8.1 h1:v35y7Ks/+ABWce8RcnrC7psVIhf3EdCUNFJi5+tYOps=
 github.com/fluxcd/pkg/ssh v0.8.1/go.mod h1:M1ouDXuDG+QuhGB4JYEjCNCykNytLJGDhwKn9y4DEOE=
 github.com/fluxcd/pkg/version v0.2.2 h1:ZpVXECeLA5hIQMft11iLp6gN3cKcz6UNuVTQPw/bRdI=
