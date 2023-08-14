@@ -110,6 +110,13 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	defer func() {
+		// Always record suspend, readiness and duration metrics.
+		r.Metrics.RecordSuspend(ctx, &auto, auto.Spec.Suspend)
+		r.Metrics.RecordReadiness(ctx, &auto)
+		r.Metrics.RecordDuration(ctx, &auto, start)
+	}()
+
 	// If the object is under deletion, record the readiness, and remove our finalizer.
 	if !auto.ObjectMeta.DeletionTimestamp.IsZero() {
 		controllerutil.RemoveFinalizer(&auto, imagev1.ImageUpdateAutomationFinalizer)
@@ -131,21 +138,12 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		}
 	}
 
-	// record suspension metrics
-	r.RecordSuspend(ctx, &auto, auto.Spec.Suspend)
-
 	if auto.Spec.Suspend {
 		log.Info("ImageUpdateAutomation is suspended, skipping automation run")
 		return ctrl.Result{}, nil
 	}
 
 	templateValues.AutomationObject = req.NamespacedName
-
-	defer func() {
-		// Always record readiness and duration metrics
-		r.Metrics.RecordReadiness(ctx, &auto)
-		r.Metrics.RecordDuration(ctx, &auto, start)
-	}()
 
 	// whatever else happens, we've now "seen" the reconcile
 	// annotation if it's there
