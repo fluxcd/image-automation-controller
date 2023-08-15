@@ -692,7 +692,7 @@ spec:
 ```
 
 [image-auto-guide]: https://fluxcd.io/flux/guides/image-update/#configure-image-update-for-custom-resources
-[git-repo-ref]: https://fluxcd.io/flux/components/source/gitrepositories/#specification
+[git-repo-ref]: https://fluxcd.io/flux/components/source/gitrepositories/#writing-a-gitrepository-spec
 [durations]: https://godoc.org/time#ParseDuration
-[source-docs]: https://fluxcd.io/flux/components/source/gitrepositories/#git-implementation
+[source-docs]: https://fluxcd.io/flux/components/source/api/v1beta2/#source.toolkit.fluxcd.io/v1beta2.GitRepositorySpec
 [go-text-template]: https://golang.org/pkg/text/template/
