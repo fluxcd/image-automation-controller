@@ -206,7 +206,7 @@ func TestImageAutomationReconciler_commitMessage(t *testing.T) {
 				updateStrategy := &imagev1.UpdateStrategy{
 					Strategy: imagev1.UpdateStrategySetters,
 				}
-				err := createImageUpdateAutomation(testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", testCommitTemplate, "", updateStrategy)
+				err := createImageUpdateAutomation(testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", "", testCommitTemplate, "", updateStrategy)
 				g.Expect(err).ToNot(HaveOccurred())
 
 				// Wait for a new commit to be made by the controller.
@@ -273,7 +273,7 @@ func TestImageAutomationReconciler_crossNamespaceRef(t *testing.T) {
 				updateStrategy := &imagev1.UpdateStrategy{
 					Strategy: imagev1.UpdateStrategySetters,
 				}
-				err := createImageUpdateAutomation(testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", testCommitTemplate, "", updateStrategy)
+				err := createImageUpdateAutomation(testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", "", testCommitTemplate, "", updateStrategy)
 				g.Expect(err).ToNot(HaveOccurred())
 
 				// Wait for a new commit to be made by the controller.
@@ -308,7 +308,7 @@ func TestImageAutomationReconciler_crossNamespaceRef(t *testing.T) {
 				updateStrategy := &imagev1.UpdateStrategy{
 					Strategy: imagev1.UpdateStrategySetters,
 				}
-				err := createImageUpdateAutomation(r.Client, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", testCommitTemplate, "", updateStrategy)
+				err := createImageUpdateAutomation(r.Client, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", "", testCommitTemplate, "", updateStrategy)
 				g.Expect(err).ToNot(HaveOccurred())
 
 				imageUpdateKey := types.NamespacedName{
@@ -374,7 +374,7 @@ func TestImageAutomationReconciler_updatePath(t *testing.T) {
 					Strategy: imagev1.UpdateStrategySetters,
 					Path:     "./yes",
 				}
-				err := createImageUpdateAutomation(testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", testCommitTemplate, "", updateStrategy)
+				err := createImageUpdateAutomation(testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", "", testCommitTemplate, "", updateStrategy)
 				g.Expect(err).ToNot(HaveOccurred())
 
 				// Wait for a new commit to be made by the controller.
@@ -433,7 +433,7 @@ func TestImageAutomationReconciler_signedCommit(t *testing.T) {
 				updateStrategy := &imagev1.UpdateStrategy{
 					Strategy: imagev1.UpdateStrategySetters,
 				}
-				err = createImageUpdateAutomation(testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", testCommitTemplate, signingKeySecretName, updateStrategy)
+				err = createImageUpdateAutomation(testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", "", testCommitTemplate, signingKeySecretName, updateStrategy)
 				g.Expect(err).ToNot(HaveOccurred())
 
 				// Wait for a new commit to be made by the controller.
@@ -458,6 +458,61 @@ func TestImageAutomationReconciler_signedCommit(t *testing.T) {
 
 				_, err = openpgp.CheckArmoredDetachedSignature(kr, content, signature, nil)
 				g.Expect(err).ToNot(HaveOccurred())
+			},
+		)
+	})
+}
+
+func TestImageAutomationReconciler_push_refspec(t *testing.T) {
+	policySpec := imagev1_reflect.ImagePolicySpec{
+		ImageRepositoryRef: meta.NamespacedObjectReference{
+			Name: "not-expected-to-exist",
+		},
+		Policy: imagev1_reflect.ImagePolicyChoice{
+			SemVer: &imagev1_reflect.SemVerPolicy{
+				Range: "1.x",
+			},
+		},
+	}
+	fixture := "testdata/appconfig"
+	latest := "helloworld:v1.0.0"
+
+	t.Run(gogit.ClientName, func(t *testing.T) {
+		testWithRepoAndImagePolicy(
+			NewWithT(t), testEnv, fixture, policySpec, latest, gogit.ClientName,
+			func(g *WithT, s repoAndPolicyArgs, repoURL string, localRepo *extgogit.Repository) {
+				// Update the setter marker in the repo.
+				policyKey := types.NamespacedName{
+					Name:      s.imagePolicyName,
+					Namespace: s.namespace,
+				}
+				commitInRepo(g, repoURL, s.branch, "Install setter marker", func(tmp string) {
+					g.Expect(replaceMarker(tmp, policyKey)).To(Succeed())
+				})
+				preChangeCommitId := commitIdFromBranch(localRepo, s.branch)
+
+				// Pull the head commit that was just pushed, so it's not considered a new
+				// commit when checking for a commit made by automation.
+				waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
+				preChangeCommitId = commitIdFromBranch(localRepo, s.branch)
+
+				// Create the automation object and let it make a commit itself.
+				updateStrategy := &imagev1.UpdateStrategy{
+					Strategy: imagev1.UpdateStrategySetters,
+				}
+				pushBranch := "auto"
+				refspec := fmt.Sprintf("refs/heads/%s:refs/heads/smth/else", pushBranch)
+				err := createImageUpdateAutomation(testEnv, "push-refspec", s.namespace,
+					s.gitRepoName, s.gitRepoNamespace, s.branch, pushBranch, refspec,
+					testCommitTemplate, "", updateStrategy)
+				g.Expect(err).ToNot(HaveOccurred())
+
+				// Wait for a new commit to be made by the controller to the destination
+				// ref specified in refspec (the stuff after the colon) and the push branch.
+				pushBranchHash := getRemoteRef(g, repoURL, pushBranch)
+				refspecHash := getRemoteRef(g, repoURL, "smth/else")
+				g.Expect(pushBranchHash.String()).ToNot(Equal(preChangeCommitId))
+				g.Expect(pushBranchHash.String()).To(Equal(refspecHash.String()))
 			},
 		)
 	})
@@ -585,7 +640,7 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 
 				// Now create the automation object, and let it (one
 				// hopes!) make a commit itself.
-				err = createImageUpdateAutomation(r.Client, imageUpdateAutomationName, namespace, gitRepoName, namespace, branch, pushBranch, commitMessage, "", updateStrategy)
+				err = createImageUpdateAutomation(r.Client, imageUpdateAutomationName, namespace, gitRepoName, namespace, branch, pushBranch, "", commitMessage, "", updateStrategy)
 				g.Expect(err).ToNot(HaveOccurred())
 
 				_, err = r.Reconcile(context.TODO(), ctrl.Request{NamespacedName: automationKey})
@@ -750,7 +805,7 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 				Namespace: namespace,
 				Name:      "update-" + randStringRunes(5),
 			}
-			err = createImageUpdateAutomation(r.Client, updateKey.Name, namespace, gitRepoName, namespace, branch, "", commitMessage, "", updateStrategy)
+			err = createImageUpdateAutomation(r.Client, updateKey.Name, namespace, gitRepoName, namespace, branch, "", "", commitMessage, "", updateStrategy)
 			g.Expect(err).ToNot(HaveOccurred())
 			defer func() {
 				g.Expect(deleteImageUpdateAutomation(r.Client, updateKey.Name, namespace)).To(Succeed())
@@ -800,7 +855,7 @@ func TestImageAutomationReconciler_e2e(t *testing.T) {
 				Namespace: namespace,
 				Name:      "update-" + randStringRunes(5),
 			}
-			err = createImageUpdateAutomation(testEnv, updateKey.Name, namespace, gitRepoName, namespace, branch, "", commitMessage, "", updateStrategy)
+			err = createImageUpdateAutomation(testEnv, updateKey.Name, namespace, gitRepoName, namespace, branch, "", "", commitMessage, "", updateStrategy)
 			g.Expect(err).ToNot(HaveOccurred())
 			defer func() {
 				g.Expect(deleteImageUpdateAutomation(testEnv, updateKey.Name, namespace)).To(Succeed())
@@ -1252,6 +1307,27 @@ func clone(ctx context.Context, repoURL, branchName string) (*extgogit.Repositor
 	return repo, nil
 }
 
+func getRemoteRef(g *WithT, repoURL, ref string) plumbing.Hash {
+	var hash plumbing.Hash
+	g.Eventually(func() bool {
+		cloneCtx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+		repo, err := clone(cloneCtx, repoURL, ref)
+		if err != nil {
+			return false
+		}
+
+		remRefName := plumbing.NewRemoteReferenceName(extgogit.DefaultRemoteName, ref)
+		remRef, err := repo.Reference(remRefName, true)
+		if err != nil {
+			return false
+		}
+		hash = remRef.Hash()
+		return true
+	}, timeout, time.Second).Should(BeTrue())
+	return hash
+}
+
 func waitForNewHead(g *WithT, repo *extgogit.Repository, branch, preChangeHash string) {
 	var commitToResetTo *object.Commit
 
@@ -1561,7 +1637,7 @@ func updateImagePolicyWithLatestImage(kClient client.Client, name, namespace, la
 }
 
 func createImageUpdateAutomation(kClient client.Client, name, namespace,
-	gitRepo, gitRepoNamespace, checkoutBranch, pushBranch, commitTemplate, signingKeyRef string,
+	gitRepo, gitRepoNamespace, checkoutBranch, pushBranch, pushRefspec, commitTemplate, signingKeyRef string,
 	updateStrategy *imagev1.UpdateStrategy) error {
 	updateAutomation := &imagev1.ImageUpdateAutomation{
 		Spec: imagev1.ImageUpdateAutomationSpec{
@@ -1590,9 +1666,10 @@ func createImageUpdateAutomation(kClient client.Client, name, namespace,
 	}
 	updateAutomation.Name = name
 	updateAutomation.Namespace = namespace
-	if pushBranch != "" {
+	if pushRefspec != "" || pushBranch != "" {
 		updateAutomation.Spec.GitSpec.Push = &imagev1.PushSpec{
-			Branch: pushBranch,
+			Refspec: pushRefspec,
+			Branch:  pushBranch,
 		}
 	}
 	if signingKeyRef != "" {

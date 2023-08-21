@@ -214,29 +214,14 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	// validate the git spec and default any values needed later, before proceeding
-	var ref *sourcev1.GitRepositoryRef
+	var checkoutRef *sourcev1.GitRepositoryRef
 	if gitSpec.Checkout != nil {
-		ref = &gitSpec.Checkout.Reference
-		tracelog.Info("using git repository ref from .spec.git.checkout", "ref", ref)
+		checkoutRef = &gitSpec.Checkout.Reference
+		tracelog.Info("using git repository ref from .spec.git.checkout", "ref", checkoutRef)
 	} else if r := origin.Spec.Reference; r != nil {
-		ref = r
-		tracelog.Info("using git repository ref from GitRepository spec", "ref", ref)
+		checkoutRef = r
+		tracelog.Info("using git repository ref from GitRepository spec", "ref", checkoutRef)
 	} // else remain as `nil` and git.DefaultBranch will be used.
-
-	var pushBranch string
-	if gitSpec.Push != nil {
-		pushBranch = gitSpec.Push.Branch
-		tracelog.Info("using push branch from .spec.push.branch", "branch", pushBranch)
-	} else {
-		// Here's where it gets constrained. If there's no push branch
-		// given, then the checkout ref must include a branch, and
-		// that can be used.
-		if ref == nil || ref.Branch == "" {
-			return failWithError(fmt.Errorf("Push branch not given explicitly, and cannot be inferred from .spec.git.checkout.ref or GitRepository .spec.ref"))
-		}
-		pushBranch = ref.Branch
-		tracelog.Info("using push branch from $ref.branch", "branch", pushBranch)
-	}
 
 	tmp, err := os.MkdirTemp("", fmt.Sprintf("%s-%s", originName.Namespace, originName.Name))
 	if err != nil {
@@ -248,42 +233,43 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		}
 	}()
 
-	debuglog.Info("attempting to clone git repository", "gitrepository", originName, "ref", ref, "working", tmp)
-
-	authOpts, err := r.getAuthOpts(ctx, &origin)
-	if err != nil {
-		return failWithError(err)
+	var pushBranch string
+	var switchBranch bool
+	if gitSpec.Push != nil {
+		// We only need to switch branches when a branch has been specified in
+		// the push spec and it is different than the one in the checkout ref.
+		if gitSpec.Push.Branch != "" && gitSpec.Push.Branch != checkoutRef.Branch {
+			pushBranch = gitSpec.Push.Branch
+			switchBranch = true
+			tracelog.Info("using push branch from .spec.push.branch", "branch", pushBranch)
+		}
+	} else {
+		// Here's where it gets constrained. If there's no push branch
+		// given, then the checkout ref must include a branch, and
+		// that can be used.
+		if checkoutRef == nil || checkoutRef.Branch == "" {
+			return failWithError(
+				fmt.Errorf("Push spec not provided, and cannot be inferred from .spec.git.checkout.ref or GitRepository .spec.ref"),
+			)
+		}
+		pushBranch = checkoutRef.Branch
+		tracelog.Info("using push branch from $ref.branch", "branch", pushBranch)
 	}
 
-	clientOpts := []gogit.ClientOption{gogit.WithDiskStorage()}
-	if authOpts.Transport == git.HTTP {
-		clientOpts = append(clientOpts, gogit.WithInsecureCredentialsOverHTTP())
-	}
+	debuglog.Info("attempting to clone git repository", "gitrepository", originName, "ref", checkoutRef, "working", tmp)
 
-	// If the push branch is different from the checkout ref, we need to
-	// have all the references downloaded at clone time, to ensure that
-	// SwitchBranch will have access to the target branch state. fluxcd/flux2#3384
-	//
-	// To always overwrite the push branch, the feature gate
-	// GitAllBranchReferences can be set to false, which will cause
-	// the SwitchBranch operation to ignore the remote branch state.
-	allReferences := r.features[features.GitAllBranchReferences]
-	if pushBranch != ref.Branch {
-		clientOpts = append(clientOpts, gogit.WithSingleBranch(!allReferences))
-	}
-
-	gitClient, err := gogit.NewClient(tmp, authOpts, clientOpts...)
+	gitClient, err := r.constructGitClient(ctx, &origin, tmp, switchBranch)
 	if err != nil {
 		return failWithError(err)
 	}
 	defer gitClient.Close()
 
 	opts := repository.CloneConfig{}
-	if ref != nil {
-		opts.Tag = ref.Tag
-		opts.SemVer = ref.SemVer
-		opts.Commit = ref.Commit
-		opts.Branch = ref.Branch
+	if checkoutRef != nil {
+		opts.Tag = checkoutRef.Tag
+		opts.SemVer = checkoutRef.SemVer
+		opts.Commit = checkoutRef.Commit
+		opts.Branch = checkoutRef.Branch
 	}
 
 	if enabled, _ := r.features[features.GitShallowClone]; enabled {
@@ -297,9 +283,9 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		return failWithError(err)
 	}
 
-	// When there's a push spec, the pushed-to branch is where commits
+	// When there's a push branch specified, the pushed-to branch is where commits
 	// shall be made
-	if gitSpec.Push != nil && !(ref != nil && ref.Branch == pushBranch) {
+	if switchBranch {
 		// Use the git operations timeout for the repo.
 		fetchCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
 		defer cancel()
@@ -352,7 +338,6 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 
 	debuglog.Info("ran updates to working dir", "working", tmp)
 
-	var statusMessage string
 	var signingEntity *openpgp.Entity
 	if gitSpec.Commit.SigningKey != nil {
 		if signingEntity, err = r.getSigningEntity(ctx, auto); err != nil {
@@ -386,40 +371,80 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		err = extgogit.ErrEmptyCommit
 	}
 
+	var statusMessage strings.Builder
 	if err != nil {
 		if !errors.Is(err, git.ErrNoStagedFiles) && !errors.Is(err, extgogit.ErrEmptyCommit) {
 			return failWithError(err)
 		}
 
 		log.Info("no changes made in working directory; no commit")
-		statusMessage = "no updates made"
+		statusMessage.WriteString("no updates made")
 
 		if auto.Status.LastPushTime != nil && len(auto.Status.LastPushCommit) >= 7 {
-			statusMessage = fmt.Sprintf("%s; last commit %s at %s", statusMessage, auto.Status.LastPushCommit[:7], auto.Status.LastPushTime.Format(time.RFC3339))
+			statusMessage.WriteString(fmt.Sprintf("; last commit %s at %s",
+				auto.Status.LastPushCommit[:7], auto.Status.LastPushTime.Format(time.RFC3339)))
 		}
 	} else {
 		// Use the git operations timeout for the repo.
 		pushCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
 		defer cancel()
-		opts := repository.PushConfig{}
-		forcePush := r.features[features.GitForcePushBranch]
-		if forcePush && pushBranch != ref.Branch {
-			opts.Force = true
+
+		var pushToBranch bool
+		var pushWithRefspec bool
+		// If a refspec is specified, then we need to perform a push using
+		// that refspec.
+		if gitSpec.Push != nil && gitSpec.Push.Refspec != "" {
+			pushWithRefspec = true
 		}
-		if err := gitClient.Push(pushCtx, opts); err != nil {
-			return failWithError(err)
+		// We need to push the commit to the push branch if one was specified, or if
+		// no push config was specified, then we need to push to the branch we checked
+		// out to.
+		if (gitSpec.Push != nil && gitSpec.Push.Branch != "") || gitSpec.Push == nil {
+			pushToBranch = true
 		}
 
-		r.event(ctx, auto, eventv1.EventSeverityInfo, fmt.Sprintf("Committed and pushed change %s to %s\n%s", rev, pushBranch, message))
-		log.Info("pushed commit to origin", "revision", rev, "branch", pushBranch)
+		if pushToBranch {
+			// If the force push feature flag is true and we are pushing to a
+			// different branch than the one we checked out to, then force push
+			// these changes.
+			var pushConfig repository.PushConfig
+			forcePush := r.features[features.GitForcePushBranch]
+			if forcePush && switchBranch {
+				pushConfig.Force = true
+			}
+
+			if err := gitClient.Push(pushCtx, pushConfig); err != nil {
+				return failWithError(err)
+			}
+			log.Info("pushed commit to origin", "revision", rev, "branch", pushBranch)
+			statusMessage.WriteString(fmt.Sprintf("commited and pushed commit '%s' to branch '%s'", rev, pushBranch))
+		}
+
+		if pushWithRefspec {
+			pushConfig := repository.PushConfig{
+				Refspecs: []string{gitSpec.Push.Refspec},
+			}
+			if err := gitClient.Push(pushCtx, pushConfig); err != nil {
+				return failWithError(err)
+			}
+			log.Info("pushed commit to origin", "revision", rev, "refspec", gitSpec.Push.Refspec)
+
+			if pushToBranch {
+				statusMessage.WriteString(fmt.Sprintf(" and using refspec '%s'", gitSpec.Push.Refspec))
+			} else {
+				statusMessage.WriteString(fmt.Sprintf("committed and pushed commit '%s' using refspec '%s'", rev, gitSpec.Push.Refspec))
+			}
+		}
+
+		r.event(ctx, auto, eventv1.EventSeverityInfo, fmt.Sprintf("%s\n%s", statusMessage.String(), message))
+
 		auto.Status.LastPushCommit = rev
 		auto.Status.LastPushTime = &metav1.Time{Time: start}
-		statusMessage = "committed and pushed " + rev + " to " + pushBranch
 	}
 
 	// Getting to here is a successful run.
 	auto.Status.LastAutomationRunTime = &metav1.Time{Time: start}
-	imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionTrue, imagev1.ReconciliationSucceededReason, statusMessage)
+	imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionTrue, imagev1.ReconciliationSucceededReason, statusMessage.String())
 	if err := r.patchStatus(ctx, req, auto.Status); err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
@@ -543,6 +568,38 @@ func (r *ImageUpdateAutomationReconciler) getAuthOpts(ctx context.Context, repos
 	}
 
 	return opts, nil
+}
+
+// constructGitClient constructs and returns a new gogit client.
+func (r *ImageUpdateAutomationReconciler) constructGitClient(ctx context.Context,
+	origin *sourcev1.GitRepository, repoDir string, switchBranch bool) (*gogit.Client, error) {
+	authOpts, err := r.getAuthOpts(ctx, origin)
+	if err != nil {
+		return nil, err
+	}
+
+	clientOpts := []gogit.ClientOption{gogit.WithDiskStorage()}
+	if authOpts.Transport == git.HTTP {
+		clientOpts = append(clientOpts, gogit.WithInsecureCredentialsOverHTTP())
+	}
+
+	// If the push branch is different from the checkout ref, we need to
+	// have all the references downloaded at clone time, to ensure that
+	// SwitchBranch will have access to the target branch state. fluxcd/flux2#3384
+	//
+	// To always overwrite the push branch, the feature gate
+	// GitAllBranchReferences can be set to false, which will cause
+	// the SwitchBranch operation to ignore the remote branch state.
+	allReferences := r.features[features.GitAllBranchReferences]
+	if switchBranch {
+		clientOpts = append(clientOpts, gogit.WithSingleBranch(!allReferences))
+	}
+
+	gitClient, err := gogit.NewClient(repoDir, authOpts, clientOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return gitClient, nil
 }
 
 // getSigningEntity retrieves an OpenPGP entity referenced by the
