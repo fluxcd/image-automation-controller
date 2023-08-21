@@ -408,17 +408,29 @@ type PushSpec struct {
 	// Branch specifies that commits should be pushed to the branch
 	// named. The branch is created using `.spec.checkout.branch` as the
 	// starting point, if it doesn't already exist.
-	// +required
-	Branch string `json:"branch"`
+	// +optional
+	Branch string `json:"branch,omitempty"`
+
+	// Refspec specifies the Git Refspec to use for a push operation.
+	// If both Branch and Refspec are provided, then the commit is pushed
+	// to the branch and also using the specified refspec.
+	// For more details about Git Refspecs, see:
+	// https://git-scm.com/book/en/v2/Git-Internals-The-Refspec
+	// +optional
+	Refspec string `json:"refspec,omitempty"`
 }
 ```
 
-If `push` is not present, commits are made on the branch given in `.spec.git.checkout.branch` and
+If `.push` is not present, commits are made on the branch given in `.spec.git.checkout.branch` and
 pushed to the same branch at the origin. If `.spec.git.checkout` is not present, it will fall back
 to the branch given in the `GitRepository` referenced by `.spec.sourceRef`. If none of these yield a
 branch name, the automation will fail.
 
-When `push` is present, the `branch` field specifies a branch to push to at the origin. The branch
+If `.push.refspec` is present, the refspec specified is used to perform the push operation.
+An example of a valid refspec is `refs/heads/branch:refs/heads/branch`. This allows users to
+push to an arbitary destination reference.
+
+If `.push.branch` is present, the specified branch is pushed to at the origin. The branch
 will be created locally if it does not already exist, starting from the checkout branch. If it does
 already exist, it will be overwritten with the cloned version plus the changes made by the
 controller. Alternatively, force push can be disabled by starting the controller with `--feature-gates=GitForcePushBranch=false`,
@@ -426,6 +438,16 @@ in which case the updates will be calculated on top of any commits already on th
 Note that without force push in push branches, if the target branch is stale, the controller may not
 be able to conclude the operation and will consistently fail until the branch is either deleted or
 refreshed.
+
+If both `.push.refspec` and `.push.branch` are specified, then the reconciler will perform
+two push operations, one to the specified branch and another using the specified refspec.
+This is particularly useful for working with Gerrit servers. For more information about this,
+please refer to the [Gerrit](#Gerrit) section.
+
+**Note:** If both `.push.refspec` and `.push.branch` are essentially equal to
+each other (for e.g.: `.push.refspec: refs/heads/main:refs/heads/main` and
+`.push.branch: main`), then the reconciler might fail to perform the second push
+operation and error out with an `already up-to-date` error.
 
 In the following snippet, updates will be pushed as commits to the branch `auto`, and when that
 branch does not exist at the origin, it will be created locally starting from the branch `main`, and
@@ -439,6 +461,21 @@ spec:
         branch: main
     push:
       branch: auto
+```
+
+In the following snippet, updates and commits will be made on the `auto` branch locally.
+The commits will be then pushed to the `auto` branch and then using the `refs/heads/auto:refs/heads/main`
+refspec:
+
+```yaml
+spec:
+  git:
+    checkout:
+      ref:
+        branch: main
+    push:
+      branch: auto
+      refspec: refs/heads/auto:refs/heads/main
 ```
 
 ## Update strategy
