@@ -398,6 +398,7 @@ spec:
         name: fluxcdbot
 ```
 There are over 70 available functions. Some of them are defined by the [Go template language](https://pkg.go.dev/text/template) itself. Most of the others are part of the [Sprig template library](http://masterminds.github.io/sprig/). 
+
 ### Push
 
 The optional `push` field defines how commits are pushed to the origin.
@@ -408,17 +409,29 @@ type PushSpec struct {
 	// Branch specifies that commits should be pushed to the branch
 	// named. The branch is created using `.spec.checkout.branch` as the
 	// starting point, if it doesn't already exist.
-	// +required
-	Branch string `json:"branch"`
+	// +optional
+	Branch string `json:"branch,omitempty"`
+
+	// Refspec specifies the Git Refspec to use for a push operation.
+	// If both Branch and Refspec are provided, then the commit is pushed
+	// to the branch and also using the specified refspec.
+	// For more details about Git Refspecs, see:
+	// https://git-scm.com/book/en/v2/Git-Internals-The-Refspec
+	// +optional
+	Refspec string `json:"refspec,omitempty"`
 }
 ```
 
-If `push` is not present, commits are made on the branch given in `.spec.git.checkout.branch` and
+If `.push` is not present, commits are made on the branch given in `.spec.git.checkout.branch` and
 pushed to the same branch at the origin. If `.spec.git.checkout` is not present, it will fall back
 to the branch given in the `GitRepository` referenced by `.spec.sourceRef`. If none of these yield a
 branch name, the automation will fail.
 
-When `push` is present, the `branch` field specifies a branch to push to at the origin. The branch
+If `.push.refspec` is present, the refspec specified is used to perform the push operation.
+An example of a valid refspec is `refs/heads/branch:refs/heads/branch`. This allows users to
+push to an arbitary destination reference.
+
+If `.push.branch` is present, the specified branch is pushed to at the origin. The branch
 will be created locally if it does not already exist, starting from the checkout branch. If it does
 already exist, it will be overwritten with the cloned version plus the changes made by the
 controller. Alternatively, force push can be disabled by starting the controller with `--feature-gates=GitForcePushBranch=false`,
@@ -426,6 +439,16 @@ in which case the updates will be calculated on top of any commits already on th
 Note that without force push in push branches, if the target branch is stale, the controller may not
 be able to conclude the operation and will consistently fail until the branch is either deleted or
 refreshed.
+
+If both `.push.refspec` and `.push.branch` are specified, then the reconciler will perform
+two push operations, one to the specified branch and another using the specified refspec.
+This is particularly useful for working with Gerrit servers. For more information about this,
+please refer to the [Gerrit](#Gerrit) section.
+
+**Note:** If both `.push.refspec` and `.push.branch` are essentially equal to
+each other (for e.g.: `.push.refspec: refs/heads/main:refs/heads/main` and
+`.push.branch: main`), then the reconciler might fail to perform the second push
+operation and error out with an `already up-to-date` error.
 
 In the following snippet, updates will be pushed as commits to the branch `auto`, and when that
 branch does not exist at the origin, it will be created locally starting from the branch `main`, and
@@ -440,6 +463,102 @@ spec:
     push:
       branch: auto
 ```
+
+In the following snippet, updates and commits will be made on the `main` branch locally.
+The commits will be then pushed using the `refs/heads/main:refs/heads/auto` refspec:
+
+```yaml
+spec:
+  git:
+    checkout:
+      ref:
+        branch: main
+    push:
+      refspec: refs/heads/main:refs/heads/auto
+```
+
+#### Gerrit
+
+
+[Gerrit](https://www.gerritcodereview.com/) operates differently from a
+standard Git server. Rather than sending individual commits to a branch,
+all changes are bundled into a single commit. This commit requires a distinct
+identifier separate from the commit SHA. Additionally, instead of initiating
+a Pull Request between branches, the commit is pushed using a refspec:
+`HEAD:refs/for/main`.
+
+As the image-automation-controller is primarily designed to work with
+standard Git servers, these special characteristics necessitate a few
+workarounds. The following is an example configuration that works
+well with Gerrit:
+
+```yaml
+spec:
+  git:
+    checkout:
+      ref:
+        branch: main
+    commit:
+      author:
+        email: flux@localdomain
+        name: flux
+      messageTemplate: |
+        Perform automatic image update
+
+        Automation name: {{ .AutomationObject }}
+
+        Files:
+        {{ range $filename, $_ := .Updated.Files -}}
+        - {{ $filename }}
+        {{ end }}
+        Objects:
+        {{ range $resource, $_ := .Updated.Objects -}}
+        - {{ $resource.Kind }} {{ $resource.Name }}
+        {{ end }}
+        Images:
+        {{ range .Updated.Images -}}
+        - {{ . }}
+        {{ end }}
+        {{- $ChangeId := .AutomationObject -}}
+        {{- $ChangeId = printf "%s%s" $ChangeId ( .Updated.Files | toString ) -}}
+        {{- $ChangeId = printf "%s%s" $ChangeId ( .Updated.Objects | toString ) -}}
+        {{- $ChangeId = printf "%s%s" $ChangeId ( .Updated.Images | toString ) }}
+        Change-Id: {{ printf "I%s" ( sha256sum $ChangeId | trunc 40 ) }}
+    push:
+      branch: auto
+      refspec: refs/heads/auto:refs/heads/main
+```
+
+This instructs the image-automation-controller to clone the repository using the
+`main` branch but execute its update logic and commit with the provided message
+template on the `auto` branch. Commits are then pushed to the `auto` branch,
+followed by pushing the `HEAD` of the `auto` branch to the `HEAD` of the remote
+`main` branch. The message template ensures the inclusion of a [Change-Id](https://gerrit-review.googlesource.com/Documentation/concept-changes.html#change-id)
+at the bottom of the commit message.
+
+The initial branch push aims to prevent multiple
+[Patch Sets](https://gerrit-review.googlesource.com/Documentation/concept-patch-sets.html).
+If we exclude `.push.branch` and only specify
+`.push.refspec: refs/heads/main:refs/heads/main`, the desired [Change](https://gerrit-review.googlesource.com/Documentation/concept-changes.html)
+can be created as intended. However, when the controller freshly clones the
+`main` branch while a Change is open, it executes its update logic on `main`,
+leading to new commits being pushed with the same changes to the existing open
+Change. Specifying `.push.branch` circumvents this by instructing the controller
+to apply the update logic to the `auto` branch, already containing the desired
+commit. This approach is also recommended in the
+[Gerrit documentation](https://gerrit-review.googlesource.com/Documentation/intro-gerrit-walkthrough-github.html#create-change).
+
+Another thing to note is the syntax of `.push.refspec`. Instead of it being
+`HEAD:refs/for/main`, commonly used by Gerrit users, we specify the full
+refname `refs/heads/auto` in the source part of the refpsec.
+
+**Note:** A known limitation of using the image-automation-controller with
+Gerrit involves handling multiple concurrent Changes. This is due to the
+calculation of the Change-Id, relying on factors like file names and image
+tags. If the controller introduces a new file or modifies a previously updated
+image tag to a different one, it leads to a distinct Change-Id for the commit.
+Consequently, this action will trigger the creation of an additional Change,
+even when an existing Change containing outdated modifications remains open.
 
 ## Update strategy
 
