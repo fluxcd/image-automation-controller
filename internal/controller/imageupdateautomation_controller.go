@@ -416,11 +416,14 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			pushToBranch = true
 		}
 
+		var pushConfig repository.PushConfig
+		if gitSpec.Push != nil {
+			pushConfig.Options = gitSpec.Push.Options
+		}
 		if pushToBranch {
 			// If the force push feature flag is true and we are pushing to a
 			// different branch than the one we checked out to, then force push
 			// these changes.
-			var pushConfig repository.PushConfig
 			forcePush := r.features[features.GitForcePushBranch]
 			if forcePush && switchBranch {
 				pushConfig.Force = true
@@ -434,9 +437,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		}
 
 		if pushWithRefspec {
-			pushConfig := repository.PushConfig{
-				Refspecs: []string{gitSpec.Push.Refspec},
-			}
+			pushConfig.Refspecs = []string{gitSpec.Push.Refspec}
 			if err := gitClient.Push(pushCtx, pushConfig); err != nil {
 				return failWithError(err)
 			}
