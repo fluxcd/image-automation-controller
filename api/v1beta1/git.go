@@ -95,4 +95,10 @@ type PushSpec struct {
 	// https://git-scm.com/book/en/v2/Git-Internals-The-Refspec
 	// +optional
 	Refspec string `json:"refspec,omitempty"`
+
+	// Options specifies the push options that are sent to the Git
+	// server when performing a push operation. For details, see:
+	// https://git-scm.com/docs/git-push#Documentation/git-push.txt---push-optionltoptiongt
+	// +optional
+	Options map[string]string `json:"options,omitempty"`
 }

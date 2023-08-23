@@ -660,6 +660,20 @@ For more details about Git Refspecs, see:
 <a href="https://git-scm.com/book/en/v2/Git-Internals-The-Refspec">https://git-scm.com/book/en/v2/Git-Internals-The-Refspec</a></p>
 </td>
 </tr>
+<tr>
+<td>
+<code>options</code><br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Options specifies the push options that are sent to the Git
+server when performing a push operation. For details, see:
+<a href="https://git-scm.com/docs/git-push#Documentation/git-push.txt---push-optionltoptiongt">https://git-scm.com/docs/git-push#Documentation/git-push.txt&mdash;push-optionltoptiongt</a></p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>

@@ -419,6 +419,11 @@ type PushSpec struct {
 	// https://git-scm.com/book/en/v2/Git-Internals-The-Refspec
 	// +optional
 	Refspec string `json:"refspec,omitempty"`
+
+	// Options specifies the push options that are sent to the Git
+	// server when performing a push operation. For details, see:
+	// https://git-scm.com/docs/git-push#Documentation/git-push.txt---push-optionltoptiongt
+	Options map[string]string `json:"options,omitempty"`
 }
 ```
 
@@ -477,8 +482,23 @@ spec:
       refspec: refs/heads/main:refs/heads/auto
 ```
 
-#### Gerrit
+To specify the [push options](https://git-scm.com/docs/git-push#Documentation/git-push.txt---push-optionltoptiongt)
+to be sent to the upstream Git server, use `.push.options`. These options can be
+used to perform operations as a result of the push. For example, using the below
+push options will open a GitLab Merge Request to the `release` branch
+automatically with the commit the controller pushed to the `dev` branch:
 
+```yaml
+spec:
+  git:
+    push:
+      branch: dev
+      options:
+        merge_request.create: ""
+        merge_request.target: release
+```
+
+#### Gerrit
 
 [Gerrit](https://www.gerritcodereview.com/) operates differently from a
 standard Git server. Rather than sending individual commits to a branch,
