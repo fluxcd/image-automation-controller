@@ -31,6 +31,7 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp"
 	securejoin "github.com/cyphar/filepath-securejoin"
 	extgogit "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -256,9 +257,20 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		tracelog.Info("using push branch from $ref.branch", "branch", pushBranch)
 	}
 
-	debuglog.Info("attempting to clone git repository", "gitrepository", originName, "ref", checkoutRef, "working", tmp)
+	authOpts, err := r.getAuthOpts(ctx, &origin)
+	if err != nil {
+		return failWithError(err)
+	}
+	var proxyOpts *transport.ProxyOptions
+	if origin.Spec.ProxySecretRef != nil {
+		proxyOpts, err = r.getProxyOpts(ctx, origin.Spec.ProxySecretRef.Name, origin.GetNamespace())
+		if err != nil {
+			return failWithError(err)
+		}
+	}
 
-	gitClient, err := r.constructGitClient(ctx, &origin, tmp, switchBranch)
+	clientOpts := r.getGitClientOpts(authOpts.Transport, proxyOpts, switchBranch)
+	gitClient, err := gogit.NewClient(tmp, authOpts, clientOpts...)
 	if err != nil {
 		return failWithError(err)
 	}
@@ -279,6 +291,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 	// Use the git operations timeout for the repo.
 	cloneCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
 	defer cancel()
+	debuglog.Info("attempting to clone git repository", "gitrepository", originName, "ref", checkoutRef, "working", tmp)
 	if _, err := gitClient.Clone(cloneCtx, origin.Spec.URL, opts); err != nil {
 		return failWithError(err)
 	}
@@ -506,6 +519,31 @@ func intervalOrDefault(auto *imagev1.ImageUpdateAutomation) time.Duration {
 	return auto.Spec.Interval.Duration
 }
 
+func (r *ImageUpdateAutomationReconciler) getGitClientOpts(gitTransport git.TransportType, proxyOpts *transport.ProxyOptions,
+	diffPushBranch bool) []gogit.ClientOption {
+	clientOpts := []gogit.ClientOption{gogit.WithDiskStorage()}
+	if gitTransport == git.HTTP {
+		clientOpts = append(clientOpts, gogit.WithInsecureCredentialsOverHTTP())
+	}
+
+	if proxyOpts != nil {
+		clientOpts = append(clientOpts, gogit.WithProxy(*proxyOpts))
+	}
+
+	// If the push branch is different from the checkout ref, we need to
+	// have all the references downloaded at clone time, to ensure that
+	// SwitchBranch will have access to the target branch state. fluxcd/flux2#3384
+	//
+	// To always overwrite the push branch, the feature gate
+	// GitAllBranchReferences can be set to false, which will cause
+	// the SwitchBranch operation to ignore the remote branch state.
+	allReferences := r.features[features.GitAllBranchReferences]
+	if diffPushBranch {
+		clientOpts = append(clientOpts, gogit.WithSingleBranch(!allReferences))
+	}
+	return clientOpts
+}
+
 // automationsForGitRepo fetches all the automations that refer to a
 // particular source.GitRepository object.
 func (r *ImageUpdateAutomationReconciler) automationsForGitRepo(ctx context.Context, obj client.Object) []reconcile.Request {
@@ -541,20 +579,17 @@ func (r *ImageUpdateAutomationReconciler) automationsForImagePolicy(ctx context.
 	return reqs
 }
 
+// getAuthOpts fetches the secret containing the auth options (if specified),
+// constructs a git.AuthOptions object using those options along with the provided
+// repository's URL and returns it.
 func (r *ImageUpdateAutomationReconciler) getAuthOpts(ctx context.Context, repository *sourcev1.GitRepository) (*git.AuthOptions, error) {
 	var data map[string][]byte
+	var err error
 	if repository.Spec.SecretRef != nil {
-		name := types.NamespacedName{
-			Namespace: repository.GetNamespace(),
-			Name:      repository.Spec.SecretRef.Name,
-		}
-
-		secret := &corev1.Secret{}
-		err := r.Client.Get(ctx, name, secret)
+		data, err = r.getSecretData(ctx, repository.Spec.SecretRef.Name, repository.GetNamespace())
 		if err != nil {
-			return nil, fmt.Errorf("failed to get secret '%s': %w", name.String(), err)
+			return nil, fmt.Errorf("failed to get auth secret '%s/%s': %w", repository.GetNamespace(), repository.Spec.SecretRef.Name, err)
 		}
-		data = secret.Data
 	}
 
 	u, err := url.Parse(repository.Spec.URL)
@@ -570,36 +605,37 @@ func (r *ImageUpdateAutomationReconciler) getAuthOpts(ctx context.Context, repos
 	return opts, nil
 }
 
-// constructGitClient constructs and returns a new gogit client.
-func (r *ImageUpdateAutomationReconciler) constructGitClient(ctx context.Context,
-	origin *sourcev1.GitRepository, repoDir string, switchBranch bool) (*gogit.Client, error) {
-	authOpts, err := r.getAuthOpts(ctx, origin)
+// getProxyOpts fetches the secret containing the proxy settings, constructs a
+// transport.ProxyOptions object using those settings and then returns it.
+func (r *ImageUpdateAutomationReconciler) getProxyOpts(ctx context.Context, proxySecretName,
+	proxySecretNamespace string) (*transport.ProxyOptions, error) {
+	proxyData, err := r.getSecretData(ctx, proxySecretName, proxySecretNamespace)
 	if err != nil {
+		return nil, fmt.Errorf("failed to get proxy secret '%s/%s': %w", proxySecretNamespace, proxySecretName, err)
+	}
+	address, ok := proxyData["address"]
+	if !ok {
+		return nil, fmt.Errorf("invalid proxy secret '%s/%s': key 'address' is missing", proxySecretNamespace, proxySecretName)
+	}
+
+	proxyOpts := &transport.ProxyOptions{
+		URL:      string(address),
+		Username: string(proxyData["username"]),
+		Password: string(proxyData["password"]),
+	}
+	return proxyOpts, nil
+}
+
+func (r *ImageUpdateAutomationReconciler) getSecretData(ctx context.Context, name, namespace string) (map[string][]byte, error) {
+	key := types.NamespacedName{
+		Namespace: namespace,
+		Name:      name,
+	}
+	var secret corev1.Secret
+	if err := r.Client.Get(ctx, key, &secret); err != nil {
 		return nil, err
 	}
-
-	clientOpts := []gogit.ClientOption{gogit.WithDiskStorage()}
-	if authOpts.Transport == git.HTTP {
-		clientOpts = append(clientOpts, gogit.WithInsecureCredentialsOverHTTP())
-	}
-
-	// If the push branch is different from the checkout ref, we need to
-	// have all the references downloaded at clone time, to ensure that
-	// SwitchBranch will have access to the target branch state. fluxcd/flux2#3384
-	//
-	// To always overwrite the push branch, the feature gate
-	// GitAllBranchReferences can be set to false, which will cause
-	// the SwitchBranch operation to ignore the remote branch state.
-	allReferences := r.features[features.GitAllBranchReferences]
-	if switchBranch {
-		clientOpts = append(clientOpts, gogit.WithSingleBranch(!allReferences))
-	}
-
-	gitClient, err := gogit.NewClient(repoDir, authOpts, clientOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return gitClient, nil
+	return secret.Data, nil
 }
 
 // getSigningEntity retrieves an OpenPGP entity referenced by the
