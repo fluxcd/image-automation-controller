@@ -81,8 +81,8 @@ github.com/fatih/color v1.13.0/go.mod h1:kLAiJbzzSOZDVNGyDpeOxJ47H46qBXwg5ILebYF
 github.com/flowstack/go-jsonschema v0.1.1/go.mod h1:yL7fNggx1o8rm9RlgXv7hTBWxdBM0rVwpMwimd3F3N0=
 github.com/fluxcd/gitkit v0.6.0 h1:iNg5LTx6ePo+Pl0ZwqHTAkhbUHxGVSY3YCxCdw7VIFg=
 github.com/fluxcd/gitkit v0.6.0/go.mod h1:svOHuKi0fO9HoawdK4HfHAJJseZDHHjk7I3ihnCIqNo=
-github.com/fluxcd/image-reflector-controller/api v0.29.1 h1:mnFaO60b8WyCxpc72utmAJ7J1ZtZjGGThH9NdxVeEyo=
-github.com/fluxcd/image-reflector-controller/api v0.29.1/go.mod h1:aYwq15SpkAD/urQme2iEsNouTscfR1Qo39KBlJ+0EW8=
+github.com/fluxcd/image-reflector-controller/api v0.30.0 h1:DiWj+4tcbnaSqZs1Pfkyt3uSy47wg3dsNMgbFE50pYc=
+github.com/fluxcd/image-reflector-controller/api v0.30.0/go.mod h1:hv57KwIzoPyy7Vu4PFcIf21eu0N3p/HbijygcuNgf8c=
 github.com/fluxcd/pkg/apis/acl v0.1.0 h1:EoAl377hDQYL3WqanWCdifauXqXbMyFuK82NnX6pH4Q=
 github.com/fluxcd/pkg/apis/acl v0.1.0/go.mod h1:zfEZzz169Oap034EsDhmCAGgnWlcWmIObZjYMusoXS8=
 github.com/fluxcd/pkg/apis/event v0.5.2 h1:WtnCOeWglf7wR3dpyiWxb1JtYkw1G5OXcERb1QopFpA=

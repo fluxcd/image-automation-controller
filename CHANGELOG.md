@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.36.0
+
+**Release date:** 2023-08-23
+
+This prerelease introduces a new field `.spec.git.push.refspec` to the
+ImageUpdateAutomation API. This field can be used to make the controller push
+the commits it makes using a specific refspec. It also improves compatibility
+with Gerrit. For more details, check the [documentation](https://github.com/fluxcd/image-automation-controller/blob/v0.36.0/docs/spec/v1beta1/imageupdateautomations.md#gerrit).
+
+Additionally, a new field `.spec.git.push.options` has been added to the
+ImageUpdateAutomation API for specifying the [push options](https://git-scm.com/docs/git-push#Documentation/git-push.txt---push-optionltoptiongt)
+to be sent to the Git server when performing a push operation.
+
+From this release on, the controller also stops exporting an object's metrics
+as soon as the object has been deleted.
+
+Lastly, it adds support for using the referred GitRepository's
+`.spec.proxySecretRef` field for all remote Git operations related to the
+object.
+
+Fixes:
+- Fix links in API docs
+  [#573](https://github.com/fluxcd/image-automation-controller/pull/573)
+
+Improvements:
+- git: add push.refspec to push using a refspec
+  [#514](https://github.com/fluxcd/image-automation-controller/pull/514)
+- Handle delete before adding finalizer
+  [#564](https://github.com/fluxcd/image-automation-controller/pull/564)
+- add support for specified proxy in source GitRepository
+  [#565](https://github.com/fluxcd/image-automation-controller/pull/565)
+- Delete stale metrics on object delete
+  [#570](https://github.com/fluxcd/image-automation-controller/pull/570)
+- Update dependencies
+  [#571](https://github.com/fluxcd/image-automation-controller/pull/571)
+- add support for specifying push options
+  [#577](https://github.com/fluxcd/image-automation-controller/pull/577)
+
 ## 0.35.0
 
 **Release date:** 2023-07-04
