@@ -448,7 +448,7 @@ refreshed.
 If both `.push.refspec` and `.push.branch` are specified, then the reconciler will perform
 two push operations, one to the specified branch and another using the specified refspec.
 This is particularly useful for working with Gerrit servers. For more information about this,
-please refer to the [Gerrit](#Gerrit) section.
+please refer to the [Gerrit](#gerrit) section.
 
 **Note:** If both `.push.refspec` and `.push.branch` are essentially equal to
 each other (for e.g.: `.push.refspec: refs/heads/main:refs/heads/main` and
