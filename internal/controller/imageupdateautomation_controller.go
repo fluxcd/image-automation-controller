@@ -234,15 +234,18 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		}
 	}()
 
+	// pushBranch contains the branch name the commit needs to be pushed to.
+	// It takes the value of the push branch if one is specified or, if the push
+	// config is nil, then it takes the value of the checkout branch if possible.
 	var pushBranch string
 	var switchBranch bool
-	if gitSpec.Push != nil {
+	if gitSpec.Push != nil && gitSpec.Push.Branch != "" {
+		pushBranch = gitSpec.Push.Branch
+		tracelog.Info("using push branch from .spec.push.branch", "branch", pushBranch)
 		// We only need to switch branches when a branch has been specified in
 		// the push spec and it is different than the one in the checkout ref.
-		if gitSpec.Push.Branch != "" && gitSpec.Push.Branch != checkoutRef.Branch {
-			pushBranch = gitSpec.Push.Branch
+		if gitSpec.Push.Branch != checkoutRef.Branch {
 			switchBranch = true
-			tracelog.Info("using push branch from .spec.push.branch", "branch", pushBranch)
 		}
 	} else {
 		// Here's where it gets constrained. If there's no push branch
@@ -402,25 +405,11 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 		pushCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
 		defer cancel()
 
-		var pushToBranch bool
-		var pushWithRefspec bool
-		// If a refspec is specified, then we need to perform a push using
-		// that refspec.
-		if gitSpec.Push != nil && gitSpec.Push.Refspec != "" {
-			pushWithRefspec = true
-		}
-		// We need to push the commit to the push branch if one was specified, or if
-		// no push config was specified, then we need to push to the branch we checked
-		// out to.
-		if (gitSpec.Push != nil && gitSpec.Push.Branch != "") || gitSpec.Push == nil {
-			pushToBranch = true
-		}
-
 		var pushConfig repository.PushConfig
 		if gitSpec.Push != nil {
 			pushConfig.Options = gitSpec.Push.Options
 		}
-		if pushToBranch {
+		if pushBranch != "" {
 			// If the force push feature flag is true and we are pushing to a
 			// different branch than the one we checked out to, then force push
 			// these changes.
@@ -436,14 +425,14 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 			statusMessage.WriteString(fmt.Sprintf("commited and pushed commit '%s' to branch '%s'", rev, pushBranch))
 		}
 
-		if pushWithRefspec {
+		if gitSpec.Push != nil && gitSpec.Push.Refspec != "" {
 			pushConfig.Refspecs = []string{gitSpec.Push.Refspec}
 			if err := gitClient.Push(pushCtx, pushConfig); err != nil {
 				return failWithError(err)
 			}
 			log.Info("pushed commit to origin", "revision", rev, "refspec", gitSpec.Push.Refspec)
 
-			if pushToBranch {
+			if statusMessage.Len() > 0 {
 				statusMessage.WriteString(fmt.Sprintf(" and using refspec '%s'", gitSpec.Push.Refspec))
 			} else {
 				statusMessage.WriteString(fmt.Sprintf("committed and pushed commit '%s' using refspec '%s'", rev, gitSpec.Push.Refspec))
