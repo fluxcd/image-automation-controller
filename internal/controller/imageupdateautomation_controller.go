@@ -422,7 +422,7 @@ func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctr
 				return failWithError(err)
 			}
 			log.Info("pushed commit to origin", "revision", rev, "branch", pushBranch)
-			statusMessage.WriteString(fmt.Sprintf("commited and pushed commit '%s' to branch '%s'", rev, pushBranch))
+			statusMessage.WriteString(fmt.Sprintf("committed and pushed commit '%s' to branch '%s'", rev, pushBranch))
 		}
 
 		if gitSpec.Push != nil && gitSpec.Push.Refspec != "" {
