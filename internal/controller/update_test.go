@@ -210,7 +210,7 @@ func TestImageAutomationReconciler_commitMessage(t *testing.T) {
 				updateStrategy := &imagev1.UpdateStrategy{
 					Strategy: imagev1.UpdateStrategySetters,
 				}
-				err := createImageUpdateAutomation(testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, "", "", testCommitTemplate, "", updateStrategy)
+				err := createImageUpdateAutomation(testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, s.branch, "", testCommitTemplate, "", updateStrategy)
 				g.Expect(err).ToNot(HaveOccurred())
 
 				// Wait for a new commit to be made by the controller.
@@ -225,6 +225,17 @@ func TestImageAutomationReconciler_commitMessage(t *testing.T) {
 				g.Expect(signature).NotTo(BeNil())
 				g.Expect(signature.Name).To(Equal(testAuthorName))
 				g.Expect(signature.Email).To(Equal(testAuthorEmail))
+
+				// Regression check to ensure the status message contains the branch name
+				// if checkout branch is the same as push branch.
+				imageUpdateKey := types.NamespacedName{
+					Namespace: s.namespace,
+					Name:      "update-test",
+				}
+				var imageUpdate imagev1.ImageUpdateAutomation
+				_ = testEnv.Get(context.TODO(), imageUpdateKey, &imageUpdate)
+				ready := apimeta.FindStatusCondition(imageUpdate.Status.Conditions, meta.ReadyCondition)
+				g.Expect(ready.Message).To(Equal(fmt.Sprintf("committed and pushed commit '%s' to branch '%s'", head.Hash().String(), s.branch)))
 			},
 		)
 	})
@@ -517,6 +528,17 @@ func TestImageAutomationReconciler_push_refspec(t *testing.T) {
 				refspecHash := getRemoteRef(g, repoURL, "smth/else")
 				g.Expect(pushBranchHash.String()).ToNot(Equal(preChangeCommitId))
 				g.Expect(pushBranchHash.String()).To(Equal(refspecHash.String()))
+
+				imageUpdateKey := types.NamespacedName{
+					Namespace: s.namespace,
+					Name:      "push-refspec",
+				}
+				var imageUpdate imagev1.ImageUpdateAutomation
+				_ = testEnv.Get(context.TODO(), imageUpdateKey, &imageUpdate)
+				ready := apimeta.FindStatusCondition(imageUpdate.Status.Conditions, meta.ReadyCondition)
+				g.Expect(ready.Message).To(Equal(
+					fmt.Sprintf("committed and pushed commit '%s' to branch '%s' and using refspec '%s'",
+						pushBranchHash.String(), pushBranch, refspec)))
 			},
 		)
 	})
