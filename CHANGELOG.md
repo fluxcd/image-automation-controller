@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.36.1
+
+**Release date:** 2023-09-18
+
+This prerelease fixes the push branch reported in the logs and status under
+certain circumstances. 
+
+It also upgrades the version of github.com/cyphar/filepath-securejoin that fixes
+[GHSA-6xv5-86q9-7xr8](https://github.com/advisories/GHSA-6xv5-86q9-7xr8).
+Even though the Flux controllers are not affected by this vulnerability
+since they don't run on Windows nodes, this bump will keep security scanners silent.
+
+Fixes:
+- Fix bad link in docs
+  [#578](https://github.com/fluxcd/image-automation-controller/pull/578)
+- bump github.com/cyphar/filepath-securejoin
+  [#584](https://github.com/fluxcd/image-automation-controller/pull/584)
+- Fix push branch reporting when is equal to checkout branch
+  [#581](https://github.com/fluxcd/image-automation-controller/pull/581)
+- Upgrade github.com/fluxcd/pkg/{git,git/gogit}
+  [#586](https://github.com/fluxcd/image-automation-controller/pull/586)
+
 ## 0.36.0
 
 **Release date:** 2023-08-23
