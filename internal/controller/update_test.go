@@ -34,6 +34,7 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/armor"
 	securejoin "github.com/cyphar/filepath-securejoin"
+	"github.com/go-git/go-billy/v5/osfs"
 	extgogit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -58,7 +59,6 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/git/gogit"
-	"github.com/fluxcd/pkg/git/gogit/fs"
 	"github.com/fluxcd/pkg/gittestserver"
 	"github.com/fluxcd/pkg/ssh"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
@@ -1243,8 +1243,8 @@ func initGitRepo(gitServer *gittestserver.GitServer, fixture, branch, repository
 }
 
 func initGitRepoPlain(fixture, repositoryPath string) (*extgogit.Repository, error) {
-	wt := fs.New(repositoryPath)
-	dot := fs.New(filepath.Join(repositoryPath, extgogit.GitDirName))
+	wt := osfs.New(repositoryPath)
+	dot := osfs.New(filepath.Join(repositoryPath, extgogit.GitDirName))
 	storer := filesystem.NewStorage(dot, cache.NewObjectLRUDefault())
 
 	repo, err := extgogit.Init(storer, wt)
@@ -1426,8 +1426,8 @@ func clone(ctx context.Context, repoURL, branchName string) (*extgogit.Repositor
 		ReferenceName: plumbing.NewBranchReferenceName(branchName),
 	}
 
-	wt := fs.New(dir)
-	dot := fs.New(filepath.Join(dir, extgogit.GitDirName))
+	wt := osfs.New(dir, osfs.WithBoundOS())
+	dot := osfs.New(filepath.Join(dir, extgogit.GitDirName), osfs.WithBoundOS())
 	storer := filesystem.NewStorage(dot, cache.NewObjectLRUDefault())
 
 	repo, err := extgogit.Clone(storer, wt, opts)
