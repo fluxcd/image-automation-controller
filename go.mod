@@ -13,24 +13,24 @@ replace (
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230106234847-43070de90fa1
 	github.com/Masterminds/sprig/v3 v3.2.3
-	github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371
+	github.com/ProtonMail/go-crypto v0.0.0-20231012073058-a7379d079e0e
 	github.com/cyphar/filepath-securejoin v0.2.4
 	github.com/fluxcd/image-automation-controller/api v0.36.1
 	github.com/fluxcd/image-reflector-controller/api v0.30.0
 	github.com/fluxcd/pkg/apis/acl v0.1.0
 	github.com/fluxcd/pkg/apis/event v0.5.2
 	github.com/fluxcd/pkg/apis/meta v1.1.2
-	github.com/fluxcd/pkg/git v0.14.0
-	github.com/fluxcd/pkg/git/gogit v0.14.0
+	github.com/fluxcd/pkg/git v0.14.1
+	github.com/fluxcd/pkg/git/gogit v0.14.2
 	github.com/fluxcd/pkg/gittestserver v0.8.6
 	github.com/fluxcd/pkg/runtime v0.42.0
 	github.com/fluxcd/pkg/ssh v0.8.2
 	github.com/fluxcd/source-controller/api v1.1.1
 	github.com/go-git/go-billy/v5 v5.5.0
-	github.com/go-git/go-git/v5 v5.9.0
+	github.com/go-git/go-git/v5 v5.10.0
 	github.com/go-logr/logr v1.2.4
 	github.com/google/go-containerregistry v0.16.1
-	github.com/onsi/gomega v1.27.10
+	github.com/onsi/gomega v1.28.0
 	github.com/otiai10/copy v1.12.0
 	github.com/spf13/pflag v1.0.5
 	k8s.io/api v0.27.4
