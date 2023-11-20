@@ -29,13 +29,15 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 	"sigs.k8s.io/kustomize/kyaml/openapi"
 	"sigs.k8s.io/kustomize/kyaml/sets"
-	"sigs.k8s.io/kustomize/kyaml/setters2"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 )
 
 const (
+	// This is preserved from setters2
+	K8sCliExtensionKey = "x-k8s-cli"
+
 	// SetterShortHand is a shorthand that can be used to mark
 	// setters; instead of
 	// # { "$ref": "#/definitions/
@@ -256,7 +258,7 @@ func setAll(schema *spec.Schema, tracelog logr.Logger, callback func(file, sette
 func setterSchema(name, value string) spec.Schema {
 	schema := spec.StringProperty()
 	schema.Extensions = map[string]interface{}{}
-	schema.Extensions.Add(setters2.K8sCliExtensionKey, map[string]interface{}{
+	schema.Extensions.Add(K8sCliExtensionKey, map[string]interface{}{
 		"setter": map[string]string{
 			"name":  name,
 			"value": value,
