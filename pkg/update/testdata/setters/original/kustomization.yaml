@@ -2,8 +2,25 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- unimportant.yaml
+  - unimportant.yaml
 images:
-- name: container
-  newName: replaced # {"$imagepolicy": "automation-ns:policy:name"}
-  newTag: v1 # {"$imagepolicy": "automation-ns:policy:tag"}
+  - name: container
+    newName: replaced # {"$imagepolicy": "automation-ns:policy:name"}
+    newTag: v1 # {"$imagepolicy": "automation-ns:policy:tag"}
+# Prove fix for https://github.com/fluxcd/flux2/issues/3284
+patches:
+  - patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/volumeMounts
+        value:
+          - mountPath: /usr/share/wildfly/wildfly/standalone/configuration/appConfigMaps/WF
+            name: wf-config
+          - mountPath: /usr/share/wildfly/wildfly/standalone/configuration/appConfigMaps/xxx_config
+            name: xxx-config
+          - mountPath: /usr/share/wildfly/wildfly/standalone/log
+            name: wildfly-standalone-log
+    target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: sxxxxdadminservice
