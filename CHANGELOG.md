@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.37.0
+
+**Release date:** 2023-12-11
+
+This prerelease comes with updates to the controller's YAML parser and fixes
+all the issues with YAML multi-line strings being flattened.
+
+In addition, the controller dependencies have been updated to Kubernetes 1.28
+and the container base image has been updated to Alpine 3.19.
+
+Improvements:
+- Remove dependence on `kustomize/setters2`
+  [#604](https://github.com/fluxcd/image-automation-controller/pull/604)
+- Update dependencies to Kubernetes v1.28
+  [#605](https://github.com/fluxcd/image-automation-controller/pull/605)
+- Update Git dependencies
+  [#607](https://github.com/fluxcd/image-automation-controller/pull/607)
+- build: update Alpine to 3.19
+  [#610](https://github.com/fluxcd/image-automation-controller/pull/610)
+- Update Kustomize to v5.3.0
+  [#611](https://github.com/fluxcd/image-automation-controller/pull/611)
+- Update dependencies
+  [#613](https://github.com/fluxcd/image-automation-controller/pull/613)
+
 ## 0.36.1
 
 **Release date:** 2023-09-18
