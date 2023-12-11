@@ -1,6 +1,6 @@
 ARG BASE_VARIANT=alpine
 ARG GO_VERSION=1.20
-ARG XX_VERSION=1.2.1
+ARG XX_VERSION=1.3.0
 
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
 
@@ -60,7 +60,7 @@ RUN export CGO_LDFLAGS="-static -fuse-ld=lld" && \
 # Ensure that the binary was cross-compiled correctly to the target platform.
 RUN xx-verify --static /image-automation-controller
 
-FROM alpine:3.18
+FROM alpine:3.19
 
 ARG TARGETPLATFORM
 RUN apk --no-cache add ca-certificates \
