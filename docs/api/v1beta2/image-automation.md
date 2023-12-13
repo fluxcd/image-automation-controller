@@ -409,6 +409,21 @@ run should be attempted.</p>
 </tr>
 <tr>
 <td>
+<code>policySelector</code><br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#labelselector-v1-meta">
+Kubernetes meta/v1.LabelSelector
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PolicySelector allows to filter applied policies based on labels.
+By default includes all policies in namespace.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>update</code><br>
 <em>
 <a href="#image.toolkit.fluxcd.io/v1beta2.UpdateStrategy">
@@ -513,6 +528,21 @@ Kubernetes meta/v1.Duration
 <td>
 <p>Interval gives an lower bound for how often the automation
 run should be attempted.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>policySelector</code><br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#labelselector-v1-meta">
+Kubernetes meta/v1.LabelSelector
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PolicySelector allows to filter applied policies based on labels.
+By default includes all policies in namespace.</p>
 </td>
 </tr>
 <tr>

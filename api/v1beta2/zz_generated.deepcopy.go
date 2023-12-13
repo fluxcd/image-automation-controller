@@ -202,6 +202,11 @@ func (in *ImageUpdateAutomationSpec) DeepCopyInto(out *ImageUpdateAutomationSpec
 		(*in).DeepCopyInto(*out)
 	}
 	out.Interval = in.Interval
+	if in.PolicySelector != nil {
+		in, out := &in.PolicySelector, &out.PolicySelector
+		*out = new(v1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Update != nil {
 		in, out := &in.Update, &out.Update
 		*out = new(UpdateStrategy)
