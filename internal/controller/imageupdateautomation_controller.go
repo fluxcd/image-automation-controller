@@ -26,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	kuberecorder "k8s.io/client-go/tools/record"
@@ -77,6 +78,8 @@ var imageUpdateAutomationNegativeConditions = []string{
 	meta.StalledCondition,
 	meta.ReconcilingCondition,
 }
+
+var errParsePolicySelector = errors.New("failed to parse policy selector")
 
 // getPatchOptions composes patch options based on the given parameters.
 // It is used as the options used when patching an object.
@@ -303,12 +306,21 @@ func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *pat
 	}
 
 	// List the policies and construct observed policies.
-	// TODO: Add support for filtering policies.
-	policies, err := getPolicies(ctx, r.Client, obj.Namespace)
+	policies, err := getPolicies(ctx, r.Client, obj.Namespace, obj.Spec.PolicySelector)
 	if err != nil {
+		if errors.Is(err, errParsePolicySelector) {
+			conditions.MarkStalled(obj, imagev1.InvalidPolicySelectorReason, err.Error())
+			result, retErr = ctrl.Result{}, nil
+			return
+		}
 		result, retErr = ctrl.Result{}, err
 		return
 	}
+	// Update any stale Ready=False condition from policies config failure.
+	if conditions.HasAnyReason(obj, meta.ReadyCondition, imagev1.InvalidPolicySelectorReason) {
+		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
+	}
+
 	observedPolicies, err := observedPolicies(policies)
 	if err != nil {
 		result, retErr = ctrl.Result{}, err
@@ -501,9 +513,17 @@ func (r *ImageUpdateAutomationReconciler) reconcileDelete(obj *imagev1.ImageUpda
 
 // getPolicies returns list of policies in the given namespace that have latest
 // image.
-func getPolicies(ctx context.Context, kclient client.Client, namespace string) ([]imagev1_reflect.ImagePolicy, error) {
+func getPolicies(ctx context.Context, kclient client.Client, namespace string, selector *metav1.LabelSelector) ([]imagev1_reflect.ImagePolicy, error) {
+	policySelector := labels.Everything()
+	var err error
+	if selector != nil {
+		if policySelector, err = metav1.LabelSelectorAsSelector(selector); err != nil {
+			return nil, fmt.Errorf("%w: %w", errParsePolicySelector, err)
+		}
+	}
+
 	var policies imagev1_reflect.ImagePolicyList
-	if err := kclient.List(ctx, &policies, &client.ListOptions{Namespace: namespace}); err != nil {
+	if err := kclient.List(ctx, &policies, &client.ListOptions{Namespace: namespace, LabelSelector: policySelector}); err != nil {
 		return nil, fmt.Errorf("failed to list policies: %w", err)
 	}
 

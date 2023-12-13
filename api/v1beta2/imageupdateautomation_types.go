@@ -49,6 +49,11 @@ type ImageUpdateAutomationSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
+	// PolicySelector allows to filter applied policies based on labels.
+	// By default includes all policies in namespace.
+	// +optional
+	PolicySelector *metav1.LabelSelector `json:"policySelector,omitempty"`
+
 	// Update gives the specification for how to update the files in
 	// the repository. This can be left empty, to use the default
 	// value.

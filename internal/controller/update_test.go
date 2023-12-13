@@ -38,6 +38,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -302,6 +303,47 @@ func TestImageUpdateAutomationReconciler_Reconcile(t *testing.T) {
 		expectedConditions := []metav1.Condition{
 			*conditions.TrueCondition(meta.StalledCondition, imagev1.InvalidSourceConfigReason, "invalid source configuration"),
 			*conditions.FalseCondition(meta.ReadyCondition, imagev1.InvalidSourceConfigReason, "invalid source configuration"),
+		}
+		g.Eventually(func(g Gomega) {
+			g.Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(obj), obj)).To(Succeed())
+			g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(expectedConditions))
+		}).Should(Succeed())
+
+		// Check if the object status is valid.
+		condns := &conditionscheck.Conditions{NegativePolarity: imageUpdateAutomationNegativeConditions}
+		checker := conditionscheck.NewChecker(testEnv.Client, condns)
+		checker.WithT(g).CheckErr(ctx, obj)
+	})
+
+	t.Run("invalid policy selector results in stalled", func(t *testing.T) {
+		g := NewWithT(t)
+
+		namespace, err := testEnv.CreateNamespace(ctx, "test-update")
+		g.Expect(err).ToNot(HaveOccurred())
+		defer func() { g.Expect(testEnv.Delete(ctx, namespace)).To(Succeed()) }()
+
+		obj := &imagev1.ImageUpdateAutomation{}
+		obj.Name = updateName
+		obj.Namespace = namespace.Name
+		obj.Spec = imagev1.ImageUpdateAutomationSpec{
+			SourceRef: imagev1.CrossNamespaceSourceReference{
+				Kind: "GitRepository",
+				Name: "foo",
+			},
+			PolicySelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"label-too-long-" + strings.Repeat("0", validation.LabelValueMaxLength): "",
+				},
+			},
+		}
+		g.Expect(testEnv.Create(ctx, obj)).To(Succeed())
+		defer func() {
+			g.Expect(deleteImageUpdateAutomation(ctx, testEnv, obj.Name, obj.Namespace)).To(Succeed())
+		}()
+
+		expectedConditions := []metav1.Condition{
+			*conditions.TrueCondition(meta.StalledCondition, imagev1.InvalidPolicySelectorReason, "failed to parse policy selector"),
+			*conditions.FalseCondition(meta.ReadyCondition, imagev1.InvalidPolicySelectorReason, "failed to parse policy selector"),
 		}
 		g.Eventually(func(g Gomega) {
 			g.Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(obj), obj)).To(Succeed())
@@ -1434,11 +1476,13 @@ func Test_getPolicies(t *testing.T) {
 		name        string
 		namespace   string
 		latestImage string
+		labels      map[string]string
 	}
 
 	tests := []struct {
 		name          string
 		listNamespace string
+		selector      *metav1.LabelSelector
 		policies      []policyArgs
 		wantPolicies  []string
 	}{
@@ -1452,6 +1496,21 @@ func Test_getPolicies(t *testing.T) {
 				{name: "p4", namespace: testNS1, latestImage: ""},
 			},
 			wantPolicies: []string{"p1", "p2"},
+		},
+		{
+			name:          "lists policies with label selector in same namespace",
+			listNamespace: testNS1,
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"label": "one",
+				},
+			},
+			policies: []policyArgs{
+				{name: "p1", namespace: testNS1, latestImage: "aaa:bbb", labels: map[string]string{"label": "one"}},
+				{name: "p2", namespace: testNS1, latestImage: "ccc:ddd", labels: map[string]string{"label": "false"}},
+				{name: "p3", namespace: testNS2, latestImage: "eee:fff", labels: map[string]string{"label": "one"}},
+			},
+			wantPolicies: []string{"p1"},
 		},
 		{
 			name:          "no policies in empty namespace",
@@ -1475,13 +1534,14 @@ func Test_getPolicies(t *testing.T) {
 				aPolicy.Status = imagev1_reflect.ImagePolicyStatus{
 					LatestImage: p.latestImage,
 				}
+				aPolicy.Labels = p.labels
 				testObjects = append(testObjects, aPolicy)
 			}
 			kClient := fakeclient.NewClientBuilder().
 				WithScheme(testEnv.GetScheme()).
 				WithObjects(testObjects...).Build()
 
-			result, err := getPolicies(context.TODO(), kClient, tt.listNamespace)
+			result, err := getPolicies(context.TODO(), kClient, tt.listNamespace, tt.selector)
 			g.Expect(err).ToNot(HaveOccurred())
 
 			// Extract policy name from the result and compare with the expected

@@ -542,6 +542,39 @@ the ImageUpdateAutomation, and changes to the resource or image policies or Git
 repository will not result in any update. When the field is set to `false` or
 removed, it will resume.
 
+### PolicySelector
+
+`.spec.policySelector` is an optional field to limit policies that an
+ImageUpdateAutomation takes into account. It supports the same selectors as 
+`Deployment.spec.selector` (`matchLabels` and `matchExpressions` fields). If
+not specified, it defaults to `matchLabels: {}` which means all policies in
+namespace.
+
+```yaml
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageUpdateAutomation
+metadata:
+  name: <automation-name>
+spec:
+  policySelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-app
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageUpdateAutomation
+metadata:
+  name: <automation-name>
+spec:
+  policySelector:
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values:
+          - my-component
+          - my-other-component
+```
+
 ## Working with ImageUpdateAutomation
 
 ### Triggering a reconciliation
@@ -908,11 +941,12 @@ completing. This can occur due to some of the following factors:
 - The source configuration is invalid for the current state of the source, for
   example, the specified branch does not exists in the remote source repository.
 - The remote source repository prevents push or creation of new push branch.
+- The policy selector is invalid, for example, label is too long.
 
 When this happens, the controller sets the `Ready` Condition status to `False`
 with the following reasons:
 
-- `reason: AccessDenied` | `reason: InvalidSourceConfiguration` | `reason: GitOperationFailed` | `reason: UpdateFailed`
+- `reason: AccessDenied` | `reason: InvalidSourceConfiguration` | `reason: GitOperationFailed` | `reason: UpdateFailed` | `reason: InvalidPolicySelector`
 
 While the ImageUpdateAutomation is in failing state, the controller will
 continue to attempt to update the source with an exponential backoff, until it

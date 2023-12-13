@@ -33,4 +33,7 @@ const (
 
 	// UpdateFailedReason represents a failure during source update.
 	UpdateFailedReason string = "UpdateFailed"
+
+	// InvalidPolicySelectorReason represents an invalid policy selector.
+	InvalidPolicySelectorReason string = "InvalidPolicySelector"
 )
