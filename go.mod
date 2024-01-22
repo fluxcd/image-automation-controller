@@ -1,6 +1,6 @@
 module github.com/fluxcd/image-automation-controller
 
-go 1.20
+go 1.21
 
 replace github.com/fluxcd/image-automation-controller/api => ./api
 
