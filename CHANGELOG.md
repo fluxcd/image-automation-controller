@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.37.1
+
+**Release date:** 2024-02-01
+
+This prerelease comes with an update to the Kubernetes dependencies to
+v1.28.6 and various other dependencies have been updated to their latest version
+to patch upstream CVEs.
+
+In addition, the controller is now built with Go 1.21.
+
+Improvements:
+- ci: Enable dependabot gomod updates
+  [#627](https://github.com/fluxcd/image-automation-controller/pull/627)
+- Update Go to 1.21
+  [#625](https://github.com/fluxcd/image-automation-controller/pull/625)
+- Various dependency updates
+  [#635](https://github.com/fluxcd/image-automation-controller/pull/635)
+  [#632](https://github.com/fluxcd/image-automation-controller/pull/632)
+  [#630](https://github.com/fluxcd/image-automation-controller/pull/630)
+  [#631](https://github.com/fluxcd/image-automation-controller/pull/631)
+  [#629](https://github.com/fluxcd/image-automation-controller/pull/629)
+  [#626](https://github.com/fluxcd/image-automation-controller/pull/626)
+  [#623](https://github.com/fluxcd/image-automation-controller/pull/623)
+  [#622](https://github.com/fluxcd/image-automation-controller/pull/622)
+  [#618](https://github.com/fluxcd/image-automation-controller/pull/618)
+  [#615](https://github.com/fluxcd/image-automation-controller/pull/615)
+
 ## 0.37.0
 
 **Release date:** 2023-12-11
