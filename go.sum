@@ -57,8 +57,8 @@ github.com/fluxcd/cli-utils v0.36.0-flux.3 h1:5CQTOc08UnabfwluIYxIhlhpCCTplWBn/x
 github.com/fluxcd/cli-utils v0.36.0-flux.3/go.mod h1:9lShvUz7uRPIjYZ6phr5AOuORkRDmaUgf/sZN7SDcpo=
 github.com/fluxcd/gitkit v0.6.0 h1:iNg5LTx6ePo+Pl0ZwqHTAkhbUHxGVSY3YCxCdw7VIFg=
 github.com/fluxcd/gitkit v0.6.0/go.mod h1:svOHuKi0fO9HoawdK4HfHAJJseZDHHjk7I3ihnCIqNo=
-github.com/fluxcd/image-reflector-controller/api v0.31.1 h1:nc44G0JjLgSvqglJSiXQJZcrRw+eY01j7fHRUDB3FMw=
-github.com/fluxcd/image-reflector-controller/api v0.31.1/go.mod h1:KopMbC92Cw2ypZZeMytzTLr3EfOj2hoL6MizrdpBDhc=
+github.com/fluxcd/image-reflector-controller/api v0.31.2 h1:s16ewwfuLBYuh8hENuVgU8SYsSNxRaA4f+AD60/+les=
+github.com/fluxcd/image-reflector-controller/api v0.31.2/go.mod h1:tV7g+KXQL3W8w5+fRJU7ubVGc4QAfx1C7XI5qrQvA3U=
 github.com/fluxcd/pkg/apis/acl v0.1.0 h1:EoAl377hDQYL3WqanWCdifauXqXbMyFuK82NnX6pH4Q=
 github.com/fluxcd/pkg/apis/acl v0.1.0/go.mod h1:zfEZzz169Oap034EsDhmCAGgnWlcWmIObZjYMusoXS8=
 github.com/fluxcd/pkg/apis/event v0.7.0 h1:QN/gz9i5kZ3GlfTOE6SCjjnSXrSPUU75MCVRwN8U+qo=
@@ -77,8 +77,8 @@ github.com/fluxcd/pkg/ssh v0.11.0 h1:7WDDrcB0cNimzZjrpkzYBrizkrUgyM4Zr2cd9z9aqpU
 github.com/fluxcd/pkg/ssh v0.11.0/go.mod h1:K8YgH8KM0GV5DWuRErX3iKgpoHlYh08SBK+U5Q0teJc=
 github.com/fluxcd/pkg/version v0.2.2 h1:ZpVXECeLA5hIQMft11iLp6gN3cKcz6UNuVTQPw/bRdI=
 github.com/fluxcd/pkg/version v0.2.2/go.mod h1:NGnh/no8S6PyfCDxRFrPY3T5BUnqP48MxfxNRU0z8C0=
-github.com/fluxcd/source-controller/api v1.2.3 h1:71mXv3Qg9HEhcpqOq1ObmoE+P/HuZNaAvxfI7dqZMo8=
-github.com/fluxcd/source-controller/api v1.2.3/go.mod h1:5gaIVVH7hgb8p3HKFp8P6hGmZEC8fKSt4EcrG3g5vZI=
+github.com/fluxcd/source-controller/api v1.2.4 h1:XjKTWhSSeLGsogWnTcLl5sUnyMlC5TKDbbBgP9SyJ5c=
+github.com/fluxcd/source-controller/api v1.2.4/go.mod h1:j3QSHpIPBP5sjaGIkVtsgWCx8JcOmcsutRmdJmRMOZg=
 github.com/frankban/quicktest v1.14.3 h1:FJKSZTDHjyhriyC81FLQ0LY93eSai0ZyR/ZIkd3ZUKE=
 github.com/frankban/quicktest v1.14.3/go.mod h1:mgiwOwqx65TmIk1wJ6Q7wvnVMocbUorkibMOrVTHZps=
 github.com/fsnotify/fsnotify v1.7.0 h1:8JEhPFa5W2WU7YfeZzPNqzMP6Lwt7L2715Ggo0nosvA=

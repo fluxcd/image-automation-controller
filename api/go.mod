@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/fluxcd/pkg/apis/meta v1.3.0
-	github.com/fluxcd/source-controller/api v1.2.3
+	github.com/fluxcd/source-controller/api v1.2.4
 	k8s.io/apimachinery v0.28.6
 	sigs.k8s.io/controller-runtime v0.16.3
 )
