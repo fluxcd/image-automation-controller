@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
-	"github.com/stretchr/testify/assert"
+	. "github.com/onsi/gomega"
 	"k8s.io/kube-openapi/pkg/validation/spec"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
@@ -44,8 +44,12 @@ func TestSetAllCallbackAccept(t *testing.T) {
 			}
 
 			err := accept(&callbackInstance, test.object, "", test.settersSchema)
-			assert.NoError(t, err)
-			assert.Equal(t, test.expectedError, err != nil)
+			g := NewWithT(t)
+			if test.expectedError {
+				g.Expect(err).To(HaveOccurred())
+			} else {
+				g.Expect(err).ToNot(HaveOccurred())
+			}
 		})
 	}
 }
