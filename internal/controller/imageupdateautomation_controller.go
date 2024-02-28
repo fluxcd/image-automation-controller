@@ -478,8 +478,16 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(ctx context.Context, 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&imagev1.ImageUpdateAutomation{}, builder.WithPredicates(
 			predicate.Or(predicate.GenerationChangedPredicate{}, predicates.ReconcileRequestedPredicate{}))).
-		Watches(&sourcev1.GitRepository{}, handler.EnqueueRequestsFromMapFunc(r.automationsForGitRepo)).
-		Watches(&imagev1_reflect.ImagePolicy{}, handler.EnqueueRequestsFromMapFunc(r.automationsForImagePolicy)).
+		Watches(
+			&sourcev1.GitRepository{},
+			handler.EnqueueRequestsFromMapFunc(r.automationsForGitRepo),
+			builder.WithPredicates(sourceConfigChangePredicate{}),
+		).
+		Watches(
+			&imagev1_reflect.ImagePolicy{},
+			handler.EnqueueRequestsFromMapFunc(r.automationsForImagePolicy),
+			builder.WithPredicates(latestImageChangePredicate{}),
+		).
 		WithOptions(controller.Options{
 			RateLimiter: opts.RateLimiter,
 		}).

@@ -60,6 +60,7 @@ import (
 	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/git/gogit"
 	"github.com/fluxcd/pkg/gittestserver"
+	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/ssh"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
@@ -164,6 +165,86 @@ func TestImageUpdateAutomationReconciler_deleteBeforeFinalizer(t *testing.T) {
 		_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(imageUpdate)})
 		return err
 	}, timeout).Should(Succeed())
+}
+
+func TestImageAutomationReconciler_watchSourceAndLatestImage(t *testing.T) {
+	policySpec := imagev1_reflect.ImagePolicySpec{
+		ImageRepositoryRef: meta.NamespacedObjectReference{
+			Name: "not-expected-to-exist",
+		},
+		Policy: imagev1_reflect.ImagePolicyChoice{
+			SemVer: &imagev1_reflect.SemVerPolicy{
+				Range: "1.x",
+			},
+		},
+	}
+	fixture := "testdata/appconfig"
+	latest := "helloworld:v1.0.0"
+
+	testWithRepoAndImagePolicy(NewWithT(t), testEnv, fixture, policySpec, latest, gogit.ClientName, func(g *WithT, s repoAndPolicyArgs, repoURL string, localRepo *extgogit.Repository) {
+		// Update the setter marker in the repo.
+		policyKey := types.NamespacedName{
+			Name:      s.imagePolicyName,
+			Namespace: s.namespace,
+		}
+		commitInRepo(g, repoURL, s.branch, "Install setter marker", func(tmp string) {
+			g.Expect(replaceMarker(tmp, policyKey)).To(Succeed())
+		})
+
+		// Create the automation object.
+		updateStrategy := &imagev1.UpdateStrategy{
+			Strategy: imagev1.UpdateStrategySetters,
+		}
+		err := createImageUpdateAutomation(testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, s.branch, "", testCommitTemplate, "", updateStrategy)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		var imageUpdate imagev1.ImageUpdateAutomation
+		imageUpdateKey := types.NamespacedName{
+			Namespace: s.namespace,
+			Name:      "update-test",
+		}
+
+		// Let the image update be ready.
+		g.Eventually(func() bool {
+			if err := testEnv.Get(ctx, imageUpdateKey, &imageUpdate); err != nil {
+				return false
+			}
+			return conditions.IsReady(&imageUpdate)
+		}, timeout).Should(BeTrue())
+		readyMsg := conditions.Get(&imageUpdate, meta.ReadyCondition).Message
+
+		// Update ImagePolicy with new latest and wait for image update to
+		// trigger.
+		latest = "helloworld:v1.1.0"
+		err = updateImagePolicyWithLatestImage(testEnv, s.imagePolicyName, s.namespace, latest)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		g.Eventually(func() bool {
+			if err := testEnv.Get(ctx, imageUpdateKey, &imageUpdate); err != nil {
+				return false
+			}
+			ready := conditions.Get(&imageUpdate, meta.ReadyCondition)
+			return ready.Status == metav1.ConditionTrue && ready.Message != readyMsg
+		}, timeout).Should(BeTrue())
+
+		// Update GitRepo with bad config and wait for image update to fail.
+		var gitRepo sourcev1.GitRepository
+		gitRepoKey := types.NamespacedName{
+			Name:      s.gitRepoName,
+			Namespace: s.gitRepoNamespace,
+		}
+		g.Expect(testEnv.Get(ctx, gitRepoKey, &gitRepo)).To(Succeed())
+		patch := client.MergeFrom(gitRepo.DeepCopy())
+		gitRepo.Spec.SecretRef = &meta.LocalObjectReference{Name: "non-existing-secret"}
+		g.Expect(testEnv.Patch(ctx, &gitRepo, patch)).To(Succeed())
+
+		g.Eventually(func() bool {
+			if err := testEnv.Get(ctx, imageUpdateKey, &imageUpdate); err != nil {
+				return false
+			}
+			return conditions.IsFalse(&imageUpdate, meta.ReadyCondition)
+		}, timeout).Should(BeTrue())
+	})
 }
 
 func TestImageAutomationReconciler_commitMessage(t *testing.T) {
