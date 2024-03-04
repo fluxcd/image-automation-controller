@@ -56,6 +56,15 @@ func init() {
 // that contain an "in scope" image policy marker, and writes files it
 // updated (and only those files) back to `outpath`.
 func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []imagev1_reflect.ImagePolicy) (Result, error) {
+	result, err := UpdateV2WithSetters(tracelog, inpath, outpath, policies)
+	return result.ImageResult, err
+}
+
+// UpdateV2WithSetters takes all YAML files from `inpath`, updates any
+// that contain an "in scope" image policy marker, and writes files it
+// updated (and only those files) back to `outpath`. It also returns the result
+// of the changes it made as ResultV2.
+func UpdateV2WithSetters(tracelog logr.Logger, inpath, outpath string, policies []imagev1_reflect.ImagePolicy) (ResultV2, error) {
 	// the OpenAPI schema is a package variable in kyaml/openapi. In
 	// lieu of being able to isolate invocations (per
 	// https://github.com/kubernetes-sigs/kustomize/issues/3058), I
@@ -99,13 +108,15 @@ func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []
 		Files: make(map[string]FileResult),
 	}
 
+	var resultV2 ResultV2
+
 	// Compilng the result needs the file, the image ref used, and the
 	// object. Each setter will supply its own name to its callback,
 	// which can be used to look up the image ref; the file and object
 	// we will get from `setAll` which keeps track of those as it
 	// iterates.
 	imageRefs := make(map[string]imageRef)
-	setAllCallback := func(file, setterName string, node *yaml.RNode) {
+	setAllCallback := func(file, setterName string, node *yaml.RNode, old, new string) {
 		ref, ok := imageRefs[setterName]
 		if !ok {
 			return
@@ -116,6 +127,15 @@ func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []
 			return
 		}
 		oid := ObjectIdentifier{meta.GetIdentifier()}
+
+		// Record the change.
+		ch := Change{
+			OldValue: old,
+			NewValue: new,
+			Setter:   setterName,
+		}
+		// Append the change for the file and identifier.
+		resultV2.AddChange(file, oid, ch)
 
 		fileres, ok := result.Files[file]
 		if !ok {
@@ -148,7 +168,7 @@ func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []
 		image := policy.Status.LatestImage
 		r, err := name.ParseReference(image, name.WeakValidation)
 		if err != nil {
-			return Result{}, fmt.Errorf("encountered invalid image ref %q: %w", policy.Status.LatestImage, err)
+			return ResultV2{}, fmt.Errorf("encountered invalid image ref %q: %w", policy.Status.LatestImage, err)
 		}
 		ref := imageRef{
 			Reference: r,
@@ -204,9 +224,12 @@ func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []
 	// go!
 	err := pipeline.Execute()
 	if err != nil {
-		return Result{}, err
+		return ResultV2{}, err
 	}
-	return result, nil
+
+	// Combine the results.
+	resultV2.ImageResult = result
+	return resultV2, nil
 }
 
 // setAll returns a kio.Filter using the supplied SetAllCallback
@@ -215,7 +238,7 @@ func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []
 // files with changed nodes. This is based on
 // [`SetAll`](https://github.com/kubernetes-sigs/kustomize/blob/kyaml/v0.10.16/kyaml/setters2/set.go#L503
 // from kyaml/kio.
-func setAll(schema *spec.Schema, tracelog logr.Logger, callback func(file, setterName string, node *yaml.RNode)) kio.Filter {
+func setAll(schema *spec.Schema, tracelog logr.Logger, callback func(file, setterName string, node *yaml.RNode, old, new string)) kio.Filter {
 	filter := &SetAllCallback{
 		SettersSchema: schema,
 		Trace:         tracelog,
@@ -231,7 +254,7 @@ func setAll(schema *spec.Schema, tracelog logr.Logger, callback func(file, sette
 
 				filter.Callback = func(setter, oldValue, newValue string) {
 					if newValue != oldValue {
-						callback(path, setter, nodes[i])
+						callback(path, setter, nodes[i], oldValue, newValue)
 						filesToUpdate.Insert(path)
 					}
 				}

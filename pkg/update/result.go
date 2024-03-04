@@ -96,3 +96,66 @@ func (r Result) Objects() map[ObjectIdentifier][]ImageRef {
 	}
 	return result
 }
+
+// ResultV2 contains Result of update and also the file changes made during the
+// update. This extends the Result to include details about the exact changes
+// made to the files and the objects in them. It has a nested structure
+// file->objects->changes.
+type ResultV2 struct {
+	ImageResult Result
+	FileChanges map[string]ObjectChanges
+}
+
+// ObjectChanges contains all the changes made to objects.
+type ObjectChanges map[ObjectIdentifier][]Change
+
+// Change contains the setter that resulted in a Change, the old and the new
+// value after the Change.
+type Change struct {
+	OldValue string
+	NewValue string
+	Setter   string
+}
+
+// AddChange adds changes to Resultv2 for a given file, object and changes
+// associated with it.
+func (r *ResultV2) AddChange(file string, objectID ObjectIdentifier, changes ...Change) {
+	if r.FileChanges == nil {
+		r.FileChanges = map[string]ObjectChanges{}
+	}
+	// Create an entry for the file if not present.
+	_, ok := r.FileChanges[file]
+	if !ok {
+		r.FileChanges[file] = ObjectChanges{}
+	}
+	// Append to the changes for the object.
+	r.FileChanges[file][objectID] = append(r.FileChanges[file][objectID], changes...)
+}
+
+// Changes returns all the changes that were made in at least one update.
+func (r ResultV2) Changes() []Change {
+	seen := make(map[Change]struct{})
+	var result []Change
+	for _, objChanges := range r.FileChanges {
+		for _, changes := range objChanges {
+			for _, change := range changes {
+				if _, ok := seen[change]; !ok {
+					seen[change] = struct{}{}
+					result = append(result, change)
+				}
+			}
+		}
+	}
+	return result
+}
+
+// Objects returns ObjectChanges, regardless of which file they appear in.
+func (r ResultV2) Objects() ObjectChanges {
+	result := make(ObjectChanges)
+	for _, objChanges := range r.FileChanges {
+		for obj, change := range objChanges {
+			result[obj] = change
+		}
+	}
+	return result
+}
