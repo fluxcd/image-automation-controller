@@ -17,8 +17,6 @@ limitations under the License.
 package update
 
 import (
-	"io/ioutil"
-	"os"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -56,10 +54,7 @@ func TestUpdateWithSetters(t *testing.T) {
 		},
 	}
 
-	tmp, err := ioutil.TempDir("", "gotest")
-	g.Expect(err).ToNot(HaveOccurred())
-	defer os.RemoveAll(tmp)
-
+	tmp := t.TempDir()
 	result, err := UpdateWithSetters(logr.Discard(), "testdata/setters/original", tmp, policies)
 	g.Expect(err).ToNot(HaveOccurred())
 	test.ExpectMatchingDirectories(g, tmp, "testdata/setters/expected")
@@ -106,4 +101,41 @@ func TestUpdateWithSetters(t *testing.T) {
 	}
 
 	g.Expect(result).To(Equal(expectedResult))
+
+	// Test ResultV2.
+	tmp2 := t.TempDir()
+	resultV2, err := UpdateV2WithSetters(logr.Discard(), "testdata/setters/original", tmp2, policies)
+	g.Expect(err).ToNot(HaveOccurred())
+	test.ExpectMatchingDirectories(g, tmp2, "testdata/setters/expected")
+
+	expectedResultV2 := ResultV2{
+		ImageResult: expectedResult,
+		FileChanges: map[string]ObjectChanges{
+			"kustomization.yaml": {
+				kustomizeResourceID: []Change{
+					{
+						OldValue: "replaced",
+						NewValue: "index.repo.fake/updated",
+						Setter:   "automation-ns:policy:name",
+					},
+					{
+						OldValue: "v1",
+						NewValue: "v1.0.1",
+						Setter:   "automation-ns:policy:tag",
+					},
+				},
+			},
+			"marked.yaml": {
+				markedResourceID: []Change{
+					{
+						OldValue: "image:v1.0.0",
+						NewValue: "index.repo.fake/updated:v1.0.1",
+						Setter:   "automation-ns:policy",
+					},
+				},
+			},
+		},
+	}
+
+	g.Expect(resultV2).To(Equal(expectedResultV2))
 }
