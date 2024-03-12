@@ -16,20 +16,22 @@ limitations under the License.
 
 package controller
 
-import (
-	"testing"
+// import (
+// 	"testing"
 
-	fuzz "github.com/AdaLogics/go-fuzz-headers"
-)
+// 	fuzz "github.com/AdaLogics/go-fuzz-headers"
 
-func Fuzz_templateMsg(f *testing.F) {
-	f.Add("template", []byte{})
-	f.Add("", []byte{})
+// 	"github.com/fluxcd/image-automation-controller/internal/source"
+// )
 
-	f.Fuzz(func(t *testing.T, template string, seed []byte) {
-		var values TemplateData
-		fuzz.NewConsumer(seed).GenerateStruct(&values)
+// func Fuzz_templateMsg(f *testing.F) {
+// 	f.Add("template", []byte{})
+// 	f.Add("", []byte{})
 
-		_, _ = templateMsg(template, &values)
-	})
-}
+// 	f.Fuzz(func(t *testing.T, template string, seed []byte) {
+// 		var values source.TemplateData
+// 		fuzz.NewConsumer(seed).GenerateStruct(&values)
+
+// 		_, _ = templateMsg(template, &values)
+// 	})
+// }

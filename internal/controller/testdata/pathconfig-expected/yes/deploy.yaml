@@ -1,0 +1,10 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: update-yes
+spec:
+  template:
+    spec:
+      containers:
+      - name: hello
+        image: helloworld:1.0.1 # SETTER_SITE
