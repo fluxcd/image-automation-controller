@@ -92,3 +92,80 @@ func TestUpdateResults(t *testing.T) {
 		},
 	}))
 }
+
+func TestResultV2(t *testing.T) {
+	g := NewWithT(t)
+
+	var result ResultV2
+	objectNames := []ObjectIdentifier{
+		{yaml.ResourceIdentifier{
+			NameMeta: yaml.NameMeta{Namespace: "ns", Name: "foo"},
+		}},
+		{yaml.ResourceIdentifier{
+			NameMeta: yaml.NameMeta{Namespace: "ns", Name: "bar"},
+		}},
+	}
+
+	result.AddChange("foo.yaml", objectNames[0], Change{
+		OldValue: "aaa",
+		NewValue: "bbb",
+		Setter:   "foo-ns:policy:name",
+	})
+	result.AddChange("bar.yaml", objectNames[1], Change{
+		OldValue: "cccc:v1.0",
+		NewValue: "cccc:v1.2",
+		Setter:   "foo-ns:policy",
+	})
+
+	result = ResultV2{
+		FileChanges: map[string]ObjectChanges{
+			"foo.yaml": {
+				objectNames[0]: []Change{
+					{
+						OldValue: "aaa",
+						NewValue: "bbb",
+						Setter:   "foo-ns:policy:name",
+					},
+				},
+			},
+			"bar.yaml": {
+				objectNames[1]: []Change{
+					{
+						OldValue: "cccc:v1.0",
+						NewValue: "cccc:v1.2",
+						Setter:   "foo-ns:policy",
+					},
+				},
+			},
+		},
+	}
+
+	g.Expect(result.Changes()).To(ContainElements([]Change{
+		{
+			OldValue: "aaa",
+			NewValue: "bbb",
+			Setter:   "foo-ns:policy:name",
+		},
+		{
+			OldValue: "cccc:v1.0",
+			NewValue: "cccc:v1.2",
+			Setter:   "foo-ns:policy",
+		},
+	}))
+	g.Expect(result.Objects()).To(Equal(ObjectChanges{
+		objectNames[0]: []Change{
+			{
+				OldValue: "aaa",
+				NewValue: "bbb",
+				Setter:   "foo-ns:policy:name",
+			},
+		},
+		objectNames[1]: []Change{
+			{
+				OldValue: "cccc:v1.0",
+				NewValue: "cccc:v1.2",
+				Setter:   "foo-ns:policy",
+			},
+		},
+	}))
+}
