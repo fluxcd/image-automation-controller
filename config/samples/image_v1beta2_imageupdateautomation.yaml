@@ -1,0 +1,29 @@
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageUpdateAutomation
+metadata:
+  name: imageupdateautomation-sample
+spec:
+  interval: 5m
+  sourceRef:
+    kind: GitRepository # the only valid value, but good practice to be explicit here
+    name: sample-repo
+  git:
+    checkout:
+      ref:
+        branch: main
+    commit:
+      author:
+        name: fluxbot
+        email: fluxbot@example.com
+      messageTemplate: |
+        An automated update from FluxBot
+        
+        [ci skip]
+      signingKey:
+        secretRef:
+          name: git-pgp
+    push:
+      branch: auto
+  update:
+    strategy: Setters
+    path: ./cluster/sample
