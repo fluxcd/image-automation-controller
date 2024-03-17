@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Flux authors
+Copyright 2024 The Flux authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,12 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta1
+package v1beta2
 
 import (
 	"time"
 
-	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -36,6 +35,7 @@ type ImageUpdateAutomationSpec struct {
 	// to a git repository.
 	// +required
 	SourceRef CrossNamespaceSourceReference `json:"sourceRef"`
+
 	// GitSpec contains all the git-specific definitions. This is
 	// technically optional, but in practice mandatory until there are
 	// other kinds of source allowed.
@@ -106,33 +106,25 @@ type ImageUpdateAutomationStatus struct {
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 	// +optional
-	Conditions                  []metav1.Condition `json:"conditions,omitempty"`
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	// ObservedPolicies is the list of observed ImagePolicies that were
+	// considered by the ImageUpdateAutomation update process.
+	// +optional
+	ObservedPolicies ObservedPolicies `json:"observedPolicies,omitempty"`
+	// ObservedPolicies []ObservedPolicy `json:"observedPolicies,omitempty"`
+	// ObservedSourceRevision is the last observed source revision. This can be
+	// used to determine if the source has been updated since last observation.
+	// +optional
+	ObservedSourceRevision string `json:"observedSourceRevision,omitempty"`
+
 	meta.ReconcileRequestStatus `json:",inline"`
 }
 
-const (
-	// GitNotAvailableReason is used for ConditionReady when the
-	// automation run cannot proceed because the git repository is
-	// missing or cannot be cloned.
-	GitNotAvailableReason = "GitRepositoryNotAvailable"
-	// NoStrategyReason is used for ConditionReady when the automation
-	// run cannot proceed because there is no update strategy given in
-	// the spec.
-	NoStrategyReason = "MissingUpdateStrategy"
-)
+// ObservedPolicies is a map of policy name and ImageRef of their latest
+// ImageRef.
+type ObservedPolicies map[string]ImageRef
 
-// SetImageUpdateAutomationReadiness sets the ready condition with the given status, reason and message.
-func SetImageUpdateAutomationReadiness(auto *ImageUpdateAutomation, status metav1.ConditionStatus, reason, message string) {
-	auto.Status.ObservedGeneration = auto.ObjectMeta.Generation
-	newCondition := metav1.Condition{
-		Type:    meta.ReadyCondition,
-		Status:  status,
-		Reason:  reason,
-		Message: message,
-	}
-	apimeta.SetStatusCondition(auto.GetStatusConditions(), newCondition)
-}
-
+//+kubebuilder:storageversion
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Last run",type=string,JSONPath=`.status.lastAutomationRunTime`
@@ -161,12 +153,6 @@ func (auto ImageUpdateAutomation) GetConditions() []metav1.Condition {
 // SetConditions sets the status conditions on the object.
 func (auto *ImageUpdateAutomation) SetConditions(conditions []metav1.Condition) {
 	auto.Status.Conditions = conditions
-}
-
-// GetStatusConditions returns a pointer to the Status.Conditions slice.
-// Deprecated: use GetConditions instead.
-func (auto *ImageUpdateAutomation) GetStatusConditions() *[]metav1.Condition {
-	return &auto.Status.Conditions
 }
 
 //+kubebuilder:object:root=true
