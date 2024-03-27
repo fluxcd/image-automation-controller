@@ -48,7 +48,7 @@ import (
 
 	"github.com/fluxcd/pkg/git"
 
-	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta2"
 	"github.com/fluxcd/image-automation-controller/internal/features"
 
 	// +kubebuilder:scaffold:imports
@@ -204,6 +204,7 @@ func main() {
 		EventRecorder:       eventRecorder,
 		Metrics:             metricsH,
 		NoCrossNamespaceRef: aclOptions.NoCrossNamespaceRefs,
+		ControllerName:      controllerName,
 	}).SetupWithManager(ctx, mgr, controller.ImageUpdateAutomationReconcilerOptions{
 		RateLimiter: helper.GetRateLimiter(rateLimiterOptions),
 	}); err != nil {

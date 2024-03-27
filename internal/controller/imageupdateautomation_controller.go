@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Flux authors
+Copyright 2024 The Flux authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,25 +17,18 @@ limitations under the License.
 package controller
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
-	"os"
 	"strings"
-	"text/template"
 	"time"
 
-	"github.com/Masterminds/sprig/v3"
-	"github.com/ProtonMail/go-crypto/openpgp"
-	securejoin "github.com/cyphar/filepath-securejoin"
-	extgogit "github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing/transport"
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	kuberecorder "k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -48,420 +41,86 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
-	apiacl "github.com/fluxcd/pkg/apis/acl"
+	aclapi "github.com/fluxcd/pkg/apis/acl"
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/git"
-	"github.com/fluxcd/pkg/git/gogit"
-	"github.com/fluxcd/pkg/git/repository"
 	"github.com/fluxcd/pkg/runtime/acl"
+	"github.com/fluxcd/pkg/runtime/conditions"
 	helper "github.com/fluxcd/pkg/runtime/controller"
-	"github.com/fluxcd/pkg/runtime/logger"
+	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/pkg/runtime/predicates"
+	runtimereconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
-	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta2"
 	"github.com/fluxcd/image-automation-controller/internal/features"
-	"github.com/fluxcd/image-automation-controller/pkg/update"
+	"github.com/fluxcd/image-automation-controller/internal/policy"
+	"github.com/fluxcd/image-automation-controller/internal/source"
 )
 
-const (
-	originRemote           = "origin"
-	defaultMessageTemplate = `Update from image update automation`
-	repoRefKey             = ".spec.gitRepository"
-	signingSecretKey       = "git.asc"
-	signingPassphraseKey   = "passphrase"
-)
+const repoRefKey = ".spec.gitRepository"
 
-// TemplateData is the type of the value given to the commit message
-// template.
-type TemplateData struct {
-	AutomationObject types.NamespacedName
-	Updated          update.Result
+const readyMessage = "repository up-to-date"
+
+// imageUpdateAutomationOwnedConditions is a list of conditions owned by the
+// ImageUpdateAutomationReconciler.
+var imageUpdateAutomationOwnedConditions = []string{
+	meta.ReadyCondition,
+	meta.ReconcilingCondition,
+	meta.StalledCondition,
 }
 
-// ImageUpdateAutomationReconciler reconciles a ImageUpdateAutomation object
-type ImageUpdateAutomationReconciler struct {
-	client.Client
-	EventRecorder kuberecorder.EventRecorder
-	helper.Metrics
-
-	NoCrossNamespaceRef bool
-
-	features map[string]bool
+// imageUpdateAutomationNegativeConditions is a list of negative polarity
+// conditions owned by ImageUpdateAutomationReconciler. It is used in tests for
+// compliance with kstatus.
+var imageUpdateAutomationNegativeConditions = []string{
+	meta.StalledCondition,
+	meta.ReconcilingCondition,
 }
 
-type ImageUpdateAutomationReconcilerOptions struct {
-	RateLimiter ratelimiter.RateLimiter
+var errParsePolicySelector = errors.New("failed to parse policy selector")
+
+// getPatchOptions composes patch options based on the given parameters.
+// It is used as the options used when patching an object.
+func getPatchOptions(ownedConditions []string, controllerName string) []patch.Option {
+	return []patch.Option{
+		patch.WithOwnedConditions{Conditions: ownedConditions},
+		patch.WithFieldOwner(controllerName),
+	}
 }
 
 // +kubebuilder:rbac:groups=image.toolkit.fluxcd.io,resources=imageupdateautomations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=image.toolkit.fluxcd.io,resources=imageupdateautomations/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=gitrepositories,verbs=get;list;watch
 
-func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := ctrl.LoggerFrom(ctx)
-	debuglog := log.V(logger.DebugLevel)
-	tracelog := log.V(logger.TraceLevel)
-	start := time.Now()
-	var templateValues TemplateData
+// ImageUpdateAutomationReconciler reconciles a ImageUpdateAutomation object
+type ImageUpdateAutomationReconciler struct {
+	client.Client
+	kuberecorder.EventRecorder
+	helper.Metrics
 
-	var auto imagev1.ImageUpdateAutomation
-	if err := r.Get(ctx, req.NamespacedName, &auto); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
+	ControllerName      string
+	NoCrossNamespaceRef bool
 
-	defer func() {
-		// Always record suspend, readiness and duration metrics.
-		r.Metrics.RecordSuspend(ctx, &auto, auto.Spec.Suspend)
-		r.Metrics.RecordReadiness(ctx, &auto)
-		r.Metrics.RecordDuration(ctx, &auto, start)
-	}()
+	features map[string]bool
 
-	// If the object is under deletion, record the readiness, and remove our finalizer.
-	if !auto.ObjectMeta.DeletionTimestamp.IsZero() {
-		controllerutil.RemoveFinalizer(&auto, imagev1.ImageUpdateAutomationFinalizer)
-		if err := r.Update(ctx, &auto); err != nil {
-			return ctrl.Result{}, err
-		}
-		return ctrl.Result{}, nil
-	}
+	patchOptions []patch.Option
+}
 
-	// Add our finalizer if it does not exist.
-	// Note: Finalizers in general can only be added when the deletionTimestamp
-	// is not set.
-	if !controllerutil.ContainsFinalizer(&auto, imagev1.ImageUpdateAutomationFinalizer) {
-		patch := client.MergeFrom(auto.DeepCopy())
-		controllerutil.AddFinalizer(&auto, imagev1.ImageUpdateAutomationFinalizer)
-		if err := r.Patch(ctx, &auto, patch); err != nil {
-			log.Error(err, "unable to register finalizer")
-			return ctrl.Result{}, err
-		}
-	}
-
-	if auto.Spec.Suspend {
-		log.Info("ImageUpdateAutomation is suspended, skipping automation run")
-		return ctrl.Result{}, nil
-	}
-
-	templateValues.AutomationObject = req.NamespacedName
-
-	// whatever else happens, we've now "seen" the reconcile
-	// annotation if it's there
-	if token, ok := meta.ReconcileAnnotationValue(auto.GetAnnotations()); ok {
-		auto.Status.SetLastHandledReconcileRequest(token)
-
-		if err := r.patchStatus(ctx, req, auto.Status); err != nil {
-			return ctrl.Result{Requeue: true}, err
-		}
-	}
-
-	// failWithError is a helper for bailing on the reconciliation.
-	failWithError := func(err error) (ctrl.Result, error) {
-		r.event(ctx, auto, eventv1.EventSeverityError, err.Error())
-		imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, imagev1.ReconciliationFailedReason, err.Error())
-		if err := r.patchStatus(ctx, req, auto.Status); err != nil {
-			log.Error(err, "failed to reconcile")
-		}
-		return ctrl.Result{Requeue: true}, err
-	}
-
-	// get the git repository object so it can be checked out
-
-	// only GitRepository objects are supported for now
-	if kind := auto.Spec.SourceRef.Kind; kind != sourcev1.GitRepositoryKind {
-		return failWithError(fmt.Errorf("source kind '%s' not supported", kind))
-	}
-
-	gitSpec := auto.Spec.GitSpec
-	if gitSpec == nil {
-		return failWithError(fmt.Errorf("source kind %s neccessitates field .spec.git", sourcev1.GitRepositoryKind))
-	}
-
-	var origin sourcev1.GitRepository
-	gitRepoNamespace := req.Namespace
-	if auto.Spec.SourceRef.Namespace != "" {
-		gitRepoNamespace = auto.Spec.SourceRef.Namespace
-	}
-	originName := types.NamespacedName{
-		Name:      auto.Spec.SourceRef.Name,
-		Namespace: gitRepoNamespace,
-	}
-	debuglog.Info("fetching git repository", "gitrepository", originName)
-
-	if r.NoCrossNamespaceRef && gitRepoNamespace != auto.GetNamespace() {
-		err := acl.AccessDeniedError(fmt.Sprintf("can't access '%s/%s', cross-namespace references have been blocked",
-			auto.Spec.SourceRef.Kind, originName))
-		log.Error(err, "access denied to cross-namespaced resource")
-		imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, apiacl.AccessDeniedReason,
-			err.Error())
-		if err := r.patchStatus(ctx, req, auto.Status); err != nil {
-			return ctrl.Result{Requeue: true}, err
-		}
-		r.event(ctx, auto, eventv1.EventSeverityError, err.Error())
-		return ctrl.Result{}, nil
-	}
-
-	if err := r.Get(ctx, originName, &origin); err != nil {
-		if client.IgnoreNotFound(err) == nil {
-			imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, imagev1.GitNotAvailableReason, "referenced git repository is missing")
-			log.Error(err, fmt.Sprintf("referenced git repository %s does not exist.", originName.String()))
-			if err := r.patchStatus(ctx, req, auto.Status); err != nil {
-				return ctrl.Result{Requeue: true}, err
-			}
-			return ctrl.Result{}, nil // and assume we'll hear about it when it arrives
-		}
-		return ctrl.Result{}, err
-	}
-
-	// validate the git spec and default any values needed later, before proceeding
-	var checkoutRef *sourcev1.GitRepositoryRef
-	if gitSpec.Checkout != nil {
-		checkoutRef = &gitSpec.Checkout.Reference
-		tracelog.Info("using git repository ref from .spec.git.checkout", "ref", checkoutRef)
-	} else if r := origin.Spec.Reference; r != nil {
-		checkoutRef = r
-		tracelog.Info("using git repository ref from GitRepository spec", "ref", checkoutRef)
-	} // else remain as `nil` and git.DefaultBranch will be used.
-
-	tmp, err := os.MkdirTemp("", fmt.Sprintf("%s-%s", originName.Namespace, originName.Name))
-	if err != nil {
-		return failWithError(err)
-	}
-	defer func() {
-		if err := os.RemoveAll(tmp); err != nil {
-			log.Error(err, "failed to remove working directory", "path", tmp)
-		}
-	}()
-
-	// pushBranch contains the branch name the commit needs to be pushed to.
-	// It takes the value of the push branch if one is specified or, if the push
-	// config is nil, then it takes the value of the checkout branch if possible.
-	var pushBranch string
-	var switchBranch bool
-	if gitSpec.Push != nil && gitSpec.Push.Branch != "" {
-		pushBranch = gitSpec.Push.Branch
-		tracelog.Info("using push branch from .spec.push.branch", "branch", pushBranch)
-		// We only need to switch branches when a branch has been specified in
-		// the push spec and it is different than the one in the checkout ref.
-		if gitSpec.Push.Branch != checkoutRef.Branch {
-			switchBranch = true
-		}
-	} else {
-		// Here's where it gets constrained. If there's no push branch
-		// given, then the checkout ref must include a branch, and
-		// that can be used.
-		if checkoutRef == nil || checkoutRef.Branch == "" {
-			return failWithError(
-				fmt.Errorf("Push spec not provided, and cannot be inferred from .spec.git.checkout.ref or GitRepository .spec.ref"),
-			)
-		}
-		pushBranch = checkoutRef.Branch
-		tracelog.Info("using push branch from $ref.branch", "branch", pushBranch)
-	}
-
-	authOpts, err := r.getAuthOpts(ctx, &origin)
-	if err != nil {
-		return failWithError(err)
-	}
-	var proxyOpts *transport.ProxyOptions
-	if origin.Spec.ProxySecretRef != nil {
-		proxyOpts, err = r.getProxyOpts(ctx, origin.Spec.ProxySecretRef.Name, origin.GetNamespace())
-		if err != nil {
-			return failWithError(err)
-		}
-	}
-
-	clientOpts := r.getGitClientOpts(authOpts.Transport, proxyOpts, switchBranch)
-	gitClient, err := gogit.NewClient(tmp, authOpts, clientOpts...)
-	if err != nil {
-		return failWithError(err)
-	}
-	defer gitClient.Close()
-
-	opts := repository.CloneConfig{}
-	if checkoutRef != nil {
-		opts.Tag = checkoutRef.Tag
-		opts.SemVer = checkoutRef.SemVer
-		opts.Commit = checkoutRef.Commit
-		opts.Branch = checkoutRef.Branch
-	}
-
-	if enabled, _ := r.features[features.GitShallowClone]; enabled {
-		opts.ShallowClone = true
-	}
-
-	// Use the git operations timeout for the repo.
-	cloneCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
-	defer cancel()
-	debuglog.Info("attempting to clone git repository", "gitrepository", originName, "ref", checkoutRef, "working", tmp)
-	if _, err := gitClient.Clone(cloneCtx, origin.Spec.URL, opts); err != nil {
-		return failWithError(err)
-	}
-
-	// When there's a push branch specified, the pushed-to branch is where commits
-	// shall be made
-	if switchBranch {
-		// Use the git operations timeout for the repo.
-		fetchCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
-		defer cancel()
-		if err := gitClient.SwitchBranch(fetchCtx, pushBranch); err != nil {
-			return failWithError(err)
-		}
-	}
-
-	switch {
-	case auto.Spec.Update != nil && auto.Spec.Update.Strategy == imagev1.UpdateStrategySetters:
-		// For setters we first want to compile a list of _all_ the
-		// policies in the same namespace (maybe in the future this
-		// could be filtered by the automation object).
-		var policies imagev1_reflect.ImagePolicyList
-		if err := r.List(ctx, &policies, &client.ListOptions{Namespace: req.NamespacedName.Namespace}); err != nil {
-			return failWithError(err)
-		}
-
-		manifestsPath := tmp
-		if auto.Spec.Update.Path != "" {
-			tracelog.Info("adjusting update path according to .spec.update.path", "base", tmp, "spec-path", auto.Spec.Update.Path)
-			p, err := securejoin.SecureJoin(tmp, auto.Spec.Update.Path)
-			if err != nil {
-				return failWithError(err)
-			}
-			manifestsPath = p
-		}
-
-		debuglog.Info("updating with setters according to image policies", "count", len(policies.Items), "manifests-path", manifestsPath)
-		if tracelog.Enabled() {
-			for _, item := range policies.Items {
-				tracelog.Info("found policy", "namespace", item.Namespace, "name", item.Name, "latest-image", item.Status.LatestImage)
-			}
-		}
-
-		result, err := updateAccordingToSetters(ctx, tracelog, manifestsPath, manifestsPath, policies.Items)
-		if err != nil {
-			return failWithError(err)
-		}
-
-		templateValues.Updated = result
-
-	default:
-		log.Info("no update strategy given in the spec")
-		// no sense rescheduling until this resource changes
-		r.event(ctx, auto, eventv1.EventSeverityInfo, "no known update strategy in spec, failing trivially")
-		imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionFalse, imagev1.NoStrategyReason, "no known update strategy is given for object")
-		return ctrl.Result{}, r.patchStatus(ctx, req, auto.Status)
-	}
-
-	debuglog.Info("ran updates to working dir", "working", tmp)
-
-	var signingEntity *openpgp.Entity
-	if gitSpec.Commit.SigningKey != nil {
-		if signingEntity, err = r.getSigningEntity(ctx, auto); err != nil {
-			return failWithError(err)
-		}
-	}
-
-	// construct the commit message from template and values
-	message, err := templateMsg(gitSpec.Commit.MessageTemplate, &templateValues)
-	if err != nil {
-		return failWithError(err)
-	}
-
-	var rev string
-	if len(templateValues.Updated.Files) > 0 {
-		// The status message depends on what happens next. Since there's
-		// more than one way to succeed, there's some if..else below, and
-		// early returns only on failure.
-		rev, err = gitClient.Commit(
-			git.Commit{
-				Author: git.Signature{
-					Name:  gitSpec.Commit.Author.Name,
-					Email: gitSpec.Commit.Author.Email,
-					When:  time.Now(),
-				},
-				Message: message,
-			},
-			repository.WithSigner(signingEntity),
-		)
-	} else {
-		err = extgogit.ErrEmptyCommit
-	}
-
-	var statusMessage strings.Builder
-	if err != nil {
-		if !errors.Is(err, git.ErrNoStagedFiles) && !errors.Is(err, extgogit.ErrEmptyCommit) {
-			return failWithError(err)
-		}
-
-		log.Info("no changes made in working directory; no commit")
-		statusMessage.WriteString("no updates made")
-
-		if auto.Status.LastPushTime != nil && len(auto.Status.LastPushCommit) >= 7 {
-			statusMessage.WriteString(fmt.Sprintf("; last commit %s at %s",
-				auto.Status.LastPushCommit[:7], auto.Status.LastPushTime.Format(time.RFC3339)))
-		}
-	} else {
-		// Use the git operations timeout for the repo.
-		pushCtx, cancel := context.WithTimeout(ctx, origin.Spec.Timeout.Duration)
-		defer cancel()
-
-		var pushConfig repository.PushConfig
-		if gitSpec.Push != nil {
-			pushConfig.Options = gitSpec.Push.Options
-		}
-		if pushBranch != "" {
-			// If the force push feature flag is true and we are pushing to a
-			// different branch than the one we checked out to, then force push
-			// these changes.
-			forcePush := r.features[features.GitForcePushBranch]
-			if forcePush && switchBranch {
-				pushConfig.Force = true
-			}
-
-			if err := gitClient.Push(pushCtx, pushConfig); err != nil {
-				return failWithError(err)
-			}
-			log.Info("pushed commit to origin", "revision", rev, "branch", pushBranch)
-			statusMessage.WriteString(fmt.Sprintf("committed and pushed commit '%s' to branch '%s'", rev, pushBranch))
-		}
-
-		if gitSpec.Push != nil && gitSpec.Push.Refspec != "" {
-			pushConfig.Refspecs = []string{gitSpec.Push.Refspec}
-			if err := gitClient.Push(pushCtx, pushConfig); err != nil {
-				return failWithError(err)
-			}
-			log.Info("pushed commit to origin", "revision", rev, "refspec", gitSpec.Push.Refspec)
-
-			if statusMessage.Len() > 0 {
-				statusMessage.WriteString(fmt.Sprintf(" and using refspec '%s'", gitSpec.Push.Refspec))
-			} else {
-				statusMessage.WriteString(fmt.Sprintf("committed and pushed commit '%s' using refspec '%s'", rev, gitSpec.Push.Refspec))
-			}
-		}
-
-		r.event(ctx, auto, eventv1.EventSeverityInfo, fmt.Sprintf("%s\n%s", statusMessage.String(), message))
-
-		auto.Status.LastPushCommit = rev
-		auto.Status.LastPushTime = &metav1.Time{Time: start}
-	}
-
-	// Getting to here is a successful run.
-	auto.Status.LastAutomationRunTime = &metav1.Time{Time: start}
-	imagev1.SetImageUpdateAutomationReadiness(&auto, metav1.ConditionTrue, imagev1.ReconciliationSucceededReason, statusMessage.String())
-	if err := r.patchStatus(ctx, req, auto.Status); err != nil {
-		return ctrl.Result{Requeue: true}, err
-	}
-
-	// We're either in this method because something changed, or this
-	// object got requeued. Either way, once successful, we don't need
-	// to see the object again until Interval has passed, or something
-	// changes again.
-
-	interval := intervalOrDefault(&auto)
-	return ctrl.Result{RequeueAfter: interval}, nil
+type ImageUpdateAutomationReconcilerOptions struct {
+	MaxConcurrentReconciles int
+	RateLimiter             ratelimiter.RateLimiter
+	RecoverPanic            bool
 }
 
 func (r *ImageUpdateAutomationReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, opts ImageUpdateAutomationReconcilerOptions) error {
+	r.patchOptions = getPatchOptions(imageUpdateAutomationOwnedConditions, r.ControllerName)
+
+	if r.features == nil {
+		r.features = features.FeatureGates()
+	}
+
 	// Index the git repository object that each I-U-A refers to
 	if err := mgr.GetFieldIndexer().IndexField(ctx, &imagev1.ImageUpdateAutomation{}, repoRefKey, func(obj client.Object) []string {
 		updater := obj.(*imagev1.ImageUpdateAutomation)
@@ -469,10 +128,6 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(ctx context.Context, 
 		return []string{ref.Name}
 	}); err != nil {
 		return err
-	}
-
-	if r.features == nil {
-		r.features = features.FeatureGates()
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -494,54 +149,6 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(ctx context.Context, 
 		Complete(r)
 }
 
-func (r *ImageUpdateAutomationReconciler) patchStatus(ctx context.Context,
-	req ctrl.Request,
-	newStatus imagev1.ImageUpdateAutomationStatus) error {
-
-	var auto imagev1.ImageUpdateAutomation
-	if err := r.Get(ctx, req.NamespacedName, &auto); err != nil {
-		return err
-	}
-
-	patch := client.MergeFrom(auto.DeepCopy())
-	auto.Status = newStatus
-
-	return r.Status().Patch(ctx, &auto, patch)
-}
-
-// intervalOrDefault gives the interval specified, or if missing, the default
-func intervalOrDefault(auto *imagev1.ImageUpdateAutomation) time.Duration {
-	if auto.Spec.Interval.Duration < time.Second {
-		return time.Second
-	}
-	return auto.Spec.Interval.Duration
-}
-
-func (r *ImageUpdateAutomationReconciler) getGitClientOpts(gitTransport git.TransportType, proxyOpts *transport.ProxyOptions,
-	diffPushBranch bool) []gogit.ClientOption {
-	clientOpts := []gogit.ClientOption{gogit.WithDiskStorage()}
-	if gitTransport == git.HTTP {
-		clientOpts = append(clientOpts, gogit.WithInsecureCredentialsOverHTTP())
-	}
-
-	if proxyOpts != nil {
-		clientOpts = append(clientOpts, gogit.WithProxy(*proxyOpts))
-	}
-
-	// If the push branch is different from the checkout ref, we need to
-	// have all the references downloaded at clone time, to ensure that
-	// SwitchBranch will have access to the target branch state. fluxcd/flux2#3384
-	//
-	// To always overwrite the push branch, the feature gate
-	// GitAllBranchReferences can be set to false, which will cause
-	// the SwitchBranch operation to ignore the remote branch state.
-	allReferences := r.features[features.GitAllBranchReferences]
-	if diffPushBranch {
-		clientOpts = append(clientOpts, gogit.WithSingleBranch(!allReferences))
-	}
-	return clientOpts
-}
-
 // automationsForGitRepo fetches all the automations that refer to a
 // particular source.GitRepository object.
 func (r *ImageUpdateAutomationReconciler) automationsForGitRepo(ctx context.Context, obj client.Object) []reconcile.Request {
@@ -551,7 +158,7 @@ func (r *ImageUpdateAutomationReconciler) automationsForGitRepo(ctx context.Cont
 		ctrl.LoggerFrom(ctx).Error(err, "failed to list ImageUpdateAutomations for GitRepository change")
 		return nil
 	}
-	reqs := make([]reconcile.Request, len(autoList.Items), len(autoList.Items))
+	reqs := make([]reconcile.Request, len(autoList.Items))
 	for i := range autoList.Items {
 		reqs[i].NamespacedName.Name = autoList.Items[i].GetName()
 		reqs[i].NamespacedName.Namespace = autoList.Items[i].GetNamespace()
@@ -569,7 +176,7 @@ func (r *ImageUpdateAutomationReconciler) automationsForImagePolicy(ctx context.
 		ctrl.LoggerFrom(ctx).Error(err, "failed to list ImageUpdateAutomations for ImagePolicy change")
 		return nil
 	}
-	reqs := make([]reconcile.Request, len(autoList.Items), len(autoList.Items))
+	reqs := make([]reconcile.Request, len(autoList.Items))
 	for i := range autoList.Items {
 		reqs[i].NamespacedName.Name = autoList.Items[i].GetName()
 		reqs[i].NamespacedName.Namespace = autoList.Items[i].GetNamespace()
@@ -577,142 +184,452 @@ func (r *ImageUpdateAutomationReconciler) automationsForImagePolicy(ctx context.
 	return reqs
 }
 
-// getAuthOpts fetches the secret containing the auth options (if specified),
-// constructs a git.AuthOptions object using those options along with the provided
-// repository's URL and returns it.
-func (r *ImageUpdateAutomationReconciler) getAuthOpts(ctx context.Context, repository *sourcev1.GitRepository) (*git.AuthOptions, error) {
-	var data map[string][]byte
+func (r *ImageUpdateAutomationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, retErr error) {
+	start := time.Now()
+	log := ctrl.LoggerFrom(ctx)
+
+	// Fetch the ImageUpdateAutomation.
+	obj := &imagev1.ImageUpdateAutomation{}
+	if err := r.Get(ctx, req.NamespacedName, obj); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	// Initialize the patch helper with the current version of the object.
+	serialPatcher := patch.NewSerialPatcher(obj, r.Client)
+
+	// Always attempt to patch the object after each reconciliation.
+	defer func() {
+		// Create patch options for the final patch of the object.
+		patchOpts := runtimereconcile.AddPatchOptions(obj, r.patchOptions, imageUpdateAutomationOwnedConditions, r.ControllerName)
+		if err := serialPatcher.Patch(ctx, obj, patchOpts...); err != nil {
+			// Ignore patch error "not found" when the object is being deleted.
+			if !obj.GetDeletionTimestamp().IsZero() {
+				err = kerrors.FilterOut(err, func(e error) bool { return apierrors.IsNotFound(e) })
+			}
+			retErr = kerrors.NewAggregate([]error{retErr, err})
+		}
+
+		// When the reconciliation ends with an error, ensure that the Result is
+		// empty. This is to suppress the runtime warning when returning a
+		// non-zero Result and an error.
+		if retErr != nil {
+			result = ctrl.Result{}
+		}
+
+		// Always record suspend, readiness and duration metrics.
+		r.Metrics.RecordDuration(ctx, obj, start)
+	}()
+
+	// Examine if the object is under deletion.
+	if !obj.ObjectMeta.DeletionTimestamp.IsZero() {
+		return r.reconcileDelete(obj)
+	}
+
+	// Add finalizer first if it doesn't exist to avoid the race condition
+	// between init and delete.
+	// Note: Finalizers in general can only be added when the deletionTimestamp
+	// is not set.
+	if !controllerutil.ContainsFinalizer(obj, imagev1.ImageUpdateAutomationFinalizer) {
+		controllerutil.AddFinalizer(obj, imagev1.ImageUpdateAutomationFinalizer)
+		return ctrl.Result{Requeue: true}, nil
+	}
+
+	// Return if the object is suspended.
+	if obj.Spec.Suspend {
+		log.Info("reconciliation is suspended for this object")
+		return ctrl.Result{}, nil
+	}
+
+	result, retErr = r.reconcile(ctx, serialPatcher, obj, start)
+	return
+}
+
+func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *patch.SerialPatcher,
+	obj *imagev1.ImageUpdateAutomation, startTime time.Time) (result ctrl.Result, retErr error) {
+	oldObj := obj.DeepCopy()
+
+	var pushResult *source.PushResult
+
+	// syncNeeded decides if full reconciliation with image update is needed.
+	syncNeeded := false
+
+	defer func() {
+		// Define the meaning of success based on the requeue interval.
+		isSuccess := func(res ctrl.Result, err error) bool {
+			if err != nil || res.RequeueAfter != obj.GetRequeueAfter() || res.Requeue {
+				return false
+			}
+			return true
+		}
+
+		rs := runtimereconcile.NewResultFinalizer(isSuccess, readyMessage)
+		retErr = rs.Finalize(obj, result, retErr)
+
+		// Presence of reconciling means that the reconciliation didn't succeed.
+		// Set the Reconciling reason to ProgressingWithRetry to indicate a
+		// failure retry.
+		if conditions.IsReconciling(obj) {
+			reconciling := conditions.Get(obj, meta.ReconcilingCondition)
+			reconciling.Reason = meta.ProgressingWithRetryReason
+			conditions.Set(obj, reconciling)
+		}
+
+		r.notify(ctx, oldObj, obj, pushResult, syncNeeded)
+	}()
+
+	// TODO: Maybe move this to Reconcile()'s defer and avoid passing startTime
+	// to reconcile()?
+	obj.Status.LastAutomationRunTime = &metav1.Time{Time: startTime}
+
+	// Set reconciling condition.
+	runtimereconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress")
+
+	var reconcileAtVal string
+	if v, ok := meta.ReconcileAnnotationValue(obj.GetAnnotations()); ok {
+		reconcileAtVal = v
+	}
+
+	// Persist reconciling if generation differs or reconciliation is requested.
+	switch {
+	case obj.Generation != obj.Status.ObservedGeneration:
+		runtimereconcile.ProgressiveStatus(false, obj, meta.ProgressingReason,
+			"processing object: new generation %d -> %d", obj.Status.ObservedGeneration, obj.Generation)
+		if err := sp.Patch(ctx, obj, r.patchOptions...); err != nil {
+			result, retErr = ctrl.Result{}, err
+			return
+		}
+	case reconcileAtVal != obj.Status.GetLastHandledReconcileRequest():
+		if err := sp.Patch(ctx, obj, r.patchOptions...); err != nil {
+			result, retErr = ctrl.Result{}, err
+			return
+		}
+	}
+
+	// List the policies and construct observed policies.
+	policies, err := getPolicies(ctx, r.Client, obj.Namespace, obj.Spec.PolicySelector)
+	if err != nil {
+		if errors.Is(err, errParsePolicySelector) {
+			conditions.MarkStalled(obj, imagev1.InvalidPolicySelectorReason, err.Error())
+			result, retErr = ctrl.Result{}, nil
+			return
+		}
+		result, retErr = ctrl.Result{}, err
+		return
+	}
+	// Update any stale Ready=False condition from policies config failure.
+	if conditions.HasAnyReason(obj, meta.ReadyCondition, imagev1.InvalidPolicySelectorReason) {
+		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
+	}
+
+	observedPolicies, err := observedPolicies(policies)
+	if err != nil {
+		result, retErr = ctrl.Result{}, err
+		return
+	}
+
+	// If the policies have changed, require a full sync.
+	if observedPoliciesChanged(obj.Status.ObservedPolicies, observedPolicies) {
+		syncNeeded = true
+	}
+
+	// Create source manager with options.
+	smOpts := []source.SourceOption{}
+	if r.NoCrossNamespaceRef {
+		smOpts = append(smOpts, source.WithSourceOptionNoCrossNamespaceRef())
+	}
+	if r.features[features.GitAllBranchReferences] {
+		smOpts = append(smOpts, source.WithSourceOptionGitAllBranchReferences())
+	}
+	sm, err := source.NewSourceManager(ctx, r.Client, obj, smOpts...)
+	if err != nil {
+		if acl.IsAccessDenied(err) {
+			conditions.MarkStalled(obj, aclapi.AccessDeniedReason, err.Error())
+			result, retErr = ctrl.Result{}, nil
+			return
+		}
+		if errors.Is(err, source.ErrInvalidSourceConfiguration) {
+			conditions.MarkStalled(obj, imagev1.InvalidSourceConfigReason, err.Error())
+			result, retErr = ctrl.Result{}, nil
+			return
+		}
+		e := fmt.Errorf("failed configuring source manager: %w", err)
+		conditions.MarkFalse(obj, meta.ReadyCondition, imagev1.SourceManagerFailedReason, e.Error())
+		result, retErr = ctrl.Result{}, e
+		return
+	}
+	defer func() {
+		if err := sm.Cleanup(); err != nil {
+			retErr = err
+		}
+	}()
+	// Update any stale Ready=False condition from SourceManager failure.
+	if conditions.HasAnyReason(obj, meta.ReadyCondition, aclapi.AccessDeniedCondition, imagev1.InvalidSourceConfigReason, imagev1.SourceManagerFailedReason) {
+		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
+	}
+
+	// When the checkout and push branches are different or a refspec is
+	// defined, always perform a full sync.
+	// This can be worked around in the future by also querying the HEAD of push
+	// branch to detech if it has drifted.
+	if sm.SwitchBranch() || obj.Spec.GitSpec.HasRefspec() {
+		syncNeeded = true
+	}
+
+	// Build checkout options.
+	checkoutOpts := []source.CheckoutOption{}
+	if r.features[features.GitShallowClone] {
+		checkoutOpts = append(checkoutOpts, source.WithCheckoutOptionShallowClone())
+	}
+	// If full sync is still not needed, configure last observed commit to
+	// perform optimized clone and obtain a non-concrete commit if the remote
+	// has not changed.
+	if !syncNeeded && obj.Status.ObservedSourceRevision != "" {
+		checkoutOpts = append(checkoutOpts, source.WithCheckoutOptionLastObserved(obj.Status.ObservedSourceRevision))
+	}
+
+	commit, err := sm.CheckoutSource(ctx, checkoutOpts...)
+	if err != nil {
+		e := fmt.Errorf("failed to checkout source: %w", err)
+		conditions.MarkFalse(obj, meta.ReadyCondition, imagev1.GitOperationFailedReason, e.Error())
+		result, retErr = ctrl.Result{}, e
+		return
+	}
+	// Update any stale Ready=False condition from checkout failure.
+	if conditions.HasAnyReason(obj, meta.ReadyCondition, imagev1.GitOperationFailedReason) {
+		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
+	}
+
+	// If it's a partial commit, the reconciliation can be skipped. The last
+	// observed commit is only configured above when full sync is not needed.
+	// No change in the policies and remote git repository. Skip reconciliation.
+	if !git.IsConcreteCommit(*commit) {
+		// Remove any stale Ready condition, most likely False, set above. Its value
+		// is derived from the overall result of the reconciliation in the deferred
+		// block at the very end.
+		conditions.Delete(obj, meta.ReadyCondition)
+		result, retErr = ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+		return
+	} else {
+		// Concrete commit indicates full sync is needed due to new remote
+		// revision.
+		syncNeeded = true
+	}
+	// Continue with full sync with a concrete commit.
+
+	// Apply the policies and check if there's anything to update.
+	policyResult, err := policy.ApplyPolicies(ctx, sm.WorkDirectory(), obj, policies)
+	if err != nil {
+		if errors.Is(err, policy.ErrNoUpdateStrategy) || errors.Is(err, policy.ErrUnsupportedUpdateStrategy) {
+			conditions.MarkStalled(obj, imagev1.InvalidUpdateStrategyReason, err.Error())
+			result, retErr = ctrl.Result{}, nil
+			return
+		}
+		e := fmt.Errorf("failed to apply policies: %w", err)
+		conditions.MarkFalse(obj, meta.ReadyCondition, imagev1.UpdateFailedReason, e.Error())
+		result, retErr = ctrl.Result{}, e
+		return
+	}
+	// Update any stale Ready=False condition from apply policies failure.
+	if conditions.HasAnyReason(obj, meta.ReadyCondition, imagev1.InvalidUpdateStrategyReason, imagev1.UpdateFailedReason) {
+		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
+	}
+
+	if len(policyResult.FileChanges) == 0 {
+		// Remove any stale Ready condition, most likely False, set above. Its
+		// value is derived from the overall result of the reconciliation in the
+		// deferred block at the very end.
+		conditions.Delete(obj, meta.ReadyCondition)
+
+		// Persist observations.
+		obj.Status.ObservedSourceRevision = commit.String()
+		obj.Status.ObservedPolicies = observedPolicies
+
+		result, retErr = ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+		return
+	}
+
+	// Build push config.
+	pushCfg := []source.PushConfig{}
+	// Enable force only when branch is changed for push.
+	if r.features[features.GitForcePushBranch] && sm.SwitchBranch() {
+		pushCfg = append(pushCfg, source.WithPushConfigForce())
+	}
+	// Include any push options.
+	if obj.Spec.GitSpec.Push != nil && obj.Spec.GitSpec.Push.Options != nil {
+		pushCfg = append(pushCfg, source.WithPushConfigOptions(obj.Spec.GitSpec.Push.Options))
+	}
+
+	pushResult, err = sm.CommitAndPush(ctx, obj, policyResult, pushCfg...)
+	if err != nil {
+		e := fmt.Errorf("failed to update source: %w", err)
+		conditions.MarkFalse(obj, meta.ReadyCondition, imagev1.GitOperationFailedReason, e.Error())
+		result, retErr = ctrl.Result{}, e
+		return
+	}
+	// Update any stale Ready=False condition from commit and push failure.
+	if conditions.HasAnyReason(obj, meta.ReadyCondition, imagev1.GitOperationFailedReason) {
+		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
+	}
+
+	if pushResult == nil {
+		// NOTE: This should not happen. This exists as a legacy behavior from
+		// the old implementation where no commit is made due to no stagged
+		// files. If nothing is pushed, the repository is up-to-date. Persist
+		// observations and return with successful result.
+		conditions.Delete(obj, meta.ReadyCondition)
+		obj.Status.ObservedSourceRevision = commit.String()
+		obj.Status.ObservedPolicies = observedPolicies
+		result, retErr = ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+		return
+	}
+
+	// Persist observations.
+	obj.Status.ObservedSourceRevision = pushResult.Commit().String()
+	// If the push branch is different, store the checkout branch commit as the
+	// observed source revision.
+	if pushResult.SwitchBranch() {
+		obj.Status.ObservedSourceRevision = commit.String()
+	}
+	obj.Status.ObservedPolicies = observedPolicies
+	obj.Status.LastPushCommit = pushResult.Commit().Hash.String()
+	obj.Status.LastPushTime = pushResult.Time()
+
+	// Remove any stale Ready condition, most likely False, set above. Its value
+	// is derived from the overall result of the reconciliation in the deferred
+	// block at the very end.
+	conditions.Delete(obj, meta.ReadyCondition)
+	result, retErr = ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+	return
+}
+
+// reconcileDelete handles the deletion of the object.
+func (r *ImageUpdateAutomationReconciler) reconcileDelete(obj *imagev1.ImageUpdateAutomation) (ctrl.Result, error) {
+	// Remove our finalizer from the list.
+	controllerutil.RemoveFinalizer(obj, imagev1.ImageUpdateAutomationFinalizer)
+
+	// Stop reconciliation as the object is being deleted.
+	return ctrl.Result{}, nil
+}
+
+// getPolicies returns list of policies in the given namespace that have latest
+// image.
+func getPolicies(ctx context.Context, kclient client.Client, namespace string, selector *metav1.LabelSelector) ([]imagev1_reflect.ImagePolicy, error) {
+	policySelector := labels.Everything()
 	var err error
-	if repository.Spec.SecretRef != nil {
-		data, err = r.getSecretData(ctx, repository.Spec.SecretRef.Name, repository.GetNamespace())
-		if err != nil {
-			return nil, fmt.Errorf("failed to get auth secret '%s/%s': %w", repository.GetNamespace(), repository.Spec.SecretRef.Name, err)
+	if selector != nil {
+		if policySelector, err = metav1.LabelSelectorAsSelector(selector); err != nil {
+			return nil, fmt.Errorf("%w: %w", errParsePolicySelector, err)
 		}
 	}
 
-	u, err := url.Parse(repository.Spec.URL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse URL '%s': %w", repository.Spec.URL, err)
+	var policies imagev1_reflect.ImagePolicyList
+	if err := kclient.List(ctx, &policies, &client.ListOptions{Namespace: namespace, LabelSelector: policySelector}); err != nil {
+		return nil, fmt.Errorf("failed to list policies: %w", err)
 	}
 
-	opts, err := git.NewAuthOptions(*u, data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to configure authentication options: %w", err)
+	readyPolicies := []imagev1_reflect.ImagePolicy{}
+	for _, policy := range policies.Items {
+		// Ignore the policies that don't have a latest image.
+		if policy.Status.LatestImage == "" {
+			continue
+		}
+		readyPolicies = append(readyPolicies, policy)
 	}
 
-	return opts, nil
+	return readyPolicies, nil
 }
 
-// getProxyOpts fetches the secret containing the proxy settings, constructs a
-// transport.ProxyOptions object using those settings and then returns it.
-func (r *ImageUpdateAutomationReconciler) getProxyOpts(ctx context.Context, proxySecretName,
-	proxySecretNamespace string) (*transport.ProxyOptions, error) {
-	proxyData, err := r.getSecretData(ctx, proxySecretName, proxySecretNamespace)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get proxy secret '%s/%s': %w", proxySecretNamespace, proxySecretName, err)
+// observedPolicies takes a list of ImagePolicies and returns an
+// ObservedPolicies with all the policies in it.
+func observedPolicies(policies []imagev1_reflect.ImagePolicy) (imagev1.ObservedPolicies, error) {
+	observedPolicies := imagev1.ObservedPolicies{}
+	for _, policy := range policies {
+		parts := strings.SplitN(policy.Status.LatestImage, ":", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("failed parsing image: %s", policy.Status.LatestImage)
+		}
+		observedPolicies[policy.Name] = imagev1.ImageRef{
+			Name: parts[0],
+			Tag:  parts[1],
+		}
 	}
-	address, ok := proxyData["address"]
-	if !ok {
-		return nil, fmt.Errorf("invalid proxy secret '%s/%s': key 'address' is missing", proxySecretNamespace, proxySecretName)
-	}
-
-	proxyOpts := &transport.ProxyOptions{
-		URL:      string(address),
-		Username: string(proxyData["username"]),
-		Password: string(proxyData["password"]),
-	}
-	return proxyOpts, nil
+	return observedPolicies, nil
 }
 
-func (r *ImageUpdateAutomationReconciler) getSecretData(ctx context.Context, name, namespace string) (map[string][]byte, error) {
-	key := types.NamespacedName{
-		Namespace: namespace,
-		Name:      name,
+// observedPoliciesChanged returns if the previous and current observedPolicies
+// have changed.
+func observedPoliciesChanged(previous, current imagev1.ObservedPolicies) bool {
+	if len(previous) != len(current) {
+		return true
 	}
-	var secret corev1.Secret
-	if err := r.Client.Get(ctx, key, &secret); err != nil {
-		return nil, err
-	}
-	return secret.Data, nil
-}
-
-// getSigningEntity retrieves an OpenPGP entity referenced by the
-// provided imagev1.ImageUpdateAutomation for git commit signing
-func (r *ImageUpdateAutomationReconciler) getSigningEntity(ctx context.Context, auto imagev1.ImageUpdateAutomation) (*openpgp.Entity, error) {
-	// get kubernetes secret
-	secretName := types.NamespacedName{
-		Namespace: auto.GetNamespace(),
-		Name:      auto.Spec.GitSpec.Commit.SigningKey.SecretRef.Name,
-	}
-	var secret corev1.Secret
-	if err := r.Get(ctx, secretName, &secret); err != nil {
-		return nil, fmt.Errorf("could not find signing key secret '%s': %w", secretName, err)
-	}
-
-	// get data from secret
-	data, ok := secret.Data[signingSecretKey]
-	if !ok {
-		return nil, fmt.Errorf("signing key secret '%s' does not contain a 'git.asc' key", secretName)
-	}
-
-	// read entity from secret value
-	entities, err := openpgp.ReadArmoredKeyRing(bytes.NewReader(data))
-	if err != nil {
-		return nil, fmt.Errorf("could not read signing key from secret '%s': %w", secretName, err)
-	}
-	if len(entities) > 1 {
-		return nil, fmt.Errorf("multiple entities read from secret '%s', could not determine which signing key to use", secretName)
-	}
-
-	entity := entities[0]
-	if entity.PrivateKey != nil && entity.PrivateKey.Encrypted {
-		passphrase, ok := secret.Data[signingPassphraseKey]
+	for name, imageRef := range current {
+		oldImageRef, ok := previous[name]
 		if !ok {
-			return nil, fmt.Errorf("can not use passphrase protected signing key without '%s' field present in secret %s",
-				signingPassphraseKey, secretName)
+			// Changed if an entry is not found.
+			return true
 		}
-		if err = entity.PrivateKey.Decrypt([]byte(passphrase)); err != nil {
-			return nil, fmt.Errorf("could not decrypt private key of the signing key present in secret %s: %w", secretName, err)
+		if oldImageRef != imageRef {
+			return true
 		}
 	}
-	return entity, nil
+	return false
 }
 
-// --- events, metrics
+// notify emits notifications and events based on the state of the object and
+// the given PushResult. It tries to always send the PushResult commit message
+// if there has been any update. Otherwise, a generic up-to-date message. In
+// case of any failure, the failure message is read from the Ready condition and
+// included in the event.
+func (r *ImageUpdateAutomationReconciler) notify(ctx context.Context, oldObj, newObj conditions.Setter, result *source.PushResult, syncNeeded bool) {
+	// Use the Ready message as the notification message by default.
+	ready := conditions.Get(newObj, meta.ReadyCondition)
+	msg := ready.Message
 
-func (r *ImageUpdateAutomationReconciler) event(ctx context.Context, auto imagev1.ImageUpdateAutomation, severity, msg string) {
-	eventtype := "Normal"
-	if severity == eventv1.EventSeverityError {
-		eventtype = "Warning"
+	// If there's a PushResult, use the summary as the notification message.
+	if result != nil {
+		msg = result.Summary()
 	}
-	r.EventRecorder.Eventf(&auto, eventtype, severity, msg)
+
+	// Was ready before and is ready now, with new push result,
+	if conditions.IsReady(oldObj) && conditions.IsReady(newObj) && result != nil {
+		eventLogf(ctx, r.EventRecorder, newObj, corev1.EventTypeNormal, ready.Reason, msg)
+		return
+	}
+
+	// Emit events when reconciliation fails or recovers from failure.
+
+	// Became ready from not ready.
+	if !conditions.IsReady(oldObj) && conditions.IsReady(newObj) {
+		eventLogf(ctx, r.EventRecorder, newObj, corev1.EventTypeNormal, ready.Reason, msg)
+		return
+	}
+	// Not ready, failed. Use the failure message from ready condition.
+	if !conditions.IsReady(newObj) {
+		eventLogf(ctx, r.EventRecorder, newObj, corev1.EventTypeWarning, ready.Reason, ready.Message)
+		return
+	}
+
+	// No change.
+
+	if !syncNeeded {
+		// Full reconciliation skipped.
+		msg = "no change since last reconciliation"
+	}
+	eventLogf(ctx, r.EventRecorder, newObj, eventv1.EventTypeTrace, meta.SucceededReason, msg)
 }
 
-// --- updates
-
-// updateAccordingToSetters updates files under the root by treating
-// the given image policies as kyaml setters.
-func updateAccordingToSetters(ctx context.Context, tracelog logr.Logger, inpath, outpath string, policies []imagev1_reflect.ImagePolicy) (update.Result, error) {
-	return update.UpdateWithSetters(tracelog, inpath, outpath, policies)
-}
-
-// templateMsg renders a msg template, returning the message or an error.
-func templateMsg(messageTemplate string, templateValues *TemplateData) (string, error) {
-	if messageTemplate == "" {
-		messageTemplate = defaultMessageTemplate
+// eventLogf records events, and logs at the same time.
+//
+// This log is different from the debug log in the EventRecorder, in the sense
+// that this is a simple log. While the debug log contains complete details
+// about the event.
+func eventLogf(ctx context.Context, r kuberecorder.EventRecorder, obj runtime.Object, eventType string, reason string, messageFmt string, args ...interface{}) {
+	msg := fmt.Sprintf(messageFmt, args...)
+	// Log and emit event.
+	if eventType == corev1.EventTypeWarning {
+		ctrl.LoggerFrom(ctx).Error(errors.New(reason), msg)
+	} else {
+		ctrl.LoggerFrom(ctx).Info(msg)
 	}
-
-	// Includes only functions that are guaranteed to always evaluate to the same result for given input.
-	// This removes the possibility of accidentally relying on where or when the template runs.
-	// https://github.com/Masterminds/sprig/blob/3ac42c7bc5e4be6aa534e036fb19dde4a996da2e/functions.go#L70
-	t, err := template.New("commit message").Funcs(sprig.HermeticTxtFuncMap()).Parse(messageTemplate)
-	if err != nil {
-		return "", fmt.Errorf("unable to create commit message template from spec: %w", err)
-	}
-
-	b := &strings.Builder{}
-	if err := t.Execute(b, *templateValues); err != nil {
-		return "", fmt.Errorf("failed to run template from spec: %w", err)
-	}
-	return b.String(), nil
+	r.Eventf(obj, eventType, reason, msg)
 }
