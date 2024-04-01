@@ -13,7 +13,7 @@ replace (
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24
 	github.com/Masterminds/sprig/v3 v3.2.3
-	github.com/ProtonMail/go-crypto v1.1.0-alpha.0
+	github.com/ProtonMail/go-crypto v1.1.0-alpha.2
 	github.com/cyphar/filepath-securejoin v0.2.4
 	github.com/fluxcd/image-automation-controller/api v0.37.1
 	github.com/fluxcd/image-reflector-controller/api v0.31.2
@@ -27,10 +27,10 @@ require (
 	github.com/fluxcd/pkg/ssh v0.11.0
 	github.com/fluxcd/source-controller/api v1.2.4
 	github.com/go-git/go-billy/v5 v5.5.0
-	github.com/go-git/go-git/v5 v5.11.0
+	github.com/go-git/go-git/v5 v5.12.0
 	github.com/go-logr/logr v1.3.0
-	github.com/google/go-containerregistry v0.19.0
-	github.com/onsi/gomega v1.31.1
+	github.com/google/go-containerregistry v0.19.1
+	github.com/onsi/gomega v1.32.0
 	github.com/otiai10/copy v1.14.0
 	github.com/spf13/pflag v1.0.5
 	k8s.io/api v0.28.6
@@ -113,9 +113,9 @@ require (
 	github.com/prometheus/common v0.45.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/sergi/go-diff v1.3.1 // indirect
+	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
-	github.com/skeema/knownhosts v1.2.1 // indirect
+	github.com/skeema/knownhosts v1.2.2 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/cobra v1.8.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
@@ -123,14 +123,14 @@ require (
 	go.starlark.net v0.0.0-20231121155337-90ade8b19d09 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
-	golang.org/x/crypto v0.18.0 // indirect
+	golang.org/x/crypto v0.21.0 // indirect
 	golang.org/x/exp v0.0.0-20231206192017-f3f8817b8deb // indirect
 	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/net v0.20.0 // indirect
+	golang.org/x/net v0.22.0 // indirect
 	golang.org/x/oauth2 v0.16.0 // indirect
 	golang.org/x/sync v0.6.0 // indirect
-	golang.org/x/sys v0.16.0 // indirect
-	golang.org/x/term v0.16.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
+	golang.org/x/term v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.17.0 // indirect
