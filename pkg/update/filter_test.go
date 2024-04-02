@@ -53,3 +53,54 @@ func TestSetAllCallbackAccept(t *testing.T) {
 		})
 	}
 }
+
+func TestGetExtFromSchema(t *testing.T) {
+	tests := []struct {
+		name              string
+		schema            *spec.Schema
+		expectedExtension *extension
+		expectedError     bool
+	}{
+		{
+			name: "Extension Present",
+			schema: &spec.Schema{
+				VendorExtensible: spec.VendorExtensible{
+					Extensions: map[string]interface{}{
+						K8sCliExtensionKey: &extension{
+							Setter: &setter{
+								Name:  "testSetter",
+								Value: "testValue",
+							},
+						},
+					},
+				},
+			},
+			expectedExtension: &extension{
+				Setter: &setter{
+					Name:  "testSetter",
+					Value: "testValue",
+				},
+			},
+			expectedError: false,
+		},
+		{
+			name:          "Extension Not Present",
+			schema:        &spec.Schema{},
+			expectedError: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			g := NewWithT(t)
+			ext, err := getExtFromSchema(test.schema)
+
+			if test.expectedError {
+				g.Expect(err).To(HaveOccurred())
+			} else {
+				g.Expect(err).ToNot(HaveOccurred())
+				g.Expect(ext).To(Equal(test.expectedExtension))
+			}
+		})
+	}
+}
