@@ -26,6 +26,7 @@ import (
 
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -34,7 +35,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/testenv"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
-	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta1"
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta2"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -85,9 +86,10 @@ func runTestsWithFeatures(m *testing.M, feats map[string]bool) int {
 
 	controllerName := "image-automation-controller"
 	if err := (&ImageUpdateAutomationReconciler{
-		Client:        testEnv,
-		EventRecorder: testEnv.GetEventRecorderFor(controllerName),
-		features:      feats,
+		Client:         testEnv,
+		EventRecorder:  record.NewFakeRecorder(32),
+		features:       feats,
+		ControllerName: controllerName,
 	}).SetupWithManager(ctx, testEnv, ImageUpdateAutomationReconcilerOptions{
 		RateLimiter: controller.GetDefaultRateLimiter(),
 	}); err != nil {
