@@ -23,14 +23,14 @@ require (
 	github.com/fluxcd/pkg/git v0.19.0
 	github.com/fluxcd/pkg/git/gogit v0.19.0
 	github.com/fluxcd/pkg/gittestserver v0.12.0
-	github.com/fluxcd/pkg/runtime v0.47.0
+	github.com/fluxcd/pkg/runtime v0.47.1
 	github.com/fluxcd/pkg/ssh v0.13.0
 	github.com/fluxcd/source-controller/api v1.2.5
 	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/go-logr/logr v1.4.1
 	github.com/google/go-containerregistry v0.19.1
-	github.com/onsi/gomega v1.33.0
+	github.com/onsi/gomega v1.33.1
 	github.com/otiai10/copy v1.14.0
 	github.com/spf13/pflag v1.0.5
 	k8s.io/api v0.30.0
@@ -38,7 +38,7 @@ require (
 	k8s.io/client-go v0.30.0
 	k8s.io/kube-openapi v0.0.0-20240411171206-dc4e619f62f3
 	k8s.io/utils v0.0.0-20240310230437-4693a0247e57
-	sigs.k8s.io/controller-runtime v0.18.0
+	sigs.k8s.io/controller-runtime v0.18.1
 	sigs.k8s.io/kustomize/kyaml v0.17.0
 )
 
