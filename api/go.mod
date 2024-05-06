@@ -4,12 +4,13 @@ go 1.22.0
 
 require (
 	github.com/fluxcd/pkg/apis/meta v1.5.0
-	github.com/fluxcd/source-controller/api v1.2.4
+	github.com/fluxcd/source-controller/api v1.3.0
 	k8s.io/apimachinery v0.30.0
-	sigs.k8s.io/controller-runtime v0.18.0
+	sigs.k8s.io/controller-runtime v0.18.1
 )
 
 require (
+	github.com/fluxcd/pkg/apis/acl v0.3.0 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
