@@ -18,6 +18,8 @@ spec:
     - jsonPath: .status.lastAutomationRunTime
       name: Last run
       type: string
+    deprecated: true
+    deprecationWarning: v1beta1 ImageUpdateAutomation is deprecated, upgrade to v1beta2
     name: v1beta1
     schema:
       openAPIV3Schema:
