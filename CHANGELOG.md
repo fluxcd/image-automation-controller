@@ -1,5 +1,135 @@
 # Changelog
 
+## 0.38.0
+
+**Release date:** 2024-05-06
+
+This prerelease graduates the `ImageUpdateAutomation` API to v1beta2.
+
+### `image.toolkit.fluxcd.io/v1beta2`
+
+After upgrading the controller to v0.38.0, please update the
+`ImageUpdateAutomation` **Custom Resources** in Git by replacing
+`image.toolkit.fluxcd.io/v1beta1` with `image.toolkit.fluxcd.io/v1beta2` in all
+YAML manifests. Bumping the API version in manifests can be done gradually. It
+is advised not to delay this procedure as the `v1beta1` version will be removed
+after 6 months.
+
+### Highlights
+
+#### New API specification format
+
+[The specification for the `v1beta2`
+API](https://github.com/fluxcd/image-automation-controller/tree/v0.38.0/docs/spec/v1beta2)
+has been written in a new format with the aim to be more valuable to a user.
+Featuring separate sections with examples, and information on how to write and
+work with them.
+
+#### New template data `Changed` and deprecation of `Updated`
+
+A new Git commit message template data named `Changed` is introduced to replace
+`Updated` template data. `Changed` is designed to accommodate for all the types
+of updates made by ImaegUpdateAutomation, unlike only full image reference
+updates captured by `Updated`. The message template can now be used to render
+the old and new values for better presentation of the updates. For example:
+
+```
+Automation: default/test-update-auto
+
+- File: foo-deployment.yaml
+  - Object: Deployment/default/foo
+    Changes:
+    - 2.2.2 -> 5.0.3
+
+- File: podinfo-deployment.yaml
+  - Object: Deployment/default/infopod
+    Changes:
+    - v1.0 -> 5.0.3
+  - Object: Deployment/default/podinfo
+    Changes:
+    - ghcr.io/stefanprodan/podinfo:4.0.6 -> ghcr.io/stefanprodan/podinfo:5.0.3
+    - bar -> ghcr.io/stefanprodan/podinfo
+    - 4.0.6 -> 5.0.3
+```
+
+`Updated` template data is deprecated, but is still available in the message
+template, for existing users. It is recommended to migrate to `Changed` template
+data. See the new API specification docs for details about the new template
+data.
+
+#### ImagePolicy selector support
+
+`ImageUpdateAutomation` now supports selecting `ImagePolicies` using label
+selectors in the new field `.spec.policySelector`. For example:
+
+```yaml
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageUpdateAutomation
+metadata:
+  name: update-app
+spec:
+  policySelector:
+    matchLabels:
+      app.kubernetes.io/component: foo
+      app.kubernetes.io/instance: bar
+  ...
+```
+
+See the new API specification docs for details and more examples.
+
+#### short-circuit reconciliations
+
+For same push branch and checkout branch, the controller now checks with the
+remote Git repository if there's any new commit and the image policies for any
+new latest image before performing full reconciliation, otherwise the
+reconciliation returns early. This helps avoid cloning the Git repository every
+reconciliation even when there is no new change.
+
+#### Enhancements in events and notifications
+
+The events and notifications have been improved to provide better information.
+Notifications are sent for: initial successful reconciliation, update
+pushes, failures and successful failure recovery.
+
+
+In addition, the controller is now built with Go 1.22, the Kubernetes
+dependencies have been updated to v1.30.0, and various other dependencies have
+been updated to their latest version.
+
+### Full changelog
+
+Improvements:
+- Deprecate v1beta1 API
+  [#677](https://github.com/fluxcd/image-automation-controller/pull/677)
+- Update source-controller API to v1.3.0
+  [#676](https://github.com/fluxcd/image-automation-controller/pull/676)
+- Update dependencies to Kubernetes 1.30
+  [#670](https://github.com/fluxcd/image-automation-controller/pull/670)
+- ImageUpdateAutomation v1beta2 API with refactored controller
+  [#647](https://github.com/fluxcd/image-automation-controller/pull/647)
+- Update dependencies to Kustomize v5.4.0
+  [#662](https://github.com/fluxcd/image-automation-controller/pull/662)
+- Update dependencies to Go 1.22 and Kubernetes 1.29.3
+  [#661](https://github.com/fluxcd/image-automation-controller/pull/661)
+- Add tests for getExtFromSchema
+  [#658](https://github.com/fluxcd/image-automation-controller/pull/658)
+- Introduce ResultV2 for update results
+  [#642](https://github.com/fluxcd/image-automation-controller/pull/642)
+- updating controller-gen to v0.14.0
+  [#649](https://github.com/fluxcd/image-automation-controller/pull/649)
+- Add predicates for GitRepo and ImagePolicy watches
+  [#639](https://github.com/fluxcd/image-automation-controller/pull/639)
+- adding tests for update accept function
+  [#636](https://github.com/fluxcd/image-automation-controller/pull/636)
+- Various dependency updates
+  [#637](https://github.com/fluxcd/image-automation-controller/pull/637)
+  [#652](https://github.com/fluxcd/image-automation-controller/pull/652)
+  [#660](https://github.com/fluxcd/image-automation-controller/pull/660)
+  [#668](https://github.com/fluxcd/image-automation-controller/pull/668)
+  [#665](https://github.com/fluxcd/image-automation-controller/pull/665)
+  [#666](https://github.com/fluxcd/image-automation-controller/pull/666)
+  [#673](https://github.com/fluxcd/image-automation-controller/pull/673)
+
 ## 0.37.1
 
 **Release date:** 2024-02-01
