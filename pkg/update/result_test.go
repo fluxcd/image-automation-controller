@@ -117,6 +117,28 @@ func TestResultV2(t *testing.T) {
 		Setter:   "foo-ns:policy",
 	})
 
+	expectedFileChanges := map[string]ObjectChanges{
+		"foo.yaml": {
+			objectNames[0]: []Change{
+				{
+					OldValue: "aaa",
+					NewValue: "bbb",
+					Setter:   "foo-ns:policy:name",
+				},
+			},
+		},
+		"bar.yaml": {
+			objectNames[1]: []Change{
+				{
+					OldValue: "cccc:v1.0",
+					NewValue: "cccc:v1.2",
+					Setter:   "foo-ns:policy",
+				},
+			},
+		},
+	}
+	g.Expect(result.FileChanges).To(Equal(expectedFileChanges))
+
 	result = ResultV2{
 		FileChanges: map[string]ObjectChanges{
 			"foo.yaml": {
