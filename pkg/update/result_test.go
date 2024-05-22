@@ -98,16 +98,12 @@ func TestResultV2(t *testing.T) {
 
 	var result ResultV2
 	objectNames := []ObjectIdentifier{
-		{
-			yaml.ResourceIdentifier{
-				NameMeta: yaml.NameMeta{Namespace: "ns", Name: "foo"},
-			},
-		},
-		{
-			yaml.ResourceIdentifier{
-				NameMeta: yaml.NameMeta{Namespace: "ns", Name: "bar"},
-			},
-		},
+		{yaml.ResourceIdentifier{
+			NameMeta: yaml.NameMeta{Namespace: "ns", Name: "foo"},
+		}},
+		{yaml.ResourceIdentifier{
+			NameMeta: yaml.NameMeta{Namespace: "ns", Name: "bar"},
+		}},
 	}
 
 	result.AddChange("foo.yaml", objectNames[0], Change{
@@ -121,6 +117,29 @@ func TestResultV2(t *testing.T) {
 		Setter:   "foo-ns:policy",
 	})
 
+	expectedFileChanges := map[string]ObjectChanges{
+		"foo.yaml": {
+			objectNames[0]: []Change{
+				{
+					OldValue: "aaa",
+					NewValue: "bbb",
+					Setter:   "foo-ns:policy:name",
+				},
+			},
+		},
+		"bar.yaml": {
+			objectNames[1]: []Change{
+				{
+					OldValue: "cccc:v1.0",
+					NewValue: "cccc:v1.2",
+					Setter:   "foo-ns:policy",
+				},
+			},
+		},
+	}
+	g.Expect(result.FileChanges).To(Equal(expectedFileChanges))
+
+	// Reassign result
 	result = ResultV2{
 		FileChanges: map[string]ObjectChanges{
 			"foo.yaml": {
@@ -172,116 +191,4 @@ func TestResultV2(t *testing.T) {
 			},
 		},
 	}))
-
-	tests := []struct {
-		name string
-		test func(t *testing.T)
-	}{
-		{
-			name: "TestResultV2_AddChange",
-			test: func(t *testing.T) {
-				g := NewWithT(t)
-
-				var result ResultV2
-				objectName := ObjectIdentifier{
-					yaml.ResourceIdentifier{
-						NameMeta: yaml.NameMeta{Namespace: "ns", Name: "test"},
-					},
-				}
-
-				result.AddChange("test.yaml", objectName, Change{
-					OldValue: "old",
-					NewValue: "new",
-					Setter:   "test-ns:policy",
-				})
-
-				expectedChanges := ObjectChanges{
-					objectName: []Change{
-						{
-							OldValue: "old",
-							NewValue: "new",
-							Setter:   "test-ns:policy",
-						},
-					},
-				}
-
-				// Check if the change was added correctly
-				g.Expect(result.FileChanges["test.yaml"]).To(Equal(expectedChanges))
-			},
-		},
-		{
-			name: "TestResultV2_Changes",
-			test: func(t *testing.T) {
-				g := NewWithT(t)
-
-				var result ResultV2
-				objectName := ObjectIdentifier{
-					yaml.ResourceIdentifier{
-						NameMeta: yaml.NameMeta{Namespace: "ns", Name: "test"},
-					},
-				}
-
-				result.FileChanges = map[string]ObjectChanges{
-					"test.yaml": {
-						objectName: []Change{
-							{
-								OldValue: "old",
-								NewValue: "new",
-								Setter:   "test-ns:policy",
-							},
-						},
-					},
-				}
-
-				// Check if the changes are returned correctly
-				g.Expect(result.Changes()).To(Equal([]Change{
-					{
-						OldValue: "old",
-						NewValue: "new",
-						Setter:   "test-ns:policy",
-					},
-				}))
-			},
-		},
-		{
-			name: "TestResultV2_Objects",
-			test: func(t *testing.T) {
-				g := NewWithT(t)
-
-				var result ResultV2
-				objectName := ObjectIdentifier{
-					yaml.ResourceIdentifier{
-						NameMeta: yaml.NameMeta{Namespace: "ns", Name: "test"},
-					},
-				}
-
-				result.FileChanges = map[string]ObjectChanges{
-					"test.yaml": {
-						objectName: []Change{
-							{
-								OldValue: "old",
-								NewValue: "new",
-								Setter:   "test-ns:policy",
-							},
-						},
-					},
-				}
-
-				// Check if the objects are returned correctly
-				g.Expect(result.Objects()).To(Equal(ObjectChanges{
-					objectName: []Change{
-						{
-							OldValue: "old",
-							NewValue: "new",
-							Setter:   "test-ns:policy",
-						},
-					},
-				}))
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, tt.test)
-	}
 }
