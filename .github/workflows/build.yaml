@@ -26,9 +26,8 @@ jobs:
       run: make verify
 
   kind-linux-arm64:
-    # Hosted on Equinix
-    # Docs: https://github.com/fluxcd/flux2/tree/main/.github/runners
-    runs-on: [self-hosted, Linux, ARM64, equinix]
+    runs-on:
+      group: "ARM64"
     steps:
       - name: checkout
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -42,12 +41,6 @@ jobs:
       - name: Run tests
         run: make test
         env:
-          # Temporarily disabling -race for arm64 as our GitHub action
-          # runners don't seem to like it. 
-          #
-          # We should reenable go test -race for arm64 runners once the
-          # current issue is resolved.
-          GO_TEST_ARGS: ""
           SKIP_COSIGN_VERIFICATION: true
       - name: Verify
         run: make verify
