@@ -309,7 +309,7 @@ func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *pat
 	policies, err := getPolicies(ctx, r.Client, obj.Namespace, obj.Spec.PolicySelector)
 	if err != nil {
 		if errors.Is(err, errParsePolicySelector) {
-			conditions.MarkStalled(obj, imagev1.InvalidPolicySelectorReason, err.Error())
+			conditions.MarkStalled(obj, imagev1.InvalidPolicySelectorReason, "%s", err)
 			result, retErr = ctrl.Result{}, nil
 			return
 		}
@@ -343,17 +343,17 @@ func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *pat
 	sm, err := source.NewSourceManager(ctx, r.Client, obj, smOpts...)
 	if err != nil {
 		if acl.IsAccessDenied(err) {
-			conditions.MarkStalled(obj, aclapi.AccessDeniedReason, err.Error())
+			conditions.MarkStalled(obj, aclapi.AccessDeniedReason, "%s", err)
 			result, retErr = ctrl.Result{}, nil
 			return
 		}
 		if errors.Is(err, source.ErrInvalidSourceConfiguration) {
-			conditions.MarkStalled(obj, imagev1.InvalidSourceConfigReason, err.Error())
+			conditions.MarkStalled(obj, imagev1.InvalidSourceConfigReason, "%s", err)
 			result, retErr = ctrl.Result{}, nil
 			return
 		}
 		e := fmt.Errorf("failed configuring source manager: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, imagev1.SourceManagerFailedReason, e.Error())
+		conditions.MarkFalse(obj, meta.ReadyCondition, imagev1.SourceManagerFailedReason, "%s", e)
 		result, retErr = ctrl.Result{}, e
 		return
 	}
@@ -390,7 +390,7 @@ func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *pat
 	commit, err := sm.CheckoutSource(ctx, checkoutOpts...)
 	if err != nil {
 		e := fmt.Errorf("failed to checkout source: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, imagev1.GitOperationFailedReason, e.Error())
+		conditions.MarkFalse(obj, meta.ReadyCondition, imagev1.GitOperationFailedReason, "%s", e)
 		result, retErr = ctrl.Result{}, e
 		return
 	}
@@ -420,12 +420,12 @@ func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *pat
 	policyResult, err := policy.ApplyPolicies(ctx, sm.WorkDirectory(), obj, policies)
 	if err != nil {
 		if errors.Is(err, policy.ErrNoUpdateStrategy) || errors.Is(err, policy.ErrUnsupportedUpdateStrategy) {
-			conditions.MarkStalled(obj, imagev1.InvalidUpdateStrategyReason, err.Error())
+			conditions.MarkStalled(obj, imagev1.InvalidUpdateStrategyReason, "%s", err)
 			result, retErr = ctrl.Result{}, nil
 			return
 		}
 		e := fmt.Errorf("failed to apply policies: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, imagev1.UpdateFailedReason, e.Error())
+		conditions.MarkFalse(obj, meta.ReadyCondition, imagev1.UpdateFailedReason, "%s", e)
 		result, retErr = ctrl.Result{}, e
 		return
 	}
@@ -462,7 +462,7 @@ func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *pat
 	pushResult, err = sm.CommitAndPush(ctx, obj, policyResult, pushCfg...)
 	if err != nil {
 		e := fmt.Errorf("failed to update source: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, imagev1.GitOperationFailedReason, e.Error())
+		conditions.MarkFalse(obj, meta.ReadyCondition, imagev1.GitOperationFailedReason, "%s", e)
 		result, retErr = ctrl.Result{}, e
 		return
 	}
