@@ -1356,7 +1356,7 @@ func TestImageUpdateAutomationReconciler_notify(t *testing.T) {
 			pushResult: nil,
 			syncNeeded: true,
 			newObjBeforeFunc: func(obj conditions.Setter) {
-				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, readyMessage)
+				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "%s", readyMessage)
 			},
 			wantEvent: "Normal Succeeded repository up-to-date",
 		},
@@ -1365,10 +1365,10 @@ func TestImageUpdateAutomationReconciler_notify(t *testing.T) {
 			pushResult: nil,
 			syncNeeded: false,
 			oldObjBeforeFunc: func(obj conditions.Setter) {
-				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, readyMessage)
+				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "%s", readyMessage)
 			},
 			newObjBeforeFunc: func(obj conditions.Setter) {
-				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, readyMessage)
+				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "%s", readyMessage)
 			},
 			wantEvent: "Trace Succeeded no change since last reconciliation",
 		},
@@ -1377,10 +1377,10 @@ func TestImageUpdateAutomationReconciler_notify(t *testing.T) {
 			pushResult: nil,
 			syncNeeded: true,
 			oldObjBeforeFunc: func(obj conditions.Setter) {
-				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, readyMessage)
+				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "%s", readyMessage)
 			},
 			newObjBeforeFunc: func(obj conditions.Setter) {
-				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, readyMessage)
+				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "%s", readyMessage)
 			},
 			wantEvent: "Trace Succeeded repository up-to-date",
 		},
@@ -1389,10 +1389,10 @@ func TestImageUpdateAutomationReconciler_notify(t *testing.T) {
 			pushResult: testPushResult,
 			syncNeeded: true,
 			oldObjBeforeFunc: func(obj conditions.Setter) {
-				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, readyMessage)
+				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "%s", readyMessage)
 			},
 			newObjBeforeFunc: func(obj conditions.Setter) {
-				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, readyMessage)
+				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "%s", readyMessage)
 			},
 			wantEvent: "Normal Succeeded pushed commit 'rev' to branch 'branch'\ntest commit message",
 		},
@@ -1404,7 +1404,7 @@ func TestImageUpdateAutomationReconciler_notify(t *testing.T) {
 				conditions.MarkFalse(obj, meta.ReadyCondition, meta.FailedReason, "failed to checkout source")
 			},
 			newObjBeforeFunc: func(obj conditions.Setter) {
-				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, readyMessage)
+				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "%s", readyMessage)
 			},
 			wantEvent: "Normal Succeeded repository up-to-date",
 		},
@@ -1416,7 +1416,7 @@ func TestImageUpdateAutomationReconciler_notify(t *testing.T) {
 				conditions.MarkFalse(obj, meta.ReadyCondition, meta.FailedReason, "failed to checkout source")
 			},
 			newObjBeforeFunc: func(obj conditions.Setter) {
-				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, readyMessage)
+				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "%s", readyMessage)
 			},
 			wantEvent: "Normal Succeeded pushed commit 'rev' to branch 'branch'\ntest commit message",
 		},
@@ -1425,7 +1425,7 @@ func TestImageUpdateAutomationReconciler_notify(t *testing.T) {
 			pushResult: nil,
 			syncNeeded: true,
 			oldObjBeforeFunc: func(obj conditions.Setter) {
-				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, readyMessage)
+				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "%s", readyMessage)
 			},
 			newObjBeforeFunc: func(obj conditions.Setter) {
 				conditions.MarkFalse(obj, meta.ReadyCondition, imagev1.GitOperationFailedReason, "failed to checkout source")
