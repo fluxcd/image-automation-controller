@@ -14,7 +14,7 @@ require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/ProtonMail/go-crypto v1.1.0-alpha.3-proton
-	github.com/cyphar/filepath-securejoin v0.2.5
+	github.com/cyphar/filepath-securejoin v0.3.0
 	github.com/fluxcd/image-automation-controller/api v0.38.0
 	github.com/fluxcd/image-reflector-controller/api v0.32.0
 	github.com/fluxcd/pkg/apis/acl v0.3.0
@@ -129,7 +129,7 @@ require (
 	golang.org/x/net v0.24.0 // indirect
 	golang.org/x/oauth2 v0.19.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
+	golang.org/x/sys v0.21.0 // indirect
 	golang.org/x/term v0.19.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
