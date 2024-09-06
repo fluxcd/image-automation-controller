@@ -139,6 +139,7 @@ dev-deploy: manifests
 	rm -rf config/dev
 
 manifests: controller-gen	## Generate manifests e.g. CRD, RBAC etc.
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role paths="./..." output:crd:artifacts:config="config/crd/bases"
 	cd api; $(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role paths="./..." output:crd:artifacts:config="../config/crd/bases"
 
 api-docs: gen-crd-api-reference-docs	## Generate API reference documentation
