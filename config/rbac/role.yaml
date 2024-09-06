@@ -10,14 +10,9 @@ rules:
   - events
   verbs:
   - create
-  - patch
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
   - get
   - list
+  - patch
   - watch
 - apiGroups:
   - image.toolkit.fluxcd.io
