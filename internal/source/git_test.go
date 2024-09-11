@@ -138,6 +138,57 @@ func Test_getAuthOpts(t *testing.T) {
 	}
 }
 
+func Test_getAuthOpts_providerAuth(t *testing.T) {
+	tests := []struct {
+		name                 string
+		beforeFunc           func(obj *sourcev1.GitRepository)
+		wantProviderOptsName string
+	}{
+		{
+			name: "azure provider",
+			beforeFunc: func(obj *sourcev1.GitRepository) {
+				obj.Spec.Provider = sourcev1.GitProviderAzure
+			},
+			wantProviderOptsName: sourcev1.GitProviderAzure,
+		},
+		{
+			name: "generic provider",
+			beforeFunc: func(obj *sourcev1.GitRepository) {
+				obj.Spec.Provider = sourcev1.GitProviderGeneric
+			},
+		},
+		{
+			name: "no provider",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+
+			obj := &sourcev1.GitRepository{
+				Spec: sourcev1.GitRepositorySpec{
+					URL: "https://dev.azure.com/foo/bar/_git/baz",
+				},
+			}
+
+			if tt.beforeFunc != nil {
+				tt.beforeFunc(obj)
+			}
+			opts, err := getAuthOpts(context.TODO(), nil, obj)
+
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(opts).ToNot(BeNil())
+			if tt.wantProviderOptsName != "" {
+				g.Expect(opts.ProviderOpts).ToNot(BeNil())
+				g.Expect(opts.ProviderOpts.Name).To(Equal(tt.wantProviderOptsName))
+			} else {
+				g.Expect(opts.ProviderOpts).To(BeNil())
+			}
+		})
+	}
+}
+
 func Test_getProxyOpts(t *testing.T) {
 	namespace := "default"
 	invalidProxy := &corev1.Secret{

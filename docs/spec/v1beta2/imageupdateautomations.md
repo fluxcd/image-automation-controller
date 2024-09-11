@@ -192,6 +192,46 @@ tuned to adjust the Git operation timeout.
 The proxy configurations are also derived from the referenced GitRepository
 source. `GitRepository.spec.proxySecretRef` can be used to configure proxy use.
 
+`GitRepository` can be configured to specify an OIDC
+[provider](https://github.com/dipti-pai/source-controller/blob/git-azure-oidc-auth/docs/spec/v1/gitrepositories.md#provider)
+for authentication using `.spec.provider` field. 
+
+If the provider is set to `azure`, make sure the
+[pre-requisites](https://github.com/dipti-pai/source-controller/blob/git-azure-oidc-auth/docs/spec/v1/gitrepositories.md#azure)
+are met. Add the following patch in flux-system/kustomization.yaml file. 
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - gotk-components.yaml
+  - gotk-sync.yaml
+patches:
+  - patch: |-
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: image-automation-controller
+        namespace: flux-system
+        annotations:
+          azure.workload.identity/client-id: <AZURE_CLIENT_ID>
+        labels:
+          azure.workload.identity/use: "true"
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: image-automation-controller
+        namespace: flux-system
+        labels:
+          azure.workload.identity/use: "true"
+      spec:
+        template:
+          metadata:
+            labels:
+              azure.workload.identity/use: "true"
+```
+
 ### Git specification
 
 `.spec.git` is a required field to specify Git configurations related to source
