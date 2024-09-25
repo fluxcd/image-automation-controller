@@ -18,15 +18,15 @@ require (
 	github.com/fluxcd/image-automation-controller/api v0.38.0
 	github.com/fluxcd/image-reflector-controller/api v0.32.0
 	github.com/fluxcd/pkg/apis/acl v0.3.0
-	github.com/fluxcd/pkg/apis/event v0.10.0
-	github.com/fluxcd/pkg/apis/meta v1.6.0
+	github.com/fluxcd/pkg/apis/event v0.10.1
+	github.com/fluxcd/pkg/apis/meta v1.6.1
 	github.com/fluxcd/pkg/auth v0.0.1
 	github.com/fluxcd/pkg/git v0.21.0
 	github.com/fluxcd/pkg/git/gogit v0.21.0
 	github.com/fluxcd/pkg/gittestserver v0.13.1
-	github.com/fluxcd/pkg/runtime v0.49.0
+	github.com/fluxcd/pkg/runtime v0.49.1
 	github.com/fluxcd/pkg/ssh v0.14.1
-	github.com/fluxcd/source-controller/api v1.3.0
+	github.com/fluxcd/source-controller/api v1.4.0
 	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/go-logr/logr v1.4.2
@@ -34,9 +34,9 @@ require (
 	github.com/onsi/gomega v1.34.2
 	github.com/otiai10/copy v1.14.0
 	github.com/spf13/pflag v1.0.5
-	k8s.io/api v0.31.0
-	k8s.io/apimachinery v0.31.0
-	k8s.io/client-go v0.31.0
+	k8s.io/api v0.31.1
+	k8s.io/apimachinery v0.31.1
+	k8s.io/client-go v0.31.1
 	k8s.io/kube-openapi v0.0.0-20240411171206-dc4e619f62f3
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	sigs.k8s.io/controller-runtime v0.19.0
@@ -116,7 +116,7 @@ require (
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/prometheus/client_golang v1.20.0 // indirect
+	github.com/prometheus/client_golang v1.20.3 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.55.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
@@ -150,15 +150,13 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiextensions-apiserver v0.31.0 // indirect
-	k8s.io/cli-runtime v0.31.0 // indirect
-	k8s.io/component-base v0.31.0 // indirect
+	k8s.io/apiextensions-apiserver v0.31.1 // indirect
+	k8s.io/cli-runtime v0.31.1 // indirect
+	k8s.io/component-base v0.31.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
-	k8s.io/kubectl v0.31.0 // indirect
+	k8s.io/kubectl v0.31.1 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/kustomize/api v0.17.3 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
-
-replace github.com/fluxcd/source-controller/api => github.com/dipti-pai/source-controller/api v0.0.0-20240913204118-48417bdc8bd7
