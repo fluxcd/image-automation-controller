@@ -15,8 +15,8 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/ProtonMail/go-crypto v1.1.0-alpha.5-proton
 	github.com/cyphar/filepath-securejoin v0.3.2
-	github.com/fluxcd/image-automation-controller/api v0.38.0
-	github.com/fluxcd/image-reflector-controller/api v0.32.0
+	github.com/fluxcd/image-automation-controller/api v0.39.0
+	github.com/fluxcd/image-reflector-controller/api v0.33.0
 	github.com/fluxcd/pkg/apis/acl v0.3.0
 	github.com/fluxcd/pkg/apis/event v0.10.1
 	github.com/fluxcd/pkg/apis/meta v1.6.1
