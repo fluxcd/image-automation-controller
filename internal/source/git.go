@@ -181,7 +181,7 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 		return nil, fmt.Errorf("failed to configure authentication options: %w", err)
 	}
 
-	if repo.Spec.Provider == sourcev1.GitProviderAzure {
+	if repo.GetProvider() == sourcev1.GitProviderAzure {
 		opts.ProviderOpts = &git.ProviderOptions{
 			Name: sourcev1.GitProviderAzure,
 			AzureOpts: []azure.OptFunc{
