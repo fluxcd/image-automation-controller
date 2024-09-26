@@ -75,6 +75,7 @@ Improvements:
   [#752](https://github.com/fluxcd/image-automation-controller/pull/752)
   [#755](https://github.com/fluxcd/image-automation-controller/pull/755)
   [#757](https://github.com/fluxcd/image-automation-controller/pull/757)
+  [#759](https://github.com/fluxcd/image-automation-controller/pull/759)
 
 ## 0.38.0
 
