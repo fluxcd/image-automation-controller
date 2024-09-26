@@ -192,6 +192,71 @@ tuned to adjust the Git operation timeout.
 The proxy configurations are also derived from the referenced GitRepository
 source. `GitRepository.spec.proxySecretRef` can be used to configure proxy use.
 
+#### GitRepository Provider
+
+`GitRepository` can be configured to specify an OIDC
+[provider](https://fluxcd.io/flux/components/source/gitrepositories/#provider)
+for authentication using `GitRepository.spec.provider` field. Image automation
+controller can be configured to authenticate using the provider as described
+below.
+
+##### Azure
+
+If the provider is set to `azure`, make sure the
+[pre-requisites](https://fluxcd.io/flux/components/source/gitrepositories/#azure)
+are satisfied. To configure image automation controller to use workload
+identity,
+
+- Create a managed identity to access Azure DevOps. Establish a federated
+  identity credential between the managed identity and the
+  image-automation-controller service account. In the default installation, the
+  image-automation-controller service account is located in the `flux-system`
+  namespace with name `image-automation-controller`. Ensure the federated
+  credential uses the correct namespace and name of the
+  image-automation-controller service account. For more details, please refer to
+  this
+  [guide](https://azure.github.io/azure-workload-identity/docs/quick-start.html#6-establish-federated-identity-credential-between-the-identity-and-the-service-account-issuer--subject).
+
+- Add the managed identity to the Azure DevOps organization as a user. Ensure
+  that the managed identity has the necessary permissions to access the Azure
+  DevOps repository as described
+  [here](https://learn.microsoft.com/en-us/azure/devops/integrate/get-started/authentication/service-principal-managed-identity?view=azure-devops#2-add-and-manage-service-principals-in-an-azure-devops-organization).
+
+- Add the following patch to your bootstrap repository in
+  flux-system/kustomization.yaml file.
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - gotk-components.yaml
+  - gotk-sync.yaml
+patches:
+  - patch: |-
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: image-automation-controller
+        namespace: flux-system
+        annotations:
+          azure.workload.identity/client-id: <AZURE_CLIENT_ID>
+        labels:
+          azure.workload.identity/use: "true"
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: image-automation-controller
+        namespace: flux-system
+        labels:
+          azure.workload.identity/use: "true"
+      spec:
+        template:
+          metadata:
+            labels:
+              azure.workload.identity/use: "true"
+```
+
 ### Git specification
 
 `.spec.git` is a required field to specify Git configurations related to source
