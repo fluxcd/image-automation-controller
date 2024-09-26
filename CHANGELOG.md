@@ -1,5 +1,81 @@
 # Changelog
 
+## 0.39.0
+
+**Release date:** 2024-09-26
+
+This prerelease comes with support for OIDC authentication for Azure DevOps
+Repositories using the `.spec.provider` field by setting it to `azure` on the
+`GitRepository` object associated with `ImageUpdateAutomation` object.
+
+In addition, the Kubernetes dependencies have been updated to v1.31.1
+and various other controller dependencies have been updated to their latest
+version. The controller is now built with Go 1.23.
+
+Fixes:
+- Fix incorrect use of format strings with the conditions package.
+  [#711](https://github.com/fluxcd/image-automation-controller/pull/711)
+- Fix RBAC role generation for IAC
+  [#745](https://github.com/fluxcd/image-automation-controller/pull/745)
+
+Improvements:
+- [RFC-0007] Enable Azure OIDC for Azure DevOps Repository
+  [#747](https://github.com/fluxcd/image-automation-controller/pull/747)
+- Build with Go 1.23
+  [#736](https://github.com/fluxcd/image-automation-controller/pull/736)
+- Run ARM64 tests on GitHub runners
+  [#696](https://github.com/fluxcd/image-automation-controller/pull/696)
+- Various dependency updates
+  [#680](https://github.com/fluxcd/image-automation-controller/pull/680)
+  [#683](https://github.com/fluxcd/image-automation-controller/pull/683)
+  [#685](https://github.com/fluxcd/image-automation-controller/pull/685)
+  [#690](https://github.com/fluxcd/image-automation-controller/pull/690)
+  [#691](https://github.com/fluxcd/image-automation-controller/pull/691)
+  [#693](https://github.com/fluxcd/image-automation-controller/pull/693)
+  [#694](https://github.com/fluxcd/image-automation-controller/pull/694)
+  [#695](https://github.com/fluxcd/image-automation-controller/pull/695)
+  [#698](https://github.com/fluxcd/image-automation-controller/pull/698)
+  [#697](https://github.com/fluxcd/image-automation-controller/pull/697)
+  [#700](https://github.com/fluxcd/image-automation-controller/pull/700)
+  [#701](https://github.com/fluxcd/image-automation-controller/pull/701)
+  [#702](https://github.com/fluxcd/image-automation-controller/pull/702)
+  [#703](https://github.com/fluxcd/image-automation-controller/pull/703)
+  [#704](https://github.com/fluxcd/image-automation-controller/pull/704)
+  [#706](https://github.com/fluxcd/image-automation-controller/pull/706)
+  [#707](https://github.com/fluxcd/image-automation-controller/pull/707)
+  [#708](https://github.com/fluxcd/image-automation-controller/pull/708)
+  [#709](https://github.com/fluxcd/image-automation-controller/pull/709)
+  [#712](https://github.com/fluxcd/image-automation-controller/pull/712)
+  [#710](https://github.com/fluxcd/image-automation-controller/pull/710)
+  [#714](https://github.com/fluxcd/image-automation-controller/pull/714)
+  [#716](https://github.com/fluxcd/image-automation-controller/pull/716)
+  [#718](https://github.com/fluxcd/image-automation-controller/pull/718)
+  [#719](https://github.com/fluxcd/image-automation-controller/pull/719)
+  [#720](https://github.com/fluxcd/image-automation-controller/pull/720)
+  [#724](https://github.com/fluxcd/image-automation-controller/pull/724)
+  [#722](https://github.com/fluxcd/image-automation-controller/pull/722)
+  [#727](https://github.com/fluxcd/image-automation-controller/pull/727)
+  [#726](https://github.com/fluxcd/image-automation-controller/pull/726)
+  [#728](https://github.com/fluxcd/image-automation-controller/pull/728)
+  [#729](https://github.com/fluxcd/image-automation-controller/pull/729)
+  [#730](https://github.com/fluxcd/image-automation-controller/pull/730)
+  [#731](https://github.com/fluxcd/image-automation-controller/pull/731)
+  [#732](https://github.com/fluxcd/image-automation-controller/pull/732)
+  [#734](https://github.com/fluxcd/image-automation-controller/pull/734)
+  [#733](https://github.com/fluxcd/image-automation-controller/pull/733)
+  [#737](https://github.com/fluxcd/image-automation-controller/pull/737)
+  [#738](https://github.com/fluxcd/image-automation-controller/pull/738)
+  [#739](https://github.com/fluxcd/image-automation-controller/pull/739)
+  [#740](https://github.com/fluxcd/image-automation-controller/pull/740)
+  [#741](https://github.com/fluxcd/image-automation-controller/pull/741)
+  [#742](https://github.com/fluxcd/image-automation-controller/pull/742)
+  [#743](https://github.com/fluxcd/image-automation-controller/pull/743)
+  [#748](https://github.com/fluxcd/image-automation-controller/pull/748)
+  [#750](https://github.com/fluxcd/image-automation-controller/pull/750)
+  [#752](https://github.com/fluxcd/image-automation-controller/pull/752)
+  [#755](https://github.com/fluxcd/image-automation-controller/pull/755)
+  [#757](https://github.com/fluxcd/image-automation-controller/pull/757)
+
 ## 0.38.0
 
 **Release date:** 2024-05-06
