@@ -13,8 +13,8 @@ replace (
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6
 	github.com/Masterminds/sprig/v3 v3.3.0
-	github.com/ProtonMail/go-crypto v1.1.0-alpha.5-proton
-	github.com/cyphar/filepath-securejoin v0.3.2
+	github.com/ProtonMail/go-crypto v1.1.0-beta.0-proton
+	github.com/cyphar/filepath-securejoin v0.3.4
 	github.com/fluxcd/image-automation-controller/api v0.39.0
 	github.com/fluxcd/image-reflector-controller/api v0.33.0
 	github.com/fluxcd/pkg/apis/acl v0.3.0
