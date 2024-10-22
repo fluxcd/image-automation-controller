@@ -384,6 +384,7 @@ type TemplateData struct {
 	  Name, Namespace string
 	}
 	Changed update.ResultV2
+	Values map[string]string
 }
 
 // ResultV2 contains the file changes made during the update. It contains
@@ -480,6 +481,25 @@ spec:
 There are over 70 available functions. Some of them are defined by the [Go
 template language](https://pkg.go.dev/text/template) itself. Most of the others
 are part of the [Sprig template library](http://masterminds.github.io/sprig/).  
+
+Additional data can be provided with `.spec.git.commit.messageTemplateValues`.
+
+This is a key/value mapping with string values.
+
+```yaml
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageUpdateAutomation
+metadata:
+  name: <automation-name>
+spec:
+  git:
+    commit:
+      messageTemplate: |-
+        Automated image update by Flux for cluster {{ .Values.cluster }}.
+      messageTemplateValues:
+        cluster: prod
+```
 
 #### Push
 
