@@ -67,6 +67,10 @@ type CommitSpec struct {
 	// into which will be interpolated the details of the change made.
 	// +optional
 	MessageTemplate string `json:"messageTemplate,omitempty"`
+
+	// MessageTemplateValues provides additional values to be available to the
+	// templating rendering.
+	MessageTemplateValues map[string]string `json:"messageTemplateValues,omitempty"`
 }
 
 type CommitUser struct {

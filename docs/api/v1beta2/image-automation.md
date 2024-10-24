@@ -70,6 +70,18 @@ string
 into which will be interpolated the details of the change made.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>messageTemplateValues</code><br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<p>MessageTemplateValues provides additional values to be available to the
+templating rendering.</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>

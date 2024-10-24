@@ -94,6 +94,14 @@ Automation: {{ .AutomationObject }}
 {{ end -}}
 {{ end -}}
 `
+
+	testCommitTemplateWithValues = `Commit summary
+
+Automation: {{ .AutomationObject }}
+
+Cluster: {{ index .Values "cluster" }}
+Testing: {{ .Values.testing }}
+`
 )
 
 func init() {
@@ -472,6 +480,34 @@ Automation: test-ns/test-update
     - helloworld:1.0.0 -> helloworld:1.0.1
 `,
 		},
+		{
+			name: "push to cloned branch with template and values",
+			gitSpec: &imagev1.GitSpec{
+				Push: &imagev1.PushSpec{
+					Branch: "main",
+				},
+				Commit: imagev1.CommitSpec{
+					MessageTemplate: testCommitTemplateWithValues,
+					MessageTemplateValues: map[string]string{
+						"cluster": "prod",
+						"testing": "value",
+					},
+				},
+			},
+			gitRepoReference: &sourcev1.GitRepositoryRef{
+				Branch: "main",
+			},
+			latestImage: "helloworld:1.0.1",
+			wantErr:     false,
+			wantCommitMsg: `Commit summary
+
+Automation: test-ns/test-update
+
+Cluster: prod
+Testing: value
+`,
+		},
+
 		{
 			name: "push to different branch",
 			gitSpec: &imagev1.GitSpec{
