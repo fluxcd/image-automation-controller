@@ -54,6 +54,7 @@ type TemplateData struct {
 	AutomationObject types.NamespacedName
 	Updated          update.Result
 	Changed          update.ResultV2
+	Values           map[string]string
 }
 
 // SourceManager manages source.
@@ -245,6 +246,7 @@ func (sm SourceManager) CommitAndPush(ctx context.Context, obj *imagev1.ImageUpd
 		AutomationObject: sm.automationObjKey,
 		Updated:          policyResult.ImageResult,
 		Changed:          policyResult,
+		Values:           obj.Spec.GitSpec.Commit.MessageTemplateValues,
 	}
 	commitMsg, err := templateMsg(obj.Spec.GitSpec.Commit.MessageTemplate, templateValues)
 	if err != nil {
