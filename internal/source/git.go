@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/fluxcd/pkg/auth/azure"
+	"github.com/fluxcd/pkg/auth/github"
 	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/git/gogit"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
@@ -181,11 +182,19 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 		return nil, fmt.Errorf("failed to configure authentication options: %w", err)
 	}
 
-	if repo.GetProvider() == sourcev1.GitProviderAzure {
+	switch repo.GetProvider() {
+	case sourcev1.GitProviderAzure:
 		opts.ProviderOpts = &git.ProviderOptions{
 			Name: sourcev1.GitProviderAzure,
 			AzureOpts: []azure.OptFunc{
 				azure.WithAzureDevOpsScope(),
+			},
+		}
+	case sourcev1.GitProviderGitHub:
+		opts.ProviderOpts = &git.ProviderOptions{
+			Name: sourcev1.GitProviderGitHub,
+			GitHubOpts: []github.OptFunc{
+				github.WithAppData(data),
 			},
 		}
 	}
