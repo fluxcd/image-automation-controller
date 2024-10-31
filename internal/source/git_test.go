@@ -18,6 +18,7 @@ package source
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -34,6 +35,7 @@ import (
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta2"
 	"github.com/fluxcd/image-automation-controller/internal/testutil"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/auth/github"
 	"github.com/fluxcd/pkg/git"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 )
@@ -141,49 +143,127 @@ func Test_getAuthOpts(t *testing.T) {
 func Test_getAuthOpts_providerAuth(t *testing.T) {
 	tests := []struct {
 		name                 string
+		url                  string
+		secret               *corev1.Secret
 		beforeFunc           func(obj *sourcev1.GitRepository)
 		wantProviderOptsName string
+		wantErr              error
 	}{
 		{
 			name: "azure provider",
+			url:  "https://dev.azure.com/foo/bar/_git/baz",
 			beforeFunc: func(obj *sourcev1.GitRepository) {
 				obj.Spec.Provider = sourcev1.GitProviderAzure
 			},
 			wantProviderOptsName: sourcev1.GitProviderAzure,
 		},
 		{
+			name: "github provider with no secret ref",
+			url:  "https://github.com/org/repo.git",
+			beforeFunc: func(obj *sourcev1.GitRepository) {
+				obj.Spec.Provider = sourcev1.GitProviderGitHub
+			},
+			wantProviderOptsName: sourcev1.GitProviderGitHub,
+			wantErr:              errors.New("secretRef with github app data must be specified when provider is set to github: invalid source configuration"),
+		},
+		{
+			name: "github provider with secret ref that does not exist",
+			url:  "https://github.com/org/repo.git",
+			beforeFunc: func(obj *sourcev1.GitRepository) {
+				obj.Spec.Provider = sourcev1.GitProviderGitHub
+				obj.Spec.SecretRef = &meta.LocalObjectReference{
+					Name: "githubAppSecret",
+				}
+			},
+			wantErr: errors.New("failed to get auth secret '/githubAppSecret': secrets \"githubAppSecret\" not found"),
+		},
+		{
+			name: "github provider with github app data in secret",
+			url:  "https://example.com/org/repo",
+			secret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "githubAppSecret",
+				},
+				Data: map[string][]byte{
+					github.AppIDKey:             []byte("123"),
+					github.AppInstallationIDKey: []byte("456"),
+					github.AppPrivateKey:        []byte("abc"),
+				},
+			},
+			beforeFunc: func(obj *sourcev1.GitRepository) {
+				obj.Spec.Provider = sourcev1.GitProviderGitHub
+				obj.Spec.SecretRef = &meta.LocalObjectReference{
+					Name: "githubAppSecret",
+				}
+			},
+			wantProviderOptsName: sourcev1.GitProviderGitHub,
+		},
+		{
+			name: "generic provider with github app data in secret",
+			url:  "https://example.com/org/repo",
+			secret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "githubAppSecret",
+				},
+				Data: map[string][]byte{
+					github.AppIDKey: []byte("123"),
+				},
+			},
+			beforeFunc: func(obj *sourcev1.GitRepository) {
+				obj.Spec.Provider = sourcev1.GitProviderGeneric
+				obj.Spec.SecretRef = &meta.LocalObjectReference{
+					Name: "githubAppSecret",
+				}
+			},
+			wantErr: errors.New("secretRef '/githubAppSecret' has github app data but provider is not set to github: invalid source configuration"),
+		},
+		{
 			name: "generic provider",
+			url:  "https://example.com/org/repo",
 			beforeFunc: func(obj *sourcev1.GitRepository) {
 				obj.Spec.Provider = sourcev1.GitProviderGeneric
 			},
 		},
 		{
 			name: "no provider",
+			url:  "https://example.com/org/repo",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
+			clientBuilder := fakeclient.NewClientBuilder().
+				WithScheme(scheme.Scheme).
+				WithStatusSubresource(&sourcev1.GitRepository{})
 
+			if tt.secret != nil {
+				clientBuilder.WithObjects(tt.secret)
+			}
+			c := clientBuilder.Build()
 			obj := &sourcev1.GitRepository{
 				Spec: sourcev1.GitRepositorySpec{
-					URL: "https://dev.azure.com/foo/bar/_git/baz",
+					URL: tt.url,
 				},
 			}
 
 			if tt.beforeFunc != nil {
 				tt.beforeFunc(obj)
 			}
-			opts, err := getAuthOpts(context.TODO(), nil, obj)
+			opts, err := getAuthOpts(context.TODO(), c, obj)
 
-			g.Expect(err).ToNot(HaveOccurred())
-			g.Expect(opts).ToNot(BeNil())
-			if tt.wantProviderOptsName != "" {
-				g.Expect(opts.ProviderOpts).ToNot(BeNil())
-				g.Expect(opts.ProviderOpts.Name).To(Equal(tt.wantProviderOptsName))
+			if tt.wantErr != nil {
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(err.Error()).To(ContainSubstring(tt.wantErr.Error()))
 			} else {
-				g.Expect(opts.ProviderOpts).To(BeNil())
+				g.Expect(err).ToNot(HaveOccurred())
+				g.Expect(opts).ToNot(BeNil())
+				if tt.wantProviderOptsName != "" {
+					g.Expect(opts.ProviderOpts).ToNot(BeNil())
+					g.Expect(opts.ProviderOpts.Name).To(Equal(tt.wantProviderOptsName))
+				} else {
+					g.Expect(opts.ProviderOpts).To(BeNil())
+				}
 			}
 		})
 	}
