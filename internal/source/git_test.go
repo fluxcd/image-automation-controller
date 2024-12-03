@@ -141,24 +141,36 @@ func Test_getAuthOpts(t *testing.T) {
 func Test_getAuthOpts_providerAuth(t *testing.T) {
 	tests := []struct {
 		name                 string
+		url                  string
 		beforeFunc           func(obj *sourcev1.GitRepository)
 		wantProviderOptsName string
 	}{
 		{
 			name: "azure provider",
+			url:  "https://dev.azure.com/foo/bar/_git/baz",
 			beforeFunc: func(obj *sourcev1.GitRepository) {
 				obj.Spec.Provider = sourcev1.GitProviderAzure
 			},
 			wantProviderOptsName: sourcev1.GitProviderAzure,
 		},
 		{
+			name: "github provider",
+			url:  "https://github.com/org/repo.git",
+			beforeFunc: func(obj *sourcev1.GitRepository) {
+				obj.Spec.Provider = sourcev1.GitProviderGitHub
+			},
+			wantProviderOptsName: sourcev1.GitProviderGitHub,
+		},
+		{
 			name: "generic provider",
+			url:  "https://example.com/org/repo",
 			beforeFunc: func(obj *sourcev1.GitRepository) {
 				obj.Spec.Provider = sourcev1.GitProviderGeneric
 			},
 		},
 		{
 			name: "no provider",
+			url:  "https://example.com/org/repo",
 		},
 	}
 
@@ -168,7 +180,7 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 
 			obj := &sourcev1.GitRepository{
 				Spec: sourcev1.GitRepositorySpec{
-					URL: "https://dev.azure.com/foo/bar/_git/baz",
+					URL: tt.url,
 				},
 			}
 
