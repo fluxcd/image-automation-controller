@@ -1,12 +1,12 @@
 module github.com/fluxcd/image-automation-controller/api
 
-go 1.22.0
+go 1.22.7
 
 require (
-	github.com/fluxcd/pkg/apis/meta v1.6.1
+	github.com/fluxcd/pkg/apis/meta v1.7.0
 	github.com/fluxcd/source-controller/api v1.4.1
-	k8s.io/apimachinery v0.31.1
-	sigs.k8s.io/controller-runtime v0.19.0
+	k8s.io/apimachinery v0.31.3
+	sigs.k8s.io/controller-runtime v0.19.3
 )
 
 require (
