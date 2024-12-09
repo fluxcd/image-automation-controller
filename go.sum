@@ -56,6 +56,8 @@ github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f h1:lO4WD4F/rVNCu3HqELle0jiPLLBs70cWOduZpkS1E78=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f/go.mod h1:cuUVRXasLTGF7a8hSLbxyZXjz+1KgoB3wDUb6vlszIc=
+github.com/dipti-pai/source-controller/api v0.0.0-20241209192934-58ebb1b51f43 h1:f/wiXS42JPs6ibWkh3SfJvrr7UEKRdI7bbftYx5tyPo=
+github.com/dipti-pai/source-controller/api v0.0.0-20241209192934-58ebb1b51f43/go.mod h1:0lo5XmaerQ3tncMQKSqWwNOJo75AeXqaBCL1Qx55gX4=
 github.com/elazarl/goproxy v0.0.0-20240909085733-6741dbfc16a1 h1:g7YUigN4dW2+zpdusdTTghZ+5Py3BaUMAStvL8Nk+FY=
 github.com/elazarl/goproxy v0.0.0-20240909085733-6741dbfc16a1/go.mod h1:thX175TtLTzLj3p7N/Q9IiKZ7NF+p72cvL91emV0hzo=
 github.com/emicklei/go-restful/v3 v3.12.1 h1:PJMDIM/ak7btuL8Ex0iYET9hxM3CI2sjZtzpL63nKAU=
@@ -96,8 +98,6 @@ github.com/fluxcd/pkg/ssh v0.15.0 h1:RSjoFlrPPXR8ac9roV4BnfbhaqjcoJeywQ+0BO8kf6s
 github.com/fluxcd/pkg/ssh v0.15.0/go.mod h1:ulKcj8psZyUNJrvZZ3J748Ygh7EiS2HfdSzqoORDM4k=
 github.com/fluxcd/pkg/version v0.5.0 h1:td9PR7Um3CLP9ke+PgNex4yqMCRmUZv6dMK+oquD654=
 github.com/fluxcd/pkg/version v0.5.0/go.mod h1:ASkoZ+vz1Ob+5vb81ptUXPPNf3jjX/UQyfAeg+bnFfk=
-github.com/fluxcd/source-controller/api v1.4.1 h1:zV01D7xzHOXWbYXr36lXHWWYS7POARsjLt61Nbh3kVY=
-github.com/fluxcd/source-controller/api v1.4.1/go.mod h1:gSjg57T+IG66SsBR0aquv+DFrm4YyBNpKIJVDnu3Ya8=
 github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHkI4W8=
 github.com/frankban/quicktest v1.14.6/go.mod h1:4ptaffx2x8+WTWXmUCuVU6aPUX1/Mz7zb5vbUoiM6w0=
 github.com/fxamacker/cbor/v2 v2.7.0 h1:iM5WgngdRBanHcxugY4JySA0nk1wZorNOpTgCMedv5E=
