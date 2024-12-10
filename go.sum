@@ -80,8 +80,8 @@ github.com/fluxcd/pkg/apis/acl v0.4.0 h1:5MgF6uGeJD1484yJWhQXkyXFqF4jNG65JXDveuE
 github.com/fluxcd/pkg/apis/acl v0.4.0/go.mod h1:rYzPx7VEpVWjBwrl9hQy8Bv1Awacor/uEH9EZasfBUk=
 github.com/fluxcd/pkg/apis/event v0.11.0 h1:blvUbgko8EqqjMn1mju2U8aBXUntn3EWbMNc+XsfSIc=
 github.com/fluxcd/pkg/apis/event v0.11.0/go.mod h1:AjoDg8Au7RpZbk8B5t3Q2Kq/6kXgmhtdXz6P1y2teAU=
-github.com/fluxcd/pkg/apis/meta v1.7.0 h1:pDbPrBGgsiWV4bx8j+hodwv1Ysbj/pHP+FH46aTZOfs=
-github.com/fluxcd/pkg/apis/meta v1.7.0/go.mod h1:OJGH7I//SNO6zcso80oBRuf5H8oU8etZDeTgCcH7qHo=
+github.com/fluxcd/pkg/apis/meta v1.8.0 h1:wF7MJ3mu5ds9Y/exWU1yU0YyDb8s1VwwQnZYuMWli3c=
+github.com/fluxcd/pkg/apis/meta v1.8.0/go.mod h1:OJGH7I//SNO6zcso80oBRuf5H8oU8etZDeTgCcH7qHo=
 github.com/fluxcd/pkg/auth v0.1.0 h1:qODzb3BeW/8hkzVeq+8GqZlOEm39xeaxAkJn02Jc+Fo=
 github.com/fluxcd/pkg/auth v0.1.0/go.mod h1:34t6toih5y9W53kIBTubQsGwKsNnBlc7VDE+FqZenyk=
 github.com/fluxcd/pkg/git v0.22.0 h1:3O7XgQEaCgjC0irKkXkT1wWi5r1o4AnrxGhV8Mao85o=
@@ -90,8 +90,8 @@ github.com/fluxcd/pkg/git/gogit v0.22.0 h1:W6pP9hMEFDJOx4KJJTcBPC8lk04cALq8TZnKo
 github.com/fluxcd/pkg/git/gogit v0.22.0/go.mod h1:y3qQWrUaopxbDeleeFAIICiIG2rKybG1A1UBYxjE2K4=
 github.com/fluxcd/pkg/gittestserver v0.14.0 h1:XvBvJGbY/ljqOuikEMhSJK+uMoiUsuGcu4YxhbRHYKk=
 github.com/fluxcd/pkg/gittestserver v0.14.0/go.mod h1:A7vPjOk/hJ2m8f1v96RCTVokLqEVczvIrRuDphODHFE=
-github.com/fluxcd/pkg/runtime v0.50.0 h1:FKJQaOFv8SKp/t7yRE0EkHxA4RIr650SGTLJa1HY3AU=
-github.com/fluxcd/pkg/runtime v0.50.0/go.mod h1:NEjX8/1DL8B/dsjH1/FD9PjCLPhgdvsffSvzuFrgjys=
+github.com/fluxcd/pkg/runtime v0.50.1 h1:VQeIJ2iq/BjsboGATRTCUQYMU737R0DboKXWVGyBhAI=
+github.com/fluxcd/pkg/runtime v0.50.1/go.mod h1:lBLhK6y/3kppfBsqmBs8wZ97dEmd44WzLp0iCci4DnY=
 github.com/fluxcd/pkg/ssh v0.15.0 h1:RSjoFlrPPXR8ac9roV4BnfbhaqjcoJeywQ+0BO8kf6s=
 github.com/fluxcd/pkg/ssh v0.15.0/go.mod h1:ulKcj8psZyUNJrvZZ3J748Ygh7EiS2HfdSzqoORDM4k=
 github.com/fluxcd/pkg/version v0.5.0 h1:td9PR7Um3CLP9ke+PgNex4yqMCRmUZv6dMK+oquD654=
@@ -231,8 +231,8 @@ github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f h1:y5//uYreIhSUg3J
 github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f/go.mod h1:ZdcZmHo+o7JKHSa8/e818NopupXU1YMK5fe1lsApnBw=
 github.com/onsi/ginkgo/v2 v2.22.0 h1:Yed107/8DjTr0lKCNt7Dn8yQ6ybuDRQoMGrNFKzMfHg=
 github.com/onsi/ginkgo/v2 v2.22.0/go.mod h1:7Du3c42kxCUegi0IImZ1wUQzMBVecgIHjR1C+NkhLQo=
-github.com/onsi/gomega v1.36.0 h1:Pb12RlruUtj4XUuPUqeEWc6j5DkVVVA49Uf6YLfC95Y=
-github.com/onsi/gomega v1.36.0/go.mod h1:PvZbdDc8J6XJEpDK4HCuRBm8a6Fzp9/DmhC9C7yFlog=
+github.com/onsi/gomega v1.36.1 h1:bJDPBO7ibjxcbHMgSCoo4Yj18UWbKDlLwX1x9sybDcw=
+github.com/onsi/gomega v1.36.1/go.mod h1:PvZbdDc8J6XJEpDK4HCuRBm8a6Fzp9/DmhC9C7yFlog=
 github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8Oi/yOhh5U=
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/otiai10/copy v1.14.0 h1:dCI/t1iTdYGtkvCuBG2BgR6KZa83PTclw4U5n2wAllU=
