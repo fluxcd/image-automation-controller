@@ -257,6 +257,13 @@ patches:
               azure.workload.identity/use: "true"
 ```
 
+##### GitHub
+
+If the provider is set to `github`, make sure the GitHub App is registered and
+installed with the necessary permissions and the github app secret is configured
+as described
+[here](https://fluxcd.io/flux/components/source/gitrepositories/#github).
+
 ### Git specification
 
 `.spec.git` is a required field to specify Git configurations related to source
