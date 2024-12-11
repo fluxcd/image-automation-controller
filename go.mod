@@ -19,19 +19,19 @@ require (
 	github.com/fluxcd/image-reflector-controller/api v0.33.0
 	github.com/fluxcd/pkg/apis/acl v0.4.0
 	github.com/fluxcd/pkg/apis/event v0.11.0
-	github.com/fluxcd/pkg/apis/meta v1.7.0
+	github.com/fluxcd/pkg/apis/meta v1.8.0
 	github.com/fluxcd/pkg/auth v0.1.0
 	github.com/fluxcd/pkg/git v0.22.0
 	github.com/fluxcd/pkg/git/gogit v0.22.0
 	github.com/fluxcd/pkg/gittestserver v0.14.0
-	github.com/fluxcd/pkg/runtime v0.50.0
+	github.com/fluxcd/pkg/runtime v0.50.1
 	github.com/fluxcd/pkg/ssh v0.15.0
 	github.com/fluxcd/source-controller/api v1.4.1
 	github.com/go-git/go-billy/v5 v5.6.0
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/go-logr/logr v1.4.2
 	github.com/google/go-containerregistry v0.20.2
-	github.com/onsi/gomega v1.36.0
+	github.com/onsi/gomega v1.36.1
 	github.com/otiai10/copy v1.14.0
 	github.com/spf13/pflag v1.0.5
 	k8s.io/api v0.31.3
