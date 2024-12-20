@@ -14,7 +14,7 @@ require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/ProtonMail/go-crypto v1.1.3
-	github.com/cyphar/filepath-securejoin v0.3.5
+	github.com/cyphar/filepath-securejoin v0.3.6
 	github.com/fluxcd/image-automation-controller/api v0.39.0
 	github.com/fluxcd/image-reflector-controller/api v0.33.0
 	github.com/fluxcd/pkg/apis/acl v0.5.0
@@ -24,7 +24,7 @@ require (
 	github.com/fluxcd/pkg/git v0.23.0
 	github.com/fluxcd/pkg/git/gogit v0.23.0
 	github.com/fluxcd/pkg/gittestserver v0.15.0
-	github.com/fluxcd/pkg/runtime v0.51.0
+	github.com/fluxcd/pkg/runtime v0.51.1
 	github.com/fluxcd/pkg/ssh v0.16.0
 	github.com/fluxcd/source-controller/api v1.4.1
 	github.com/go-git/go-billy/v5 v5.6.0
