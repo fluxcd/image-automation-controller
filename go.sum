@@ -78,8 +78,8 @@ github.com/fluxcd/image-reflector-controller/api v0.33.0 h1:9EqxdtK8V+GcHA0anGh4
 github.com/fluxcd/image-reflector-controller/api v0.33.0/go.mod h1:BXMR6jCw/VzYS8utplzLx0G1mc3H+56xuQVal5qgfo0=
 github.com/fluxcd/pkg/apis/acl v0.5.0 h1:+ykKezgerKUlZwSYFUy03lPMOIAyWlqvMNNLIWWqOhk=
 github.com/fluxcd/pkg/apis/acl v0.5.0/go.mod h1:IVDZx3MAoDWjlLrJHMF9Z27huFuXAEQlnbWw0M6EcTs=
-github.com/fluxcd/pkg/apis/event v0.12.0 h1:+zQVefTG3+THYRS48dtZkoA1rdbZZNx3t6wnbzprFIE=
-github.com/fluxcd/pkg/apis/event v0.12.0/go.mod h1:aRK2AONnjjSNW61B6Iy3SW4YHozACntnJeGm3fFqDqA=
+github.com/fluxcd/pkg/apis/event v0.13.0 h1:m5qHAhYIC0+mRFy5OC8FZxBVBGJM3qxJ/sEg2Vgx4T8=
+github.com/fluxcd/pkg/apis/event v0.13.0/go.mod h1:aRK2AONnjjSNW61B6Iy3SW4YHozACntnJeGm3fFqDqA=
 github.com/fluxcd/pkg/apis/meta v1.9.0 h1:wPgm7bWNJZ/ImS5GqikOxt362IgLPFBG73dZ27uWRiQ=
 github.com/fluxcd/pkg/apis/meta v1.9.0/go.mod h1:pMea8eEZcsFSI7ngRnTHFtDZk2CEZGgtrueNgI6Iu70=
 github.com/fluxcd/pkg/auth v0.2.0 h1:Df3pHGMDJjpr8AcGKgPvudXF3Lb3SuBlkAmhrkp7U1k=
@@ -90,8 +90,8 @@ github.com/fluxcd/pkg/git/gogit v0.23.0 h1:vCXmCVdrMHwf05q0vwYcNKEP3M9p4v6BMrLqJ
 github.com/fluxcd/pkg/git/gogit v0.23.0/go.mod h1:RzNtOygR4rgHxnEtiWsmRY/TmP5qEBnbGB3L4DGW2PE=
 github.com/fluxcd/pkg/gittestserver v0.15.0 h1:ylb8a7mbfqWWjncbPxoBjEib2lDUKDfbm4Q7/iTfBGo=
 github.com/fluxcd/pkg/gittestserver v0.15.0/go.mod h1:2ccg8mphQdcLpFlcyb2NvghQlqgzh3MSQagrOJGfMZw=
-github.com/fluxcd/pkg/runtime v0.51.0 h1:F4gKLUBUdvUdtg2lBsg72KUPqlOnaf9ChEL8bmP7CvQ=
-github.com/fluxcd/pkg/runtime v0.51.0/go.mod h1:uMJ+s81+TyNGVjcnn+PIXUGGYs9VA3AK8nDmQWXAnis=
+github.com/fluxcd/pkg/runtime v0.52.0 h1:bgYgXURy94MNbHzthJ8SRZJxuZB1X4atj/LLeR6AgDk=
+github.com/fluxcd/pkg/runtime v0.52.0/go.mod h1:66sowtjeLubCmwBTDC+2t41xgjs2eRlNzaWbPWN2nhk=
 github.com/fluxcd/pkg/ssh v0.16.0 h1:dhSWNp30p05EJ86bhICezad9pG3fJi4CAVKnZ3EmUV8=
 github.com/fluxcd/pkg/ssh v0.16.0/go.mod h1:MyDegNZHnKNDAwM5/A2t/1FjpvpS8BsRZQ4WqEwCHc0=
 github.com/fluxcd/pkg/version v0.6.0 h1:tYRWpV7RvBOO5ahD525TiDhWXmhnvBM0RAIY1MCRe9s=
