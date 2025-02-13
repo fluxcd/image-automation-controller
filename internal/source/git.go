@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/fluxcd/pkg/auth/azure"
+	"github.com/fluxcd/pkg/auth/github"
 	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/git/gogit"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
@@ -181,12 +182,29 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 		return nil, fmt.Errorf("failed to configure authentication options: %w", err)
 	}
 
-	if repo.GetProvider() == sourcev1.GitProviderAzure {
+	switch repo.GetProvider() {
+	case sourcev1.GitProviderAzure:
 		opts.ProviderOpts = &git.ProviderOptions{
 			Name: sourcev1.GitProviderAzure,
 			AzureOpts: []azure.OptFunc{
 				azure.WithAzureDevOpsScope(),
 			},
+		}
+	case sourcev1.GitProviderGitHub:
+		// if provider is github, but secret ref is not specified
+		if repo.Spec.SecretRef == nil {
+			return nil, fmt.Errorf("secretRef with github app data must be specified when provider is set to github: %w", ErrInvalidSourceConfiguration)
+		}
+		opts.ProviderOpts = &git.ProviderOptions{
+			Name: sourcev1.GitProviderGitHub,
+			GitHubOpts: []github.OptFunc{
+				github.WithAppData(data),
+			},
+		}
+	default:
+		// analyze secret, if it has github app data, perhaps provider should have been github.
+		if appID := data[github.AppIDKey]; len(appID) != 0 {
+			return nil, fmt.Errorf("secretRef '%s/%s' has github app data but provider is not set to github: %w", repo.GetNamespace(), repo.Spec.SecretRef.Name, ErrInvalidSourceConfiguration)
 		}
 	}
 
