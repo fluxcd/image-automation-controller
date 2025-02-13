@@ -74,8 +74,8 @@ github.com/fluxcd/cli-utils v0.36.0-flux.12 h1:8cD6SmaKa/lGo0KCu0XWiGrXJMLMBQwSs
 github.com/fluxcd/cli-utils v0.36.0-flux.12/go.mod h1:Nb/zMqsJAzjz4/HIsEc2LTqxC6eC0rV26t4hkJT/F9o=
 github.com/fluxcd/gitkit v0.6.0 h1:iNg5LTx6ePo+Pl0ZwqHTAkhbUHxGVSY3YCxCdw7VIFg=
 github.com/fluxcd/gitkit v0.6.0/go.mod h1:svOHuKi0fO9HoawdK4HfHAJJseZDHHjk7I3ihnCIqNo=
-github.com/fluxcd/image-reflector-controller/api v0.33.0 h1:9EqxdtK8V+GcHA0anGh4ec6Kp55rVur4rlR9E0P495w=
-github.com/fluxcd/image-reflector-controller/api v0.33.0/go.mod h1:BXMR6jCw/VzYS8utplzLx0G1mc3H+56xuQVal5qgfo0=
+github.com/fluxcd/image-reflector-controller/api v0.34.0 h1:+0AGoaYzHYXzVDQO9xq2eGZKkPl81Bfz6xFI7rElBzs=
+github.com/fluxcd/image-reflector-controller/api v0.34.0/go.mod h1:C6742RYyZVt2KIyJv16lb4gYbsK+P1RGQeaQ8C8huec=
 github.com/fluxcd/pkg/apis/acl v0.6.0 h1:rllf5uQLzTow81ZCslkQ6LPpDNqVQr6/fWaNksdUEtc=
 github.com/fluxcd/pkg/apis/acl v0.6.0/go.mod h1:IVDZx3MAoDWjlLrJHMF9Z27huFuXAEQlnbWw0M6EcTs=
 github.com/fluxcd/pkg/apis/event v0.16.0 h1:ffKc/3erowPnh72lFszz7sPQhLZ7bhqNrq+pu1Pb+JE=
@@ -96,8 +96,8 @@ github.com/fluxcd/pkg/ssh v0.17.0 h1:o+MgdM/OB8R/+KEc3W3ml/inEKZqCwT8V71dkbTAbm4
 github.com/fluxcd/pkg/ssh v0.17.0/go.mod h1:4yU099LjFWOJXZiu73rvqA70mOoSXG2yqxfPBxhnGgQ=
 github.com/fluxcd/pkg/version v0.6.0 h1:tYRWpV7RvBOO5ahD525TiDhWXmhnvBM0RAIY1MCRe9s=
 github.com/fluxcd/pkg/version v0.6.0/go.mod h1:ZCl5BkIvXmMm3C4q4fz4aMi5LQHvcXNSEaL2puXIZo8=
-github.com/fluxcd/source-controller/api v1.4.1 h1:zV01D7xzHOXWbYXr36lXHWWYS7POARsjLt61Nbh3kVY=
-github.com/fluxcd/source-controller/api v1.4.1/go.mod h1:gSjg57T+IG66SsBR0aquv+DFrm4YyBNpKIJVDnu3Ya8=
+github.com/fluxcd/source-controller/api v1.5.0 h1:caSR+u/r2Vh0jq/0pNR0r1zLxyvgatWuGSV2mxgTB/I=
+github.com/fluxcd/source-controller/api v1.5.0/go.mod h1:OZPuHMlLH2E2mnj6Q5DLkWfUOmJ20zA1LIvUVfNsYl8=
 github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHkI4W8=
 github.com/frankban/quicktest v1.14.6/go.mod h1:4ptaffx2x8+WTWXmUCuVU6aPUX1/Mz7zb5vbUoiM6w0=
 github.com/fsnotify/fsnotify v1.8.0 h1:dAwr6QBTBZIkG8roQaJjGof0pp0EeF+tNV7YBP3F/8M=
