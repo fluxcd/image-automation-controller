@@ -70,6 +70,7 @@ type CommitSpec struct {
 
 	// MessageTemplateValues provides additional values to be available to the
 	// templating rendering.
+	// +optional
 	MessageTemplateValues map[string]string `json:"messageTemplateValues,omitempty"`
 }
 
