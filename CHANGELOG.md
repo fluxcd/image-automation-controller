@@ -1,5 +1,65 @@
 # Changelog
 
+## 0.40.0
+
+**Release date:** 2025-02-14
+
+This prerelease comes with support for GitHub App authentication for GitHub
+repositories using the `.spec.provider` field by setting it to `github` on the
+`GitRepository` object associated with an `ImageUpdateAutomation` object.
+
+In addition, the Kubernetes dependencies have been updated to v1.32.1
+and various other controller dependencies have been updated to their latest
+version.
+
+Fixes:
+
+Improvements:
+- Additional values for commit message template
+  [#772](https://github.com/fluxcd/image-automation-controller/pull/772)
+- [RFC-007] Implement GitHub app authentication for git repositories in IAC
+  [#780](https://github.com/fluxcd/image-automation-controller/pull/780)
+- Various dependency updates
+  [#765](https://github.com/fluxcd/image-automation-controller/pull/765)
+  [#766](https://github.com/fluxcd/image-automation-controller/pull/766)
+  [#768](https://github.com/fluxcd/image-automation-controller/pull/768)
+  [#769](https://github.com/fluxcd/image-automation-controller/pull/769)
+  [#770](https://github.com/fluxcd/image-automation-controller/pull/770)
+  [#774](https://github.com/fluxcd/image-automation-controller/pull/774)
+  [#776](https://github.com/fluxcd/image-automation-controller/pull/776)
+  [#777](https://github.com/fluxcd/image-automation-controller/pull/777)
+  [#778](https://github.com/fluxcd/image-automation-controller/pull/778)
+  [#782](https://github.com/fluxcd/image-automation-controller/pull/782)
+  [#784](https://github.com/fluxcd/image-automation-controller/pull/784)
+  [#787](https://github.com/fluxcd/image-automation-controller/pull/787)
+  [#789](https://github.com/fluxcd/image-automation-controller/pull/789)
+  [#790](https://github.com/fluxcd/image-automation-controller/pull/790)
+  [#791](https://github.com/fluxcd/image-automation-controller/pull/791)
+  [#794](https://github.com/fluxcd/image-automation-controller/pull/794)
+  [#795](https://github.com/fluxcd/image-automation-controller/pull/795)
+  [#798](https://github.com/fluxcd/image-automation-controller/pull/798)
+  [#799](https://github.com/fluxcd/image-automation-controller/pull/799)
+  [#801](https://github.com/fluxcd/image-automation-controller/pull/801)
+  [#802](https://github.com/fluxcd/image-automation-controller/pull/802)
+  [#804](https://github.com/fluxcd/image-automation-controller/pull/804)
+  [#805](https://github.com/fluxcd/image-automation-controller/pull/805)
+  [#806](https://github.com/fluxcd/image-automation-controller/pull/806)
+  [#808](https://github.com/fluxcd/image-automation-controller/pull/808)
+  [#815](https://github.com/fluxcd/image-automation-controller/pull/815)
+  [#819](https://github.com/fluxcd/image-automation-controller/pull/819)
+  [#821](https://github.com/fluxcd/image-automation-controller/pull/821)
+  [#824](https://github.com/fluxcd/image-automation-controller/pull/824)
+  [#826](https://github.com/fluxcd/image-automation-controller/pull/826)
+  [#828](https://github.com/fluxcd/image-automation-controller/pull/828)
+  [#831](https://github.com/fluxcd/image-automation-controller/pull/831)
+  [#832](https://github.com/fluxcd/image-automation-controller/pull/832)
+  [#835](https://github.com/fluxcd/image-automation-controller/pull/835)
+  [#839](https://github.com/fluxcd/image-automation-controller/pull/839)
+  [#840](https://github.com/fluxcd/image-automation-controller/pull/840)
+  [#842](https://github.com/fluxcd/image-automation-controller/pull/842)
+  [#843](https://github.com/fluxcd/image-automation-controller/pull/843)
+  [#845](https://github.com/fluxcd/image-automation-controller/pull/845)
+
 ## 0.39.0
 
 **Release date:** 2024-09-26
