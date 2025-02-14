@@ -78,6 +78,7 @@ map[string]string
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>MessageTemplateValues provides additional values to be available to the
 templating rendering.</p>
 </td>
