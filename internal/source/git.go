@@ -97,7 +97,7 @@ func buildGitConfig(ctx context.Context, c client.Client, originKey, srcKey type
 	}
 
 	var err error
-	cfg.authOpts, err = getAuthOpts(ctx, c, repo)
+	cfg.authOpts, err = getAuthOpts(ctx, c, repo, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func configurePush(cfg *gitSrcCfg, gitSpec *imagev1.GitSpec, checkoutRef *source
 	return nil
 }
 
-func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitRepository) (*git.AuthOptions, error) {
+func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitRepository, srcOpts SourceOptions) (*git.AuthOptions, error) {
 	var data map[string][]byte
 	var err error
 	if repo.Spec.SecretRef != nil {
@@ -199,6 +199,7 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 			Name: sourcev1.GitProviderGitHub,
 			GitHubOpts: []github.OptFunc{
 				github.WithAppData(data),
+				github.WithCache(srcOpts.tokenCache, imagev1.ImageUpdateAutomationKind, srcOpts.objName, srcOpts.objNamespace),
 			},
 		}
 	default:
