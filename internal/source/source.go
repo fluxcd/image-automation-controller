@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
+	"github.com/fluxcd/pkg/cache"
 	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/git/gogit"
 	"github.com/fluxcd/pkg/git/repository"
@@ -69,6 +70,9 @@ type SourceManager struct {
 type SourceOptions struct {
 	noCrossNamespaceRef    bool
 	gitAllBranchReferences bool
+	tokenCache             *cache.TokenCache
+	objName                string
+	objNamespace           string
 }
 
 // SourceOption configures the SourceManager options.
@@ -87,6 +91,23 @@ func WithSourceOptionNoCrossNamespaceRef() SourceOption {
 func WithSourceOptionGitAllBranchReferences() SourceOption {
 	return func(so *SourceOptions) {
 		so.gitAllBranchReferences = true
+	}
+}
+
+// WithSourceOptionTokenCache configures the SourceManager to use the provided
+// token cache.
+func WithSourceOptionTokenCache(tc *cache.TokenCache) SourceOption {
+	return func(so *SourceOptions) {
+		so.tokenCache = tc
+	}
+}
+
+// WithSourceOptionInvolvedObject configures the SourceManager to use the
+// provided ImageUpdateAutomation object.
+func WithSourceOptionInvolvedObject(name, namespace string) SourceOption {
+	return func(so *SourceOptions) {
+		so.objName = name
+		so.objNamespace = namespace
 	}
 }
 

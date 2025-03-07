@@ -130,7 +130,7 @@ func Test_getAuthOpts(t *testing.T) {
 				gitRepo.Spec.SecretRef = &meta.LocalObjectReference{Name: tt.secretName}
 			}
 
-			got, err := getAuthOpts(context.TODO(), c, gitRepo)
+			got, err := getAuthOpts(context.TODO(), c, gitRepo, SourceOptions{})
 			if (err != nil) != tt.wantErr {
 				g.Fail(fmt.Sprintf("unexpected error: %v", err))
 				return
@@ -250,7 +250,7 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 			if tt.beforeFunc != nil {
 				tt.beforeFunc(obj)
 			}
-			opts, err := getAuthOpts(context.TODO(), c, obj)
+			opts, err := getAuthOpts(context.TODO(), c, obj, SourceOptions{})
 
 			if tt.wantErr != nil {
 				g.Expect(err).To(HaveOccurred())
