@@ -31,9 +31,11 @@ import (
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlcfg "sigs.k8s.io/controller-runtime/pkg/config"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	cache "github.com/fluxcd/pkg/cache"
 	"github.com/fluxcd/pkg/runtime/acl"
 	"github.com/fluxcd/pkg/runtime/client"
 	helper "github.com/fluxcd/pkg/runtime/controller"
@@ -76,6 +78,10 @@ func init() {
 }
 
 func main() {
+	const (
+		tokenCacheDefaultMaxSize = 0
+	)
+
 	var (
 		metricsAddr           string
 		eventsAddr            string
@@ -88,6 +94,7 @@ func main() {
 		featureGates          feathelper.FeatureGates
 		watchOptions          helper.WatchOptions
 		concurrent            int
+		tokenCacheOptions     cache.TokenFlags
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -106,6 +113,7 @@ func main() {
 	rateLimiterOptions.BindFlags(flag.CommandLine)
 	featureGates.BindFlags(flag.CommandLine)
 	watchOptions.BindFlags(flag.CommandLine)
+	tokenCacheOptions.BindFlags(flag.CommandLine, tokenCacheDefaultMaxSize)
 
 	flag.Parse()
 
@@ -197,6 +205,19 @@ func main() {
 
 	metricsH := helper.NewMetrics(mgr, metrics.MustMakeRecorder(), imagev1.ImageUpdateAutomationFinalizer)
 
+	var tokenCache *cache.TokenCache
+	if tokenCacheOptions.MaxSize > 0 {
+		var err error
+		tokenCache, err = cache.NewTokenCache(tokenCacheOptions.MaxSize,
+			cache.WithMaxDuration(tokenCacheOptions.MaxDuration),
+			cache.WithMetricsRegisterer(ctrlmetrics.Registry),
+			cache.WithMetricsPrefix("gotk_token_"))
+		if err != nil {
+			setupLog.Error(err, "unable to create token cache")
+			os.Exit(1)
+		}
+	}
+
 	ctx := ctrl.SetupSignalHandler()
 
 	if err := (&controller.ImageUpdateAutomationReconciler{
@@ -207,6 +228,7 @@ func main() {
 		ControllerName:      controllerName,
 	}).SetupWithManager(ctx, mgr, controller.ImageUpdateAutomationReconcilerOptions{
 		RateLimiter: helper.GetRateLimiter(rateLimiterOptions),
+		TokenCache:  tokenCache,
 	}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ImageUpdateAutomation")
 		os.Exit(1)
