@@ -93,7 +93,7 @@ func (r *ScreeningLocalReader) Read() ([]*yaml.RNode, error) {
 			return nil
 		}
 
-		if ext := filepath.Ext(p); ext != ".yaml" && ext != ".yml" {
+		if ext := filepath.Ext(p); ext != ".yaml" && ext != ".yml" && filepath.Base(p) != "Kustomization" {
 			return nil
 		}
 
