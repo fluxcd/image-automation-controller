@@ -33,11 +33,12 @@ func TestScreeningLocalReader(t *testing.T) {
 	}
 	nodes, err := r.Read()
 	g.Expect(err).ToNot(HaveOccurred())
-	// the test fixture has three files that contain the marker:
-	// - otherns.yaml
+	// the test fixture has four files that contain the marker:
 	// - marked.yaml
-	// - kustomization.yaml
-	g.Expect(len(nodes)).To(Equal(3))
+	// - otherns.yaml
+	// - kustomization.yml
+	// - Kustomization
+	g.Expect(len(nodes)).To(Equal(4))
 	filesSeen := map[string]struct{}{}
 	for i := range nodes {
 		path, _, err := kioutil.GetFileAnnotations(nodes[i])
@@ -45,9 +46,10 @@ func TestScreeningLocalReader(t *testing.T) {
 		filesSeen[path] = struct{}{}
 	}
 	g.Expect(filesSeen).To(Equal(map[string]struct{}{
-		"marked.yaml":        {},
-		"kustomization.yaml": {},
-		"otherns.yaml":       {},
+		"marked.yaml":       {},
+		"otherns.yaml":      {},
+		"kustomization.yml": {},
+		"Kustomization":     {},
 	}))
 
 }
