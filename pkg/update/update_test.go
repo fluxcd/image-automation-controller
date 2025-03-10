@@ -83,7 +83,14 @@ func TestUpdateWithSetters(t *testing.T) {
 
 	expectedResult := Result{
 		Files: map[string]FileResult{
-			"kustomization.yaml": {
+			"kustomization.yml": {
+				Objects: map[ObjectIdentifier][]ImageRef{
+					kustomizeResourceID: {
+						expectedImageRef,
+					},
+				},
+			},
+			"Kustomization": {
 				Objects: map[ObjectIdentifier][]ImageRef{
 					kustomizeResourceID: {
 						expectedImageRef,
@@ -111,7 +118,21 @@ func TestUpdateWithSetters(t *testing.T) {
 	expectedResultV2 := ResultV2{
 		ImageResult: expectedResult,
 		FileChanges: map[string]ObjectChanges{
-			"kustomization.yaml": {
+			"kustomization.yml": {
+				kustomizeResourceID: []Change{
+					{
+						OldValue: "replaced",
+						NewValue: "index.repo.fake/updated",
+						Setter:   "automation-ns:policy:name",
+					},
+					{
+						OldValue: "v1",
+						NewValue: "v1.0.1",
+						Setter:   "automation-ns:policy:tag",
+					},
+				},
+			},
+			"Kustomization": {
 				kustomizeResourceID: []Change{
 					{
 						OldValue: "replaced",
