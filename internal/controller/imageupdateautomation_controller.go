@@ -44,6 +44,7 @@ import (
 	aclapi "github.com/fluxcd/pkg/apis/acl"
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/cache"
 	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/runtime/acl"
 	"github.com/fluxcd/pkg/runtime/conditions"
@@ -110,12 +111,15 @@ type ImageUpdateAutomationReconciler struct {
 	features map[string]bool
 
 	patchOptions []patch.Option
+
+	tokenCache *cache.TokenCache
 }
 
 type ImageUpdateAutomationReconcilerOptions struct {
 	MaxConcurrentReconciles int
 	RateLimiter             workqueue.TypedRateLimiter[reconcile.Request]
 	RecoverPanic            bool
+	TokenCache              *cache.TokenCache
 }
 
 func (r *ImageUpdateAutomationReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, opts ImageUpdateAutomationReconcilerOptions) error {
@@ -124,6 +128,8 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(ctx context.Context, 
 	if r.features == nil {
 		r.features = features.FeatureGates()
 	}
+
+	r.tokenCache = opts.TokenCache
 
 	// Index the git repository object that each I-U-A refers to
 	if err := mgr.GetFieldIndexer().IndexField(ctx, &imagev1.ImageUpdateAutomation{}, repoRefKey, func(obj client.Object) []string {
@@ -337,7 +343,10 @@ func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *pat
 	}
 
 	// Create source manager with options.
-	smOpts := []source.SourceOption{}
+	smOpts := []source.SourceOption{
+		source.WithSourceOptionInvolvedObject(obj.GetName(), obj.GetNamespace()),
+		source.WithSourceOptionTokenCache(r.tokenCache),
+	}
 	if r.NoCrossNamespaceRef {
 		smOpts = append(smOpts, source.WithSourceOptionNoCrossNamespaceRef())
 	}
