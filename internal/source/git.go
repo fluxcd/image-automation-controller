@@ -32,8 +32,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/fluxcd/pkg/auth/azure"
-	"github.com/fluxcd/pkg/auth/github"
 	"github.com/fluxcd/pkg/git"
+	"github.com/fluxcd/pkg/git/github"
 	"github.com/fluxcd/pkg/git/gogit"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 

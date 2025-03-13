@@ -35,8 +35,8 @@ import (
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta2"
 	"github.com/fluxcd/image-automation-controller/internal/testutil"
 	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/fluxcd/pkg/auth/github"
 	"github.com/fluxcd/pkg/git"
+	"github.com/fluxcd/pkg/git/github"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 )
 
