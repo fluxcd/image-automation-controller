@@ -13,7 +13,7 @@ replace (
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6
 	github.com/Masterminds/sprig/v3 v3.3.0
-	github.com/ProtonMail/go-crypto v1.1.6
+	github.com/ProtonMail/go-crypto v1.2.0
 	github.com/cyphar/filepath-securejoin v0.4.1
 	github.com/fluxcd/image-automation-controller/api v0.40.0
 	github.com/fluxcd/image-reflector-controller/api v0.34.0
@@ -32,7 +32,7 @@ require (
 	github.com/go-git/go-git/v5 v5.16.0
 	github.com/go-logr/logr v1.4.2
 	github.com/google/go-containerregistry v0.20.3
-	github.com/onsi/gomega v1.36.2
+	github.com/onsi/gomega v1.37.0
 	github.com/otiai10/copy v1.14.1
 	github.com/spf13/pflag v1.0.6
 	k8s.io/api v0.32.2
@@ -145,7 +145,7 @@ require (
 	golang.org/x/text v0.24.0 // indirect
 	golang.org/x/time v0.10.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
-	google.golang.org/protobuf v1.36.4 // indirect
+	google.golang.org/protobuf v1.36.5 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
