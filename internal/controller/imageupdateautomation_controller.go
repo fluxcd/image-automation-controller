@@ -557,16 +557,24 @@ func getPolicies(ctx context.Context, kclient client.Client, namespace string, s
 func observedPolicies(policies []imagev1_reflect.ImagePolicy) (imagev1.ObservedPolicies, error) {
 	observedPolicies := imagev1.ObservedPolicies{}
 	for _, policy := range policies {
-		parts := strings.SplitN(policy.Status.LatestImage, ":", 2)
-		if len(parts) != 2 {
+		name, tag := splitByLastColon(policy.Status.LatestImage)
+		if name == "" || tag == "" {
 			return nil, fmt.Errorf("failed parsing image: %s", policy.Status.LatestImage)
 		}
 		observedPolicies[policy.Name] = imagev1.ImageRef{
-			Name: parts[0],
-			Tag:  parts[1],
+			Name: name,
+			Tag:  tag,
 		}
 	}
 	return observedPolicies, nil
+}
+
+func splitByLastColon(latestImage string) (string, string) {
+	idx := strings.LastIndex(latestImage, ":")
+	if idx == -1 {
+		return latestImage, ""
+	}
+	return latestImage[:idx], latestImage[idx+1:]
 }
 
 // observedPoliciesChanged returns if the previous and current observedPolicies
