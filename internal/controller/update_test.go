@@ -1568,13 +1568,13 @@ func Test_observedPolicies(t *testing.T) {
 				"p1": "aaa:bbb",
 				"p2": "ccc:ddd",
 				"p3": "eee:latest",
-				"p4": "fff:ggg:hhh",
+				"p4": "registry.localhost:5000/sample-web:0.1.0",
 			},
 			want: imagev1.ObservedPolicies{
 				"p1": imagev1.ImageRef{Name: "aaa", Tag: "bbb"},
 				"p2": imagev1.ImageRef{Name: "ccc", Tag: "ddd"},
 				"p3": imagev1.ImageRef{Name: "eee", Tag: "latest"},
-				"p4": imagev1.ImageRef{Name: "fff", Tag: "ggg:hhh"},
+				"p4": imagev1.ImageRef{Name: "registry.localhost:5000/sample-web", Tag: "0.1.0"},
 			},
 		},
 		{
