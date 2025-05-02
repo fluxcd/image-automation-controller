@@ -520,6 +520,9 @@ func (r *ImageUpdateAutomationReconciler) reconcileDelete(obj *imagev1.ImageUpda
 	// Remove our finalizer from the list.
 	controllerutil.RemoveFinalizer(obj, imagev1.ImageUpdateAutomationFinalizer)
 
+	// Cleanup caches.
+	r.tokenCache.DeleteEventsForObject(imagev1.ImageUpdateAutomationKind, obj.GetName(), obj.GetNamespace())
+
 	// Stop reconciliation as the object is being deleted.
 	return ctrl.Result{}, nil
 }
