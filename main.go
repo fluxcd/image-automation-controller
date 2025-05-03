@@ -79,7 +79,7 @@ func init() {
 
 func main() {
 	const (
-		tokenCacheDefaultMaxSize = 0
+		tokenCacheDefaultMaxSize = 100
 	)
 
 	var (
