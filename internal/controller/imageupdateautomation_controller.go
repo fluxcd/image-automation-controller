@@ -521,7 +521,8 @@ func (r *ImageUpdateAutomationReconciler) reconcileDelete(obj *imagev1.ImageUpda
 	controllerutil.RemoveFinalizer(obj, imagev1.ImageUpdateAutomationFinalizer)
 
 	// Cleanup caches.
-	r.tokenCache.DeleteEventsForObject(imagev1.ImageUpdateAutomationKind, obj.GetName(), obj.GetNamespace())
+	r.tokenCache.DeleteEventsForObject(imagev1.ImageUpdateAutomationKind,
+		obj.GetName(), obj.GetNamespace(), cache.OperationReconcile)
 
 	// Stop reconciliation as the object is being deleted.
 	return ctrl.Result{}, nil
@@ -616,7 +617,7 @@ func (r *ImageUpdateAutomationReconciler) notify(ctx context.Context, oldObj, ne
 
 	// Was ready before and is ready now, with new push result,
 	if conditions.IsReady(oldObj) && conditions.IsReady(newObj) && result != nil {
-		eventLogf(ctx, r.EventRecorder, newObj, corev1.EventTypeNormal, ready.Reason, msg)
+		eventLogf(ctx, r.EventRecorder, newObj, corev1.EventTypeNormal, ready.Reason, "%s", msg)
 		return
 	}
 
@@ -624,12 +625,12 @@ func (r *ImageUpdateAutomationReconciler) notify(ctx context.Context, oldObj, ne
 
 	// Became ready from not ready.
 	if !conditions.IsReady(oldObj) && conditions.IsReady(newObj) {
-		eventLogf(ctx, r.EventRecorder, newObj, corev1.EventTypeNormal, ready.Reason, msg)
+		eventLogf(ctx, r.EventRecorder, newObj, corev1.EventTypeNormal, ready.Reason, "%s", msg)
 		return
 	}
 	// Not ready, failed. Use the failure message from ready condition.
 	if !conditions.IsReady(newObj) {
-		eventLogf(ctx, r.EventRecorder, newObj, corev1.EventTypeWarning, ready.Reason, ready.Message)
+		eventLogf(ctx, r.EventRecorder, newObj, corev1.EventTypeWarning, ready.Reason, "%s", ready.Message)
 		return
 	}
 
@@ -639,7 +640,7 @@ func (r *ImageUpdateAutomationReconciler) notify(ctx context.Context, oldObj, ne
 		// Full reconciliation skipped.
 		msg = "no change since last reconciliation"
 	}
-	eventLogf(ctx, r.EventRecorder, newObj, eventv1.EventTypeTrace, meta.SucceededReason, msg)
+	eventLogf(ctx, r.EventRecorder, newObj, eventv1.EventTypeTrace, meta.SucceededReason, "%s", msg)
 }
 
 // eventLogf records events, and logs at the same time.

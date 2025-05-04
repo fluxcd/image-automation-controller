@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"testing"
 	"time"
 
@@ -130,7 +131,7 @@ func Test_getAuthOpts(t *testing.T) {
 				gitRepo.Spec.SecretRef = &meta.LocalObjectReference{Name: tt.secretName}
 			}
 
-			got, err := getAuthOpts(context.TODO(), c, gitRepo, SourceOptions{})
+			got, err := getAuthOpts(context.TODO(), c, gitRepo, SourceOptions{}, nil)
 			if (err != nil) != tt.wantErr {
 				g.Fail(fmt.Sprintf("unexpected error: %v", err))
 				return
@@ -250,7 +251,7 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 			if tt.beforeFunc != nil {
 				tt.beforeFunc(obj)
 			}
-			opts, err := getAuthOpts(context.TODO(), c, obj, SourceOptions{})
+			opts, err := getAuthOpts(context.TODO(), c, obj, SourceOptions{}, nil)
 
 			if tt.wantErr != nil {
 				g.Expect(err).To(HaveOccurred())
@@ -293,22 +294,25 @@ func Test_getProxyOpts(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		secretName string
-		want       *transport.ProxyOptions
-		wantErr    bool
+		name         string
+		secretName   string
+		want         *transport.ProxyOptions
+		wantProxyURL *url.URL
+		wantErr      bool
 	}{
 		{
-			name:       "non-existing secret",
-			secretName: "non-existing",
-			want:       nil,
-			wantErr:    true,
+			name:         "non-existing secret",
+			secretName:   "non-existing",
+			want:         nil,
+			wantProxyURL: nil,
+			wantErr:      true,
 		},
 		{
-			name:       "invalid proxy secret",
-			secretName: "invalid-proxy",
-			want:       nil,
-			wantErr:    true,
+			name:         "invalid proxy secret",
+			secretName:   "invalid-proxy",
+			want:         nil,
+			wantProxyURL: nil,
+			wantErr:      true,
 		},
 		{
 			name:       "valid proxy secret",
@@ -317,6 +321,11 @@ func Test_getProxyOpts(t *testing.T) {
 				URL:      "https://example.com",
 				Username: "user",
 				Password: "pass",
+			},
+			wantProxyURL: &url.URL{
+				Scheme: "https",
+				Host:   "example.com",
+				User:   url.UserPassword("user", "pass"),
 			},
 			wantErr: false,
 		},
@@ -338,12 +347,13 @@ func Test_getProxyOpts(t *testing.T) {
 				}
 			}
 
-			got, err := getProxyOpts(context.TODO(), c, gitRepo)
+			got, gotProxyURL, err := getProxyOpts(context.TODO(), c, gitRepo)
 			if (err != nil) != tt.wantErr {
 				g.Fail(fmt.Sprintf("unexpected error: %v", err))
 				return
 			}
 			g.Expect(got).To(Equal(tt.want))
+			g.Expect(gotProxyURL).To(Equal(tt.wantProxyURL))
 		})
 	}
 }
