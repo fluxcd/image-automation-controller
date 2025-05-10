@@ -7,6 +7,7 @@ images:
   - name: container
     newName: index.repo.fake/updated # {"$imagepolicy": "automation-ns:policy:name"}
     newTag: v1.0.1 # {"$imagepolicy": "automation-ns:policy:tag"}
+    newDigest: sha256:6745aaad46d795c9836632e1fb62f24b7e7f4c843144da8e47a5465c411a14be # {"$imagepolicy": "automation-ns:policy-with-digest:digest"}
 # Prove fix for https://github.com/fluxcd/flux2/issues/3284
 patches:
   - patch: |
@@ -24,3 +25,4 @@ patches:
       version: v1
       kind: Deployment
       name: sxxxxdadminservice
+      image: image:v1.0.0@sha256:6745aaad46d795c9836632e1fb62f24b7e7f4c843144da8e47a5465c411a14be # {"$imagepolicy": "automation-ns:policy-with-digest"}

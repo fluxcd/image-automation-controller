@@ -16,16 +16,16 @@ require (
 	github.com/ProtonMail/go-crypto v1.2.0
 	github.com/cyphar/filepath-securejoin v0.4.1
 	github.com/fluxcd/image-automation-controller/api v0.40.0
-	github.com/fluxcd/image-reflector-controller/api v0.34.0
+	github.com/fluxcd/image-reflector-controller/api v0.35.0
 	github.com/fluxcd/pkg/apis/acl v0.7.0
 	github.com/fluxcd/pkg/apis/event v0.17.0
 	github.com/fluxcd/pkg/apis/meta v1.12.0
-	github.com/fluxcd/pkg/auth v0.14.0
+	github.com/fluxcd/pkg/auth v0.16.0
 	github.com/fluxcd/pkg/cache v0.9.0
 	github.com/fluxcd/pkg/git v0.31.0
 	github.com/fluxcd/pkg/git/gogit v0.33.0
 	github.com/fluxcd/pkg/gittestserver v0.17.0
-	github.com/fluxcd/pkg/runtime v0.59.0
+	github.com/fluxcd/pkg/runtime v0.60.0
 	github.com/fluxcd/pkg/ssh v0.18.0
 	github.com/fluxcd/source-controller/api v1.5.0
 	github.com/go-git/go-billy/v5 v5.6.2
@@ -40,7 +40,7 @@ require (
 	k8s.io/client-go v0.33.0
 	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff
 	k8s.io/utils v0.0.0-20250321185631-1f6e0b77f77e
-	sigs.k8s.io/controller-runtime v0.20.4
+	sigs.k8s.io/controller-runtime v0.21.0
 	sigs.k8s.io/kustomize/kyaml v0.19.0
 )
 
@@ -152,13 +152,13 @@ require (
 	github.com/xlab/treeprint v1.2.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/crypto v0.37.0 // indirect
-	golang.org/x/net v0.39.0 // indirect
+	golang.org/x/crypto v0.38.0 // indirect
+	golang.org/x/net v0.40.0 // indirect
 	golang.org/x/oauth2 v0.29.0 // indirect
-	golang.org/x/sync v0.13.0 // indirect
-	golang.org/x/sys v0.32.0 // indirect
-	golang.org/x/term v0.31.0 // indirect
-	golang.org/x/text v0.24.0 // indirect
+	golang.org/x/sync v0.14.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/term v0.32.0 // indirect
+	golang.org/x/text v0.25.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect

@@ -672,6 +672,59 @@ spec:
 
 ## Working with ImageUpdateAutomation
 
+### Marking images for update
+
+In order to tell ImageUpdateAutomation to update images in a manifest, the
+images must be marked with *setters*. A setter is a comment at the end of a
+line telling exactly which ImagePolicy to use for that line, and optionally
+also which field of the image elected as latest by the policy to update in
+that line. This is useful for example in Helm charts, where images are often
+defined by multiple values, such as the repository URL, a tag, and optionally
+a digest.
+
+For example, if you want to use the ImagePolicy `my-policy` from the
+`flux-system` namespace, you could use it in a Deployment like this:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+  namespace: default
+spec:
+  template:
+    spec:
+      containers:
+        - name: my-app
+          image: ghcr.io/my-org/my-app:4.0.6 # {"$imagepolicy": "flux-system:my-policy"}
+```
+
+Deployments expect the image to be fully specified, including tag
+and optionally digest, so for Deployments the setter is the basic
+one, not specifying any fields of the image.
+
+If your app is instead deployed by a Flux HelmRelease whose chart
+supports image fields, you can use the image fields like this:
+
+```yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: my-app
+  namespace: default
+spec:
+  values:
+    image:
+      repository: ghcr.io/my-org/my-app # {"$imagepolicy": "flux-system:my-policy:name"}
+      tag: 4.0.6 # {"$imagepolicy": "flux-system:my-policy:tag"}
+      digest: sha256:6129bb944cada32b4662eafd13fd9904d34c77286bf2ec4523eaedb711757cb0 # {"$imagepolicy": "flux-system:my-policy:digest"}
+```
+
+**Note:** For the `digest` field to be available in the ImagePolicy status,
+the `.spec.digestReflectionPolicy` field of the ImagePolicy must be set to
+`IfNotPresent` or `Always`. For a complete guide on digest reflection,
+see these [docs](/flux/guides/image-update/#digest-pinning).
+
 ### Triggering a reconciliation
 
 To manually tell the image-automation-controller to reconcile an
