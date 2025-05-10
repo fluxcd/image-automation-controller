@@ -332,6 +332,18 @@ string
 <p>Tag is the image&rsquo;s tag.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>digest</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Digest is the image&rsquo;s digest.</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>

@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -331,10 +330,14 @@ func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *pat
 		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
 	}
 
-	observedPolicies, err := observedPolicies(policies)
-	if err != nil {
-		result, retErr = ctrl.Result{}, err
-		return
+	// Index the policies by their name.
+	observedPolicies := imagev1.ObservedPolicies{}
+	for _, policy := range policies {
+		observedPolicies[policy.Name] = imagev1.ImageRef{
+			Name:   policy.Status.LatestRef.Name,
+			Tag:    policy.Status.LatestRef.Tag,
+			Digest: policy.Status.LatestRef.Digest,
+		}
 	}
 
 	// If the policies have changed, require a full sync.
@@ -547,38 +550,13 @@ func getPolicies(ctx context.Context, kclient client.Client, namespace string, s
 	readyPolicies := []imagev1_reflect.ImagePolicy{}
 	for _, policy := range policies.Items {
 		// Ignore the policies that don't have a latest image.
-		if policy.Status.LatestImage == "" {
+		if policy.Status.LatestRef == nil {
 			continue
 		}
 		readyPolicies = append(readyPolicies, policy)
 	}
 
 	return readyPolicies, nil
-}
-
-// observedPolicies takes a list of ImagePolicies and returns an
-// ObservedPolicies with all the policies in it.
-func observedPolicies(policies []imagev1_reflect.ImagePolicy) (imagev1.ObservedPolicies, error) {
-	observedPolicies := imagev1.ObservedPolicies{}
-	for _, policy := range policies {
-		name, tag := splitByLastColon(policy.Status.LatestImage)
-		if name == "" || tag == "" {
-			return nil, fmt.Errorf("failed parsing image: %s", policy.Status.LatestImage)
-		}
-		observedPolicies[policy.Name] = imagev1.ImageRef{
-			Name: name,
-			Tag:  tag,
-		}
-	}
-	return observedPolicies, nil
-}
-
-func splitByLastColon(latestImage string) (string, string) {
-	idx := strings.LastIndex(latestImage, ":")
-	if idx == -1 {
-		return latestImage, ""
-	}
-	return latestImage[:idx], latestImage[idx+1:]
 }
 
 // observedPoliciesChanged returns if the previous and current observedPolicies

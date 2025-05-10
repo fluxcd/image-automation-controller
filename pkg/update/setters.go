@@ -18,7 +18,6 @@ package update
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -31,21 +30,17 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/sets"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 
+	"github.com/fluxcd/image-automation-controller/internal/constants"
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 )
 
 const (
 	// This is preserved from setters2
 	K8sCliExtensionKey = "x-k8s-cli"
-
-	// SetterShortHand is a shorthand that can be used to mark
-	// setters; instead of
-	// # { "$ref": "#/definitions/
-	SetterShortHand = "$imagepolicy"
 )
 
 func init() {
-	fieldmeta.SetShortHandRef(SetterShortHand)
+	fieldmeta.SetShortHandRef(constants.SetterShortHand)
 	// this prevents the global schema, should it be initialised, from
 	// parsing all the Kubernetes openAPI definitions, which is not
 	// necessary.
@@ -144,7 +139,7 @@ func UpdateV2WithSetters(tracelog logr.Logger, inpath, outpath string, policies 
 			}
 			result.Files[file] = fileres
 		}
-		objres, ok := fileres.Objects[oid]
+		objres := fileres.Objects[oid]
 		for _, n := range objres {
 			if n == ref {
 				return
@@ -156,7 +151,7 @@ func UpdateV2WithSetters(tracelog logr.Logger, inpath, outpath string, policies 
 
 	defs := map[string]spec.Schema{}
 	for _, policy := range policies {
-		if policy.Status.LatestImage == "" {
+		if policy.Status.LatestRef == nil {
 			continue
 		}
 		// Using strict validation would mean any image that omits the
@@ -165,10 +160,10 @@ func UpdateV2WithSetters(tracelog logr.Logger, inpath, outpath string, policies 
 		// filled in. Usually this would mean the tag would end up
 		// being `latest` if empty in the input; but I'm assuming here
 		// that the policy won't have a tagless ref.
-		image := policy.Status.LatestImage
+		image := policy.Status.LatestRef.String()
 		r, err := name.ParseReference(image, name.WeakValidation)
 		if err != nil {
-			return ResultV2{}, fmt.Errorf("encountered invalid image ref %q: %w", policy.Status.LatestImage, err)
+			return ResultV2{}, fmt.Errorf("encountered invalid image ref %q: %w", image, err)
 		}
 		ref := imageRef{
 			Reference: r,
@@ -178,15 +173,13 @@ func UpdateV2WithSetters(tracelog logr.Logger, inpath, outpath string, policies 
 			},
 		}
 
-		tag := ref.Identifier()
-		// annoyingly, neither the library imported above, nor an
-		// alternative I found, will yield the original image name;
-		// this is an easy way to get it
-		name := strings.TrimSuffix(image, ":"+tag)
+		tag := policy.Status.LatestRef.Tag
+		name := policy.Status.LatestRef.Name
+		digest := policy.Status.LatestRef.Digest
 
 		imageSetter := fmt.Sprintf("%s:%s", policy.GetNamespace(), policy.GetName())
 		tracelog.Info("adding setter", "name", imageSetter)
-		defs[fieldmeta.SetterDefinitionPrefix+imageSetter] = setterSchema(imageSetter, policy.Status.LatestImage)
+		defs[fieldmeta.SetterDefinitionPrefix+imageSetter] = setterSchema(imageSetter, image)
 		imageRefs[imageSetter] = ref
 
 		tagSetter := imageSetter + ":tag"
@@ -194,11 +187,15 @@ func UpdateV2WithSetters(tracelog logr.Logger, inpath, outpath string, policies 
 		defs[fieldmeta.SetterDefinitionPrefix+tagSetter] = setterSchema(tagSetter, tag)
 		imageRefs[tagSetter] = ref
 
-		// Context().Name() gives the image repository _as supplied_
 		nameSetter := imageSetter + ":name"
 		tracelog.Info("adding setter", "name", nameSetter)
 		defs[fieldmeta.SetterDefinitionPrefix+nameSetter] = setterSchema(nameSetter, name)
 		imageRefs[nameSetter] = ref
+
+		digestSetter := imageSetter + ":digest"
+		tracelog.Info("adding setter", "name", digestSetter)
+		defs[fieldmeta.SetterDefinitionPrefix+digestSetter] = setterSchema(digestSetter, digest)
+		imageRefs[digestSetter] = ref
 	}
 
 	settersSchema.Definitions = defs
@@ -206,7 +203,7 @@ func UpdateV2WithSetters(tracelog logr.Logger, inpath, outpath string, policies 
 	// get ready with the reader and writer
 	reader := &ScreeningLocalReader{
 		Path:  inpath,
-		Token: fmt.Sprintf("%q", SetterShortHand),
+		Token: fmt.Sprintf("%q", constants.SetterShortHand),
 		Trace: tracelog,
 	}
 	writer := &kio.LocalPackageWriter{

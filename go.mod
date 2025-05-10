@@ -16,7 +16,7 @@ require (
 	github.com/ProtonMail/go-crypto v1.2.0
 	github.com/cyphar/filepath-securejoin v0.4.1
 	github.com/fluxcd/image-automation-controller/api v0.40.0
-	github.com/fluxcd/image-reflector-controller/api v0.34.0
+	github.com/fluxcd/image-reflector-controller/api v0.34.1-0.20250512083550-1c69ffe07af4
 	github.com/fluxcd/pkg/apis/acl v0.7.0
 	github.com/fluxcd/pkg/apis/event v0.17.0
 	github.com/fluxcd/pkg/apis/meta v1.11.0
