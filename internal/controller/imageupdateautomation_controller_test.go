@@ -1532,7 +1532,7 @@ func Test_getPolicies(t *testing.T) {
 				aPolicy.Name = p.name
 				aPolicy.Namespace = p.namespace
 				aPolicy.Status = imagev1_reflect.ImagePolicyStatus{
-					LatestImage: p.latestImage,
+					LatestRef: testutil.ImageToRef(p.latestImage),
 				}
 				aPolicy.Labels = p.labels
 				testObjects = append(testObjects, aPolicy)
@@ -1551,65 +1551,6 @@ func Test_getPolicies(t *testing.T) {
 				resultPolicyNames = append(resultPolicyNames, r.Name)
 			}
 			g.Expect(resultPolicyNames).To(ContainElements(tt.wantPolicies))
-		})
-	}
-}
-
-func Test_observedPolicies(t *testing.T) {
-	tests := []struct {
-		name            string
-		policyWithImage map[string]string
-		want            imagev1.ObservedPolicies
-		wantErr         bool
-	}{
-		{
-			name: "good policies",
-			policyWithImage: map[string]string{
-				"p1": "aaa:bbb",
-				"p2": "ccc:ddd",
-				"p3": "eee:latest",
-				"p4": "registry.localhost:5000/sample-web:0.1.0",
-			},
-			want: imagev1.ObservedPolicies{
-				"p1": imagev1.ImageRef{Name: "aaa", Tag: "bbb"},
-				"p2": imagev1.ImageRef{Name: "ccc", Tag: "ddd"},
-				"p3": imagev1.ImageRef{Name: "eee", Tag: "latest"},
-				"p4": imagev1.ImageRef{Name: "registry.localhost:5000/sample-web", Tag: "0.1.0"},
-			},
-		},
-		{
-			name: "bad policy image with no tag",
-			policyWithImage: map[string]string{
-				"p1": "aaa",
-			},
-			wantErr: true,
-		},
-		{
-			name: "no policy",
-			want: imagev1.ObservedPolicies{},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g := NewWithT(t)
-
-			policies := []imagev1_reflect.ImagePolicy{}
-			for name, image := range tt.policyWithImage {
-				aPolicy := imagev1_reflect.ImagePolicy{}
-				aPolicy.Name = name
-				aPolicy.Status = imagev1_reflect.ImagePolicyStatus{
-					LatestImage: image,
-				}
-				policies = append(policies, aPolicy)
-			}
-
-			result, err := observedPolicies(policies)
-			if (err != nil) != tt.wantErr {
-				g.Fail(fmt.Sprintf("unexpected error: %v", err))
-			}
-			if err == nil {
-				g.Expect(result).To(Equal(tt.want))
-			}
 		})
 	}
 }
@@ -1902,7 +1843,7 @@ func createImagePolicyWithLatestImageForSpec(ctx context.Context, kClient client
 		return err
 	}
 	patch := client.MergeFrom(policy.DeepCopy())
-	policy.Status.LatestImage = latest
+	policy.Status.LatestRef = testutil.ImageToRef(latest)
 	return kClient.Status().Patch(ctx, policy, patch)
 }
 
@@ -1916,7 +1857,7 @@ func updateImagePolicyWithLatestImage(ctx context.Context, kClient client.Client
 		return err
 	}
 	patch := client.MergeFrom(policy.DeepCopy())
-	policy.Status.LatestImage = latest
+	policy.Status.LatestRef = testutil.ImageToRef(latest)
 	return kClient.Status().Patch(ctx, policy, patch)
 }
 
