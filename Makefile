@@ -27,7 +27,11 @@ SOURCE_VER ?= $(shell go list -m github.com/fluxcd/source-controller/api | awk '
 
 # Version of the image-reflector-controller from which to get the ImagePolicy CRD.
 # Pulls image-reflector-controller/api's version set in go.mod.
-REFLECTOR_VER ?= $(shell go list -m github.com/fluxcd/image-reflector-controller/api | awk '{print $$2}')
+# If the version has hyphens, it's assumed to be a non-released version
+# and the part after the last hyphen is assumed to be a commit hash,
+# which is used to fetch the CRD from the repository in this case.
+# Otherwise the whole version is used.
+REFLECTOR_VER ?= $(shell go list -m github.com/fluxcd/image-reflector-controller/api | awk '{ n = split($$2, a, "-"); print a[n] }')
 
 # Repository root based on Git metadata.
 REPOSITORY_ROOT := $(shell git rev-parse --show-toplevel)

@@ -35,24 +35,24 @@ func Test_latestImageChangePredicate_Update(t *testing.T) {
 		{
 			name: "no latest image",
 			beforeFunc: func(oldObj, newObj *imagev1_reflect.ImagePolicy) {
-				oldObj.Status.LatestImage = ""
-				newObj.Status.LatestImage = ""
+				oldObj.Status.LatestRef = nil
+				newObj.Status.LatestRef = nil
 			},
 			want: false,
 		},
 		{
 			name: "new image, no old image",
 			beforeFunc: func(oldObj, newObj *imagev1_reflect.ImagePolicy) {
-				oldObj.Status.LatestImage = ""
-				newObj.Status.LatestImage = "foo"
+				oldObj.Status.LatestRef = nil
+				newObj.Status.LatestRef = &imagev1_reflect.ImageRef{Name: "foo"}
 			},
 			want: true,
 		},
 		{
 			name: "different old and new image",
 			beforeFunc: func(oldObj, newObj *imagev1_reflect.ImagePolicy) {
-				oldObj.Status.LatestImage = "bar"
-				newObj.Status.LatestImage = "foo"
+				oldObj.Status.LatestRef = &imagev1_reflect.ImageRef{Name: "bar"}
+				newObj.Status.LatestRef = &imagev1_reflect.ImageRef{Name: "foo"}
 			},
 			want: true,
 		},

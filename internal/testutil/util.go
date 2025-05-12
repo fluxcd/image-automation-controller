@@ -24,6 +24,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
@@ -43,7 +44,8 @@ import (
 
 	"github.com/fluxcd/pkg/gittestserver"
 
-	"github.com/fluxcd/image-automation-controller/pkg/update"
+	"github.com/fluxcd/image-automation-controller/internal/constants"
+	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 )
 
 const (
@@ -80,7 +82,7 @@ func ReplaceMarkerWithMarker(path string, policyKey types.NamespacedName, marker
 }
 
 func setterRef(name types.NamespacedName) string {
-	return fmt.Sprintf(`{"%s": "%s:%s"}`, update.SetterShortHand, name.Namespace, name.Name)
+	return fmt.Sprintf(`{"%s": "%s:%s"}`, constants.SetterShortHand, name.Namespace, name.Name)
 }
 
 func CommitInRepo(ctx context.Context, g *WithT, repoURL, branch, remote, msg string, changeFiles func(path string)) plumbing.Hash {
@@ -455,4 +457,24 @@ func GetSigningKeyPair(g *WithT, passphrase string) (*openpgp.Entity, []byte) {
 	}
 
 	return pgpEntity, b.Bytes()
+}
+
+func ImageToRef(image string) *imagev1_reflect.ImageRef {
+	var digest string
+
+	if idx := strings.LastIndex(image, "@"); idx != -1 {
+		image, digest = image[:idx], image[idx+1:]
+	}
+
+	var tag string
+
+	if idx := strings.LastIndex(image, ":"); idx != -1 {
+		image, tag = image[:idx], image[idx+1:]
+	}
+
+	return &imagev1_reflect.ImageRef{
+		Name:   image,
+		Tag:    tag,
+		Digest: digest,
+	}
 }
