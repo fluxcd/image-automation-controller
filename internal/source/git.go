@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/fluxcd/pkg/auth"
+	authutils "github.com/fluxcd/pkg/auth/utils"
 	"github.com/fluxcd/pkg/cache"
 	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/git/github"
@@ -183,41 +184,58 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 		return nil, fmt.Errorf("failed to configure authentication options: %w", err)
 	}
 
-	var authOpts []auth.Option
+	var getCreds func() (*authutils.GitCredentials, error)
+	switch provider := repo.GetProvider(); provider {
+	case sourcev1.GitProviderAzure: // If AWS or GCP are added in the future they can be added here separated by a comma.
+		getCreds = func() (*authutils.GitCredentials, error) {
+			var opts []auth.Option
 
-	if srcOpts.tokenCache != nil {
-		involvedObject := cache.InvolvedObject{
-			Kind:      imagev1.ImageUpdateAutomationKind,
-			Name:      srcOpts.objName,
-			Namespace: srcOpts.objNamespace,
-			Operation: cache.OperationReconcile,
-		}
-		authOpts = append(authOpts, auth.WithCache(*srcOpts.tokenCache, involvedObject))
-	}
+			if srcOpts.tokenCache != nil {
+				involvedObject := cache.InvolvedObject{
+					Kind:      imagev1.ImageUpdateAutomationKind,
+					Name:      srcOpts.objName,
+					Namespace: srcOpts.objNamespace,
+					Operation: cache.OperationReconcile,
+				}
+				opts = append(opts, auth.WithCache(*srcOpts.tokenCache, involvedObject))
+			}
 
-	if proxyURL != nil {
-		authOpts = append(authOpts, auth.WithProxyURL(*proxyURL))
-	}
+			if proxyURL != nil {
+				opts = append(opts, auth.WithProxyURL(*proxyURL))
+			}
 
-	switch repo.GetProvider() {
-	case sourcev1.GitProviderAzure:
-		opts.ProviderOpts = &git.ProviderOptions{
-			Name:     sourcev1.GitProviderAzure,
-			AuthOpts: authOpts,
+			return authutils.GetGitCredentials(ctx, provider, opts...)
 		}
 	case sourcev1.GitProviderGitHub:
 		// if provider is github, but secret ref is not specified
 		if repo.Spec.SecretRef == nil {
 			return nil, fmt.Errorf("secretRef with github app data must be specified when provider is set to github: %w", ErrInvalidSourceConfiguration)
 		}
-		opts.ProviderOpts = &git.ProviderOptions{
-			Name: sourcev1.GitProviderGitHub,
-			GitHubOpts: []github.OptFunc{
-				github.WithAppData(data),
-				github.WithProxyURL(proxyURL),
-				github.WithCache(srcOpts.tokenCache, imagev1.ImageUpdateAutomationKind,
-					srcOpts.objName, srcOpts.objNamespace, cache.OperationReconcile),
-			},
+
+		getCreds = func() (*authutils.GitCredentials, error) {
+			var opts []github.OptFunc
+
+			if len(data) > 0 {
+				opts = append(opts, github.WithAppData(data))
+			}
+
+			if proxyURL != nil {
+				opts = append(opts, github.WithProxyURL(proxyURL))
+			}
+
+			if srcOpts.tokenCache != nil {
+				opts = append(opts, github.WithCache(srcOpts.tokenCache, imagev1.ImageUpdateAutomationKind,
+					srcOpts.objName, srcOpts.objNamespace, cache.OperationReconcile))
+			}
+
+			username, password, err := github.GetCredentials(ctx, opts...)
+			if err != nil {
+				return nil, err
+			}
+			return &authutils.GitCredentials{
+				Username: username,
+				Password: password,
+			}, nil
 		}
 	default:
 		// analyze secret, if it has github app data, perhaps provider should have been github.
@@ -225,7 +243,15 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 			return nil, fmt.Errorf("secretRef '%s/%s' has github app data but provider is not set to github: %w", repo.GetNamespace(), repo.Spec.SecretRef.Name, ErrInvalidSourceConfiguration)
 		}
 	}
-
+	if getCreds != nil {
+		creds, err := getCreds()
+		if err != nil {
+			return nil, fmt.Errorf("failed to configure authentication options: %w", err)
+		}
+		opts.BearerToken = creds.BearerToken
+		opts.Username = creds.Username
+		opts.Password = creds.Password
+	}
 	return opts, nil
 }
 

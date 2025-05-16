@@ -18,7 +18,6 @@ package source
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"testing"
@@ -143,12 +142,11 @@ func Test_getAuthOpts(t *testing.T) {
 
 func Test_getAuthOpts_providerAuth(t *testing.T) {
 	tests := []struct {
-		name                 string
-		url                  string
-		secret               *corev1.Secret
-		beforeFunc           func(obj *sourcev1.GitRepository)
-		wantProviderOptsName string
-		wantErr              error
+		name       string
+		url        string
+		secret     *corev1.Secret
+		beforeFunc func(obj *sourcev1.GitRepository)
+		wantErr    string
 	}{
 		{
 			name: "azure provider",
@@ -156,7 +154,7 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 			beforeFunc: func(obj *sourcev1.GitRepository) {
 				obj.Spec.Provider = sourcev1.GitProviderAzure
 			},
-			wantProviderOptsName: sourcev1.GitProviderAzure,
+			wantErr: "ManagedIdentityCredential",
 		},
 		{
 			name: "github provider with no secret ref",
@@ -164,8 +162,7 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 			beforeFunc: func(obj *sourcev1.GitRepository) {
 				obj.Spec.Provider = sourcev1.GitProviderGitHub
 			},
-			wantProviderOptsName: sourcev1.GitProviderGitHub,
-			wantErr:              errors.New("secretRef with github app data must be specified when provider is set to github: invalid source configuration"),
+			wantErr: "secretRef with github app data must be specified when provider is set to github: invalid source configuration",
 		},
 		{
 			name: "github provider with secret ref that does not exist",
@@ -176,7 +173,7 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 					Name: "githubAppSecret",
 				}
 			},
-			wantErr: errors.New("failed to get auth secret '/githubAppSecret': secrets \"githubAppSecret\" not found"),
+			wantErr: "failed to get auth secret '/githubAppSecret': secrets \"githubAppSecret\" not found",
 		},
 		{
 			name: "github provider with github app data in secret",
@@ -197,7 +194,7 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 					Name: "githubAppSecret",
 				}
 			},
-			wantProviderOptsName: sourcev1.GitProviderGitHub,
+			wantErr: "Key must be a PEM encoded PKCS1 or PKCS8 key",
 		},
 		{
 			name: "generic provider with github app data in secret",
@@ -216,7 +213,7 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 					Name: "githubAppSecret",
 				}
 			},
-			wantErr: errors.New("secretRef '/githubAppSecret' has github app data but provider is not set to github: invalid source configuration"),
+			wantErr: "secretRef '/githubAppSecret' has github app data but provider is not set to github: invalid source configuration",
 		},
 		{
 			name: "generic provider",
@@ -251,20 +248,19 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 			if tt.beforeFunc != nil {
 				tt.beforeFunc(obj)
 			}
-			opts, err := getAuthOpts(context.TODO(), c, obj, SourceOptions{}, nil)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			opts, err := getAuthOpts(ctx, c, obj, SourceOptions{}, nil)
 
-			if tt.wantErr != nil {
+			if tt.wantErr != "" {
 				g.Expect(err).To(HaveOccurred())
-				g.Expect(err.Error()).To(ContainSubstring(tt.wantErr.Error()))
+				g.Expect(err.Error()).To(ContainSubstring(tt.wantErr))
 			} else {
 				g.Expect(err).ToNot(HaveOccurred())
 				g.Expect(opts).ToNot(BeNil())
-				if tt.wantProviderOptsName != "" {
-					g.Expect(opts.ProviderOpts).ToNot(BeNil())
-					g.Expect(opts.ProviderOpts.Name).To(Equal(tt.wantProviderOptsName))
-				} else {
-					g.Expect(opts.ProviderOpts).To(BeNil())
-				}
+				g.Expect(opts.BearerToken).To(BeEmpty())
+				g.Expect(opts.Username).To(BeEmpty())
+				g.Expect(opts.Password).To(BeEmpty())
 			}
 		})
 	}
