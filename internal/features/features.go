@@ -19,7 +19,10 @@ limitations under the License.
 // states.
 package features
 
-import feathelper "github.com/fluxcd/pkg/runtime/features"
+import (
+	"github.com/fluxcd/pkg/auth"
+	feathelper "github.com/fluxcd/pkg/runtime/features"
+)
 
 const (
 	// GitForcePushBranch enables the use of "force push" when push branches
@@ -55,6 +58,10 @@ var features = map[string]bool{
 	// CacheSecretsAndConfigMaps
 	// opt-in from v0.29
 	CacheSecretsAndConfigMaps: false,
+}
+
+func init() {
+	auth.SetFeatureGates(features)
 }
 
 // FeatureGates contains a list of all supported feature gates and
