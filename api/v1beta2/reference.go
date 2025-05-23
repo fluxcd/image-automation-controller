@@ -16,7 +16,9 @@ limitations under the License.
 
 package v1beta2
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // CrossNamespaceSourceReference contains enough information to let you locate the
 // typed Kubernetes resource object at cluster level.
@@ -55,10 +57,15 @@ type ImageRef struct {
 	// Tag is the image's tag.
 	// +required
 	Tag string `json:"tag"`
+	// Digest is the image's digest.
+	// +optional
+	Digest string `json:"digest,omitempty"`
 }
 
-// String combines the components of ImageRef to construct a string
-// representation of the image reference.
-func (r ImageRef) String() string {
-	return r.Name + ":" + r.Tag
+func (in *ImageRef) String() string {
+	res := in.Name + ":" + in.Tag
+	if in.Digest != "" {
+		res += "@" + in.Digest
+	}
+	return res
 }
