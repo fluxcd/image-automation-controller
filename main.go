@@ -35,6 +35,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	"github.com/fluxcd/pkg/auth"
 	cache "github.com/fluxcd/pkg/cache"
 	"github.com/fluxcd/pkg/runtime/acl"
 	"github.com/fluxcd/pkg/runtime/client"
@@ -59,9 +60,6 @@ import (
 
 const (
 	controllerName = "image-automation-controller"
-
-	// recoverPanic indicates whether panic caused by reconciles should be recovered.
-	recoverPanic = true
 )
 
 var (
@@ -124,6 +122,14 @@ func main() {
 	if err != nil {
 		setupLog.Error(err, "unable to load feature gates")
 		os.Exit(1)
+	}
+
+	switch enabled, err := features.Enabled(auth.FeatureGateObjectLevelWorkloadIdentity); {
+	case err != nil:
+		setupLog.Error(err, "unable to check feature gate "+auth.FeatureGateObjectLevelWorkloadIdentity)
+		os.Exit(1)
+	case enabled:
+		auth.EnableObjectLevelWorkloadIdentity()
 	}
 
 	watchNamespace := ""
