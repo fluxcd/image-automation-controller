@@ -200,6 +200,9 @@ for authentication using `GitRepository.spec.provider` field. Image automation
 controller can be configured to authenticate using the provider as described
 below.
 
+For a complete guide on how to set up authentication for cloud providers,
+see the integration [docs](/flux/integrations/).
+
 ##### Azure
 
 If the provider is set to `azure`, make sure the
