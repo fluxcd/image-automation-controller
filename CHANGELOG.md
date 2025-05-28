@@ -1,5 +1,64 @@
 # Changelog
 
+## 0.41.0
+
+**Release date:** 2025-05-28
+
+This prerelease comes with support for updating image digests, for
+configuring mTLS with HTTPS Git repositories, and with caching Git
+provider access tokens.
+
+ImagePolicy API now supports reflecting image digests in-cluster. By
+integrating with this feature the ImageUpdateAutomation API can now
+update image digests in YAML manifests. See this
+[guide](https://fluxcd.io/flux/guides/image-update/#digest-pinning)
+for more details.
+
+The controller now caches Git provider access tokens by default.
+This behavior can be disabled or fine-tuned by adjusting the
+token cache controller flags (see
+[docs](https://fluxcd.io/flux/components/image/options/#image-automation-flags)).
+The token cache also exposes metrics that are documented
+[here](https://fluxcd.io/flux/monitoring/metrics/#controller-metrics).
+
+For configuring mTLS with HTTPS Git repositories see the GitRepository
+[docs](https://fluxcd.io/flux/components/source/gitrepositories/#secret-reference).
+
+In addition, the Kubernetes dependencies have been updated to v1.33
+and various other controller dependencies have been updated to their latest
+version. The controller is now built with Go 1.24.
+
+Fixes:
+- Fix tag parsing logic misinterpreting host:port registry url
+  [#893](https://github.com/fluxcd/image-automation-controller/pull/893)
+
+Improvements:
+- Update digest of latest image
+  [#902](https://github.com/fluxcd/image-automation-controller/pull/902)
+- Introduce token cache for Git provider access tokens
+  [#861](https://github.com/fluxcd/image-automation-controller/pull/861)
+  [#895](https://github.com/fluxcd/image-automation-controller/pull/895)
+  [#897](https://github.com/fluxcd/image-automation-controller/pull/897)
+- Add support for mutual TLS to Git HTTP/S operations
+  [#886](https://github.com/fluxcd/image-automation-controller/pull/886)
+- Support for all recognized Kustomize config file names
+  [#864](https://github.com/fluxcd/image-automation-controller/pull/864)
+- Various dependency updates
+  [#916](https://github.com/fluxcd/image-automation-controller/pull/916)
+  [#908](https://github.com/fluxcd/image-automation-controller/pull/908)
+  [#900](https://github.com/fluxcd/image-automation-controller/pull/900)
+  [#896](https://github.com/fluxcd/image-automation-controller/pull/896)
+  [#898](https://github.com/fluxcd/image-automation-controller/pull/898)
+  [#891](https://github.com/fluxcd/image-automation-controller/pull/891)
+  [#890](https://github.com/fluxcd/image-automation-controller/pull/890)
+  [#881](https://github.com/fluxcd/image-automation-controller/pull/881)
+  [#880](https://github.com/fluxcd/image-automation-controller/pull/880)
+  [#878](https://github.com/fluxcd/image-automation-controller/pull/878)
+  [#856](https://github.com/fluxcd/image-automation-controller/pull/856)
+  [#854](https://github.com/fluxcd/image-automation-controller/pull/854)
+  [#852](https://github.com/fluxcd/image-automation-controller/pull/852)
+  [#850](https://github.com/fluxcd/image-automation-controller/pull/850)
+
 ## 0.40.0
 
 **Release date:** 2025-02-14
