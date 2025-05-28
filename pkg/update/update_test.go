@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 
+	"github.com/fluxcd/image-automation-controller/internal/testutil"
 	"github.com/fluxcd/image-automation-controller/pkg/test"
 	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 )
@@ -35,21 +36,30 @@ func TestUpdateWithSetters(t *testing.T) {
 
 	policies := []imagev1_reflect.ImagePolicy{
 		{
-			ObjectMeta: metav1.ObjectMeta{ // name matches marker used in testdata/setters/{original,expected}
+			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "automation-ns",
 				Name:      "policy",
 			},
 			Status: imagev1_reflect.ImagePolicyStatus{
-				LatestImage: "index.repo.fake/updated:v1.0.1",
+				LatestRef: testutil.ImageToRef("index.repo.fake/updated:v1.0.1"),
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{ // name matches marker used in testdata/setters/{original,expected}
+			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "automation-ns",
 				Name:      "unchanged",
 			},
 			Status: imagev1_reflect.ImagePolicyStatus{
-				LatestImage: "image:v1.0.0",
+				LatestRef: testutil.ImageToRef("image:v1.0.0"),
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "automation-ns",
+				Name:      "policy-with-digest",
+			},
+			Status: imagev1_reflect.ImagePolicyStatus{
+				LatestRef: testutil.ImageToRef("image:v1.0.0@sha256:6745aaad46d795c9836632e1fb62f24b7e7f4c843144da8e47a5465c411a14be"),
 			},
 		},
 	}
@@ -75,9 +85,16 @@ func TestUpdateWithSetters(t *testing.T) {
 			Name:      "foo",
 		},
 	}}
+
 	r, _ := name.ParseReference("index.repo.fake/updated:v1.0.1")
 	expectedImageRef := imageRef{r, types.NamespacedName{
 		Name:      "policy",
+		Namespace: "automation-ns",
+	}}
+
+	r, _ = name.ParseReference("image:v1.0.0@sha256:6745aaad46d795c9836632e1fb62f24b7e7f4c843144da8e47a5465c411a14be")
+	expectedImageRefDigest := imageRef{r, types.NamespacedName{
+		Name:      "policy-with-digest",
 		Namespace: "automation-ns",
 	}}
 
@@ -87,6 +104,7 @@ func TestUpdateWithSetters(t *testing.T) {
 				Objects: map[ObjectIdentifier][]ImageRef{
 					kustomizeResourceID: {
 						expectedImageRef,
+						expectedImageRefDigest,
 					},
 				},
 			},
@@ -129,6 +147,16 @@ func TestUpdateWithSetters(t *testing.T) {
 						OldValue: "v1",
 						NewValue: "v1.0.1",
 						Setter:   "automation-ns:policy:tag",
+					},
+					{
+						OldValue: "sha256:1234567890abcdef",
+						NewValue: "sha256:6745aaad46d795c9836632e1fb62f24b7e7f4c843144da8e47a5465c411a14be",
+						Setter:   "automation-ns:policy-with-digest:digest",
+					},
+					{
+						OldValue: "image",
+						NewValue: "image:v1.0.0@sha256:6745aaad46d795c9836632e1fb62f24b7e7f4c843144da8e47a5465c411a14be",
+						Setter:   "automation-ns:policy-with-digest",
 					},
 				},
 			},

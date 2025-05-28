@@ -124,7 +124,7 @@ func Test_applyPolicies(t *testing.T) {
 				policy.Name = name
 				policy.Namespace = testNS
 				policy.Status = imagev1_reflect.ImagePolicyStatus{
-					LatestImage: image,
+					LatestRef: testutil.ImageToRef(image),
 				}
 				policyList = append(policyList, *policy)
 			}

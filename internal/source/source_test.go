@@ -640,7 +640,7 @@ Testing: value
 			imgPolicy.Name = "policy1"
 			imgPolicy.Namespace = testNS
 			imgPolicy.Status = imagev1_reflect.ImagePolicyStatus{
-				LatestImage: tt.latestImage,
+				LatestRef: testutil.ImageToRef(tt.latestImage),
 			}
 			testObjects = append(testObjects, imgPolicy)
 			policyKey := client.ObjectKeyFromObject(imgPolicy)
@@ -865,7 +865,7 @@ func test_pushBranchUpdateScenarios(t *testing.T, proto string, srcOpts []Source
 	imgPolicy.Name = "policy1"
 	imgPolicy.Namespace = testNS
 	imgPolicy.Status = imagev1_reflect.ImagePolicyStatus{
-		LatestImage: latestImage,
+		LatestRef: testutil.ImageToRef(latestImage),
 	}
 	testObjects = append(testObjects, imgPolicy)
 	// Take the policyKey to update the setter marker with.
@@ -966,7 +966,7 @@ func test_pushBranchUpdateScenarios(t *testing.T, proto string, srcOpts []Source
 
 	// Update latest image.
 	latestImage = "helloworld:v1.3.0"
-	imgPolicy.Status.LatestImage = latestImage
+	imgPolicy.Status.LatestRef = testutil.ImageToRef(latestImage)
 	g.Expect(kClient.Update(ctx, imgPolicy)).To(Succeed())
 
 	policies = []imagev1_reflect.ImagePolicy{*imgPolicy}
@@ -1014,7 +1014,7 @@ func test_pushBranchUpdateScenarios(t *testing.T, proto string, srcOpts []Source
 
 	// Update latest image.
 	latestImage = "helloworld:v1.3.1"
-	imgPolicy.Status.LatestImage = latestImage
+	imgPolicy.Status.LatestRef = testutil.ImageToRef(latestImage)
 	g.Expect(kClient.Update(ctx, imgPolicy)).To(Succeed())
 
 	policies = []imagev1_reflect.ImagePolicy{*imgPolicy}

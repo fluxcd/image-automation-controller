@@ -53,7 +53,11 @@ func (latestImageChangePredicate) Update(e event.UpdateEvent) bool {
 		return false
 	}
 
-	if oldSource.Status.LatestImage != newSource.Status.LatestImage {
+	if newSource.Status.LatestRef == nil {
+		return false
+	}
+
+	if oldSource.Status.LatestRef == nil || *oldSource.Status.LatestRef != *newSource.Status.LatestRef {
 		return true
 	}
 
