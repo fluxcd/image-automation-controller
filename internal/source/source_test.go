@@ -222,13 +222,14 @@ func TestSourceManager_CheckoutSource(t *testing.T) {
 
 func test_sourceManager_CheckoutSource(t *testing.T, proto string) {
 	tests := []struct {
-		name         string
-		autoGitSpec  *imagev1.GitSpec
-		gitRepoRef   *sourcev1.GitRepositoryRef
-		shallowClone bool
-		lastObserved bool
-		wantErr      bool
-		wantRef      string
+		name                    string
+		autoGitSpec             *imagev1.GitSpec
+		gitRepoRef              *sourcev1.GitRepositoryRef
+		shallowClone            bool
+		sparseCheckoutDirectory string
+		lastObserved            bool
+		wantErr                 bool
+		wantRef                 string
 	}{
 		{
 			name: "checkout for single branch",
@@ -274,6 +275,42 @@ func test_sourceManager_CheckoutSource(t *testing.T, proto string) {
 			shallowClone: true,
 			wantErr:      false,
 			wantRef:      "main",
+		},
+		{
+			name: "with sparse checkout",
+			autoGitSpec: &imagev1.GitSpec{
+				Push: &imagev1.PushSpec{Branch: "main"},
+				Checkout: &imagev1.GitCheckoutSpec{
+					Reference: sourcev1.GitRepositoryRef{Branch: "main"},
+				},
+			},
+			sparseCheckoutDirectory: "testdata/appconfig/deploy.yaml",
+			wantErr:                 false,
+			wantRef:                 "main",
+		},
+		{
+			name: "with sparse checkout for current directory",
+			autoGitSpec: &imagev1.GitSpec{
+				Push: &imagev1.PushSpec{Branch: "main"},
+				Checkout: &imagev1.GitCheckoutSpec{
+					Reference: sourcev1.GitRepositoryRef{Branch: "main"},
+				},
+			},
+			sparseCheckoutDirectory: "./",
+			wantErr:                 false,
+			wantRef:                 "main",
+		},
+		{
+			name: "with sparse checkout for different push branch",
+			autoGitSpec: &imagev1.GitSpec{
+				Push: &imagev1.PushSpec{Branch: "foo"},
+				Checkout: &imagev1.GitCheckoutSpec{
+					Reference: sourcev1.GitRepositoryRef{Branch: "main"},
+				},
+			},
+			sparseCheckoutDirectory: "testdata/appconfig/deploy.yaml",
+			wantErr:                 false,
+			wantRef:                 "foo",
 		},
 		{
 			name: "with last observed commit",
@@ -385,6 +422,9 @@ func test_sourceManager_CheckoutSource(t *testing.T, proto string) {
 			opts := []CheckoutOption{}
 			if tt.shallowClone {
 				opts = append(opts, WithCheckoutOptionShallowClone())
+			}
+			if tt.sparseCheckoutDirectory != "" {
+				opts = append(opts, WithCheckoutOptionSparseCheckoutDirectories(tt.sparseCheckoutDirectory))
 			}
 			if tt.lastObserved {
 				opts = append(opts, WithCheckoutOptionLastObserved(headRev))
