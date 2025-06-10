@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 	"time"
@@ -193,6 +194,14 @@ func WithCheckoutOptionLastObserved(commit string) CheckoutOption {
 func WithCheckoutOptionShallowClone() CheckoutOption {
 	return func(cc *repository.CloneConfig) {
 		cc.ShallowClone = true
+	}
+}
+
+// WithCheckoutOptionRecurseSubmodules is a CheckoutOption option to configure
+// SparseCheckoutDirectories.
+func WithCheckoutOptionSparseCheckoutDirectories(updatePath string) CheckoutOption {
+	return func(cc *repository.CloneConfig) {
+		cc.SparseCheckoutDirectories = []string{filepath.Clean(updatePath)}
 	}
 }
 
