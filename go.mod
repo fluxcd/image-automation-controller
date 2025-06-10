@@ -4,6 +4,10 @@ go 1.24.0
 
 replace github.com/fluxcd/image-automation-controller/api => ./api
 
+// Pin go-git to fix SSH knownhosts key mismatch regression bug
+// xref: https://github.com/fluxcd/flux2/issues/5385
+replace github.com/go-git/go-git/v5 => github.com/go-git/go-git/v5 v5.16.3-0.20250610123634-8ac015a75d81
+
 // Pin kustomize to v5.6.0
 replace (
 	sigs.k8s.io/kustomize/api => sigs.k8s.io/kustomize/api v0.19.0
