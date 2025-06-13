@@ -558,7 +558,13 @@ destination reference. An example of a valid refspec is
 If both `.push.refspec` and `.push.branch` are specified, then the reconciler
 will push to both the destinations. This is particularly useful for working with
 Gerrit servers. For more information about this, please refer to the
-[Gerrit](#gerrit) section. 
+[Gerrit](#gerrit) section. This can also be used to automatically open
+Pull-Requests in Gitea or Forgejo. See the [Gitea](#gitea) section for
+an example.
+
+If only `.push.refspec` is set, without explicitly defining a `.push.branch`, the
+controller falls back to pushing to the branch from `checkoutRef` and *also*
+pushes to `.push.refspec`.
 
 **Note:** If both `.push.refspec` and `.push.branch` are essentially equal to
 each other (for e.g.: `.push.refspec: refs/heads/main:refs/heads/main` and
@@ -957,6 +963,42 @@ tags. If the controller introduces a new file or modifies a previously updated
 image tag to a different one, it leads to a distinct Change-Id for the commit.
 Consequently, this action will trigger the creation of an additional Change,
 even when an existing Change containing outdated modifications remains open.
+
+#### Gitea
+
+[Gitea](https://docs.gitea.com/usage/agit) and [Forgejo](https://forgejo.org/docs/latest/user/agit-support/) each implement the AGit-Workflow.
+This means, the image-automation-controller is able to open a pull-request by
+pushing to a `refspec` like `HEAD:refs/for/main` with the apropriate [push-options](#push-options).
+
+The following example opens a PR on a Gitea or Forgejo-Server:
+
+```yaml
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageUpdateAutomation
+metadata:
+  name: my-automation
+  namespace: flux-system
+spec:
+  git:
+    checkout:
+      ref:
+        branch: main
+    push:
+      branch: flux-updates
+      refspec: refs/heads/flux-updates:refs/for/main
+      options:
+        topic: flux-updates
+        title: Flux Image Update
+        description: |-
+          This PR is automatically opened by the fluxcd *image-automation-controller*
+    commit:
+      author:
+        email: flux@eaample.com
+        name: fluxcd
+      messageTemplate: '{{range .Changed.Changes}}{{print .OldValue}} -> {{println
+        .NewValue}}{{end}}'
+```
+
 
 ## ImageUpdateAutomation Status
 
