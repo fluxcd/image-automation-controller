@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.41.1
+
+**Release date:** 2025-06-13
+
+This patch release comes with a fix for the `knownhosts: key mismatch` error.
+
+Fixes:
+- Fix `knownhosts key mismatch` regression bug
+  [#923](https://github.com/fluxcd/image-automation-controller/pull/923)
+- Upgrade dependencies (includes `github.com/go-git/go-git/v5` `v5.16.2`)
+  [#919](https://github.com/fluxcd/image-automation-controller/pull/919)
+
 ## 0.41.0
 
 **Release date:** 2025-05-28
