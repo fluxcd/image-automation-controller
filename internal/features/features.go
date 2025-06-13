@@ -34,6 +34,9 @@ const (
 	// GitAllBranchReferences enables the download of all branch head references
 	// when push branches are configured. When enabled fixes fluxcd/flux2#3384.
 	GitAllBranchReferences = "GitAllBranchReferences"
+	// GitSparseCheckout enables the use of sparse checkout when pulling source from
+	// Git repositories.
+	GitSparseCheckout = "GitSparseCheckout"
 	// CacheSecretsAndConfigMaps controls whether Secrets and ConfigMaps should
 	// be cached.
 	//
@@ -54,6 +57,10 @@ var features = map[string]bool{
 	// GitAllBranchReferences
 	// opt-out from v0.28
 	GitAllBranchReferences: true,
+
+	// GitSparseCheckout
+	// opt-in from v0.42
+	GitSparseCheckout: false,
 
 	// CacheSecretsAndConfigMaps
 	// opt-in from v0.29

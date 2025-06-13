@@ -396,6 +396,10 @@ func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *pat
 	if r.features[features.GitShallowClone] {
 		checkoutOpts = append(checkoutOpts, source.WithCheckoutOptionShallowClone())
 	}
+	if r.features[features.GitSparseCheckout] && obj.Spec.Update.Path != "" {
+		checkoutOpts = append(checkoutOpts, source.WithCheckoutOptionSparseCheckoutDirectories(obj.Spec.Update.Path))
+	}
+
 	// If full sync is still not needed, configure last observed commit to
 	// perform optimized clone and obtain a non-concrete commit if the remote
 	// has not changed.
