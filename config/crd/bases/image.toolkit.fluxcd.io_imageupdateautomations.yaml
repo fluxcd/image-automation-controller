@@ -328,8 +328,18 @@ spec:
     subresources:
       status: {}
   - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].message
+      name: Status
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     - jsonPath: .status.lastAutomationRunTime
       name: Last run
+      priority: 1
       type: string
     name: v1beta2
     schema:
