@@ -71,12 +71,12 @@ const (
 Automation: {{ .AutomationObject }}
 
 Files:
-{{ range $filename, $_ := .Updated.Files -}}
+{{ range $filename, $_ := .Changed.ImageResult.Files -}}
 - {{ $filename }}
 {{ end -}}
 
 Objects:
-{{ range $resource, $_ := .Updated.Objects -}}
+{{ range $resource, $_ := .Changed.ImageResult.Objects -}}
 {{ if eq $resource.Kind "Deployment" -}}
 - {{ $resource.Kind | lower }} {{ $resource.Name | lower }}
 {{ else -}}
@@ -85,7 +85,7 @@ Objects:
 {{ end -}}
 
 Images:
-{{ range .Updated.Images -}}
+{{ range .Changed.ImageResult.Images -}}
 - {{.}} ({{.Policy.Name}})
 {{ end -}}
 `
@@ -839,6 +839,97 @@ Automation: %s/update-test
 		})
 
 	}
+}
+
+// TestImageUpdateAutomationReconciler_removedTemplateField tests removed .Updated template field usage.
+func TestImageUpdateAutomationReconciler_removedTemplateField(t *testing.T) {
+	g := NewWithT(t)
+	ctx := context.TODO()
+
+	policySpec := imagev1_reflect.ImagePolicySpec{
+		ImageRepositoryRef: meta.NamespacedObjectReference{
+			Name: "not-expected-to-exist",
+		},
+		Policy: imagev1_reflect.ImagePolicyChoice{
+			SemVer: &imagev1_reflect.SemVerPolicy{
+				Range: "1.x",
+			},
+		},
+	}
+	fixture := "testdata/appconfig"
+	latest := "helloworld:v1.0.0"
+
+	removedTemplate := `Commit summary
+
+Automation: {{ .AutomationObject }}
+
+Files:
+{{ range $filename, $_ := .Updated.Files -}}
+- {{ $filename }}
+{{ end -}}
+
+Objects:
+{{ range $resource, $_ := .Updated.Objects -}}
+{{ if eq $resource.Kind "Deployment" -}}
+- {{ $resource.Kind | lower }} {{ $resource.Name | lower }}
+{{ else -}}
+- {{ $resource.Kind }} {{ $resource.Name }}
+{{ end -}}
+{{ end -}}
+
+Images:
+{{ range .Updated.Images -}}
+- {{.}} ({{.Policy.Name}})
+{{ end -}}
+`
+
+	namespace, err := testEnv.CreateNamespace(ctx, "image-auto-test")
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { g.Expect(testEnv.Delete(ctx, namespace)).To(Succeed()) }()
+
+	testWithRepoAndImagePolicy(
+		ctx, g, testEnv, namespace.Name, fixture, policySpec, latest,
+		func(g *WithT, s repoAndPolicyArgs, repoURL string, localRepo *extgogit.Repository) {
+			policyKey := types.NamespacedName{
+				Name:      s.imagePolicyName,
+				Namespace: s.namespace,
+			}
+			_ = testutil.CommitInRepo(ctx, g, repoURL, s.branch, originRemote, "Install setter marker", func(tmp string) {
+				g.Expect(testutil.ReplaceMarker(filepath.Join(tmp, "deploy.yaml"), policyKey)).To(Succeed())
+			})
+
+			preChangeCommitId := testutil.CommitIdFromBranch(localRepo, s.branch)
+			waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
+			preChangeCommitId = testutil.CommitIdFromBranch(localRepo, s.branch)
+
+			updateStrategy := &imagev1.UpdateStrategy{
+				Strategy: imagev1.UpdateStrategySetters,
+			}
+			err := createImageUpdateAutomation(ctx, testEnv, "update-test", s.namespace, s.gitRepoName, s.gitRepoNamespace, s.branch, s.branch, "", removedTemplate, "", updateStrategy)
+			g.Expect(err).ToNot(HaveOccurred())
+			defer func() {
+				g.Expect(deleteImageUpdateAutomation(ctx, testEnv, "update-test", s.namespace)).To(Succeed())
+			}()
+
+			imageUpdateKey := types.NamespacedName{
+				Namespace: s.namespace,
+				Name:      "update-test",
+			}
+
+			g.Eventually(func() bool {
+				var imageUpdate imagev1.ImageUpdateAutomation
+				_ = testEnv.Get(context.TODO(), imageUpdateKey, &imageUpdate)
+				stalledCondition := apimeta.FindStatusCondition(imageUpdate.Status.Conditions, meta.StalledCondition)
+				return stalledCondition != nil &&
+					stalledCondition.Status == metav1.ConditionTrue &&
+					stalledCondition.Reason == imagev1.RemovedTemplateFieldReason &&
+					strings.Contains(stalledCondition.Message, "template uses removed '.Updated' field")
+			}, timeout).Should(BeTrue())
+
+			head, _ := localRepo.Head()
+			g.Expect(head.Hash().String()).To(Equal(preChangeCommitId))
+		},
+	)
 }
 
 func TestImageUpdateAutomationReconciler_crossNamespaceRef(t *testing.T) {

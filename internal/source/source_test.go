@@ -55,8 +55,8 @@ import (
 )
 
 const (
-	originRemote       = "origin"
-	testCommitTemplate = `Commit summary
+	originRemote              = "origin"
+	testCommitTemplateRemoved = `Commit summary
 
 Automation: {{ .AutomationObject }}
 
@@ -469,31 +469,20 @@ func test_sourceManager_CommitAndPush(t *testing.T, proto string) {
 		checkRefSpecBranch string
 	}{
 		{
-			name: "push to cloned branch with custom template",
+			name: "push to cloned branch with removed template field",
 			gitSpec: &imagev1.GitSpec{
 				Push: &imagev1.PushSpec{
 					Branch: "main",
 				},
 				Commit: imagev1.CommitSpec{
-					MessageTemplate: testCommitTemplate,
+					MessageTemplate: testCommitTemplateRemoved,
 				},
 			},
 			gitRepoReference: &sourcev1.GitRepositoryRef{
 				Branch: "main",
 			},
 			latestImage: "helloworld:1.0.1",
-			wantErr:     false,
-			wantCommitMsg: `Commit summary
-
-Automation: test-ns/test-update
-
-Files:
-- deploy.yaml
-Objects:
-- deployment test
-Images:
-- helloworld:1.0.1 (policy1)
-`,
+			wantErr:     true,
 		},
 		{
 			name: "commit with update ResultV2 template",
@@ -771,6 +760,11 @@ Testing: value
 
 			pushResult, err := sm.CommitAndPush(ctx, updateAuto, result)
 			g.Expect(err != nil).To(Equal(tt.wantErr))
+			if tt.wantErr {
+				g.Expect(pushResult).To(BeNil())
+				g.Expect(err).To(MatchError(ErrRemovedTemplateField))
+				return
+			}
 			if tt.noChange {
 				g.Expect(pushResult).To(BeNil())
 				return
