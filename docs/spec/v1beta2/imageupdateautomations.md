@@ -374,12 +374,11 @@ spec:
         Automated image update by Flux
 ```
 
-**Deprecation Note:** The `Updated` template data available in v1beta1 API is
-deprecated. `Changed` template data is recommended for template data, as it
-accommodates for all the updates, including partial updates to just the image
-name or the tag, not just full image with name and tag update. The old templates
-will continue to work in v1beta2 API as `Updated` has not been removed yet. In
-the next API version, `Updated` may be removed.
+**Removal Note:** The `Updated` template data has been removed from the API.
+Use `Changed` template data instead, as it accommodates for all the updates,
+including partial updates to just the image name or the tag, not just full image
+with name and tag update. Templates using `Updated` will result in an error and
+the ImageUpdateAutomation will be marked as Stalled.
 
 The message template also has access to the data related to the changes made by
 the automation. The template is a [Go text template][go-text-template]. The data

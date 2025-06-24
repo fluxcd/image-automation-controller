@@ -48,13 +48,15 @@ import (
 // ErrInvalidSourceConfiguration is an error for invalid source configuration.
 var ErrInvalidSourceConfiguration = errors.New("invalid source configuration")
 
+// ErrRemovedTemplateField is an error for removed template field usage.
+var ErrRemovedTemplateField = errors.New("template uses removed '.Updated' field. Please use '.Changed' instead. See: https://fluxcd.io/flux/components/image/imageupdateautomations/#message-template")
+
 const defaultMessageTemplate = `Update from image update automation`
 
 // TemplateData is the type of the value given to the commit message
 // template.
 type TemplateData struct {
 	AutomationObject types.NamespacedName
-	Updated          update.Result
 	Changed          update.ResultV2
 	Values           map[string]string
 }
@@ -279,7 +281,6 @@ func (sm SourceManager) CommitAndPush(ctx context.Context, obj *imagev1.ImageUpd
 	// Perform a Git commit.
 	templateValues := &TemplateData{
 		AutomationObject: sm.automationObjKey,
-		Updated:          policyResult.ImageResult,
 		Changed:          policyResult,
 		Values:           obj.Spec.GitSpec.Commit.MessageTemplateValues,
 	}
@@ -356,6 +357,9 @@ func templateMsg(messageTemplate string, templateValues *TemplateData) (string, 
 
 	b := &strings.Builder{}
 	if err := t.Execute(b, *templateValues); err != nil {
+		if strings.Contains(err.Error(), "can't evaluate field Updated in type source.TemplateData") {
+			return "", ErrRemovedTemplateField
+		}
 		return "", fmt.Errorf("failed to run template from spec: %w", err)
 	}
 	return b.String(), nil

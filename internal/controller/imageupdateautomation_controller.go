@@ -481,6 +481,14 @@ func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *pat
 
 	pushResult, err = sm.CommitAndPush(ctx, obj, policyResult, pushCfg...)
 	if err != nil {
+		// Check if error is due to removed template field usage.
+		// Set Stalled condition and return nil error to prevent requeue, allowing user to fix template.
+		if errors.Is(err, source.ErrRemovedTemplateField) {
+			conditions.MarkStalled(obj, imagev1.RemovedTemplateFieldReason, "%s", err)
+			result, retErr = ctrl.Result{}, nil
+			return
+		}
+
 		e := fmt.Errorf("failed to update source: %w", err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, imagev1.GitOperationFailedReason, "%s", e)
 		result, retErr = ctrl.Result{}, e
