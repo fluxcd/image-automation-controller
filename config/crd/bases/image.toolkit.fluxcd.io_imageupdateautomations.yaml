@@ -11,6 +11,10 @@ spec:
     kind: ImageUpdateAutomation
     listKind: ImageUpdateAutomationList
     plural: imageupdateautomations
+    shortNames:
+    - iua
+    - imgupd
+    - imgauto
     singular: imageupdateautomation
   scope: Namespaced
   versions:

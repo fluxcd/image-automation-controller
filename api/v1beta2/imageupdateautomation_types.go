@@ -133,6 +133,7 @@ type ObservedPolicies map[string]ImageRef
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Last run",type=string,JSONPath=`.status.lastAutomationRunTime`
+//+kubebuilder:resource:shortName=iua;imgupd;imgauto
 
 // ImageUpdateAutomation is the Schema for the imageupdateautomations API
 type ImageUpdateAutomation struct {
