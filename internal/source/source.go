@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 	"time"
@@ -193,6 +194,19 @@ func WithCheckoutOptionLastObserved(commit string) CheckoutOption {
 func WithCheckoutOptionShallowClone() CheckoutOption {
 	return func(cc *repository.CloneConfig) {
 		cc.ShallowClone = true
+	}
+}
+
+// WithCheckoutOptionSparseCheckoutDirectories is a CheckoutOption option to configure
+// SparseCheckoutDirectories.
+func WithCheckoutOptionSparseCheckoutDirectories(updatePath string) CheckoutOption {
+	return func(cc *repository.CloneConfig) {
+		cleanedPath := filepath.Clean(updatePath)
+		if cleanedPath == "." {
+			// Do not set SparseCheckoutDirectories if repository root is specified
+			return
+		}
+		cc.SparseCheckoutDirectories = []string{cleanedPath}
 	}
 }
 
