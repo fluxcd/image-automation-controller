@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.41.2
+
+**Release date:** 2025-06-27
+
+This patch release comes with a fix for `rsa-sha2-512` and `rsa-sha2-256` algorithms
+not being prioritized for `ssh-rsa` host keys.
+
+Fixes:
+- Fix: Prioritize sha2-512 and sha2-256 for ssh-rsa host keys
+  [#932](https://github.com/fluxcd/image-automation-controller/pull/932)
+
 ## 0.41.1
 
 **Release date:** 2025-06-13
