@@ -42,8 +42,8 @@ var (
 
 // ApplyPolicies applies the given set of policies on the source present in the
 // workDir based on the provided ImageUpdateAutomation configuration.
-func ApplyPolicies(ctx context.Context, workDir string, obj *imagev1.ImageUpdateAutomation, policies []imagev1_reflect.ImagePolicy) (update.ResultV2, error) {
-	var result update.ResultV2
+func ApplyPolicies(ctx context.Context, workDir string, obj *imagev1.ImageUpdateAutomation, policies []imagev1_reflect.ImagePolicy) (update.Result, error) {
+	var result update.Result
 	if obj.Spec.Update == nil {
 		return result, ErrNoUpdateStrategy
 	}
@@ -62,5 +62,5 @@ func ApplyPolicies(ctx context.Context, workDir string, obj *imagev1.ImageUpdate
 	}
 
 	tracelog := log.FromContext(ctx).V(logger.TraceLevel)
-	return update.UpdateV2WithSetters(tracelog, manifestPath, manifestPath, policies)
+	return update.UpdateWithSetters(tracelog, manifestPath, manifestPath, policies)
 }

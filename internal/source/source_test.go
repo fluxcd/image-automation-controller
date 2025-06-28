@@ -102,6 +102,25 @@ Automation: {{ .AutomationObject }}
 Cluster: {{ index .Values "cluster" }}
 Testing: {{ .Values.testing }}
 `
+	testCommitTemplateImageResult = `Commit summary
+
+Automation: {{ .AutomationObject }}
+
+Files:
+{{ range $filename, $_ := .Changed.ImageResult.Files -}}
+- {{ $filename }}
+{{ end -}}
+
+Objects:
+{{ range $resource, $_ := .Changed.ImageResult.Objects -}}
+- {{ $resource.Kind }} {{ $resource.Name }}
+{{ end -}}
+
+Images:
+{{ range .Changed.ImageResult.Images -}}
+- {{.}} ({{.Policy.Name}})
+{{ end -}}
+`
 )
 
 func init() {
@@ -476,6 +495,22 @@ func test_sourceManager_CommitAndPush(t *testing.T, proto string) {
 				},
 				Commit: imagev1.CommitSpec{
 					MessageTemplate: testCommitTemplateRemoved,
+				},
+			},
+			gitRepoReference: &sourcev1.GitRepositoryRef{
+				Branch: "main",
+			},
+			latestImage: "helloworld:1.0.1",
+			wantErr:     true,
+		},
+		{
+			name: "push to cloned branch with removed ImageResult field",
+			gitSpec: &imagev1.GitSpec{
+				Push: &imagev1.PushSpec{
+					Branch: "main",
+				},
+				Commit: imagev1.CommitSpec{
+					MessageTemplate: testCommitTemplateImageResult,
 				},
 			},
 			gitRepoReference: &sourcev1.GitRepositoryRef{

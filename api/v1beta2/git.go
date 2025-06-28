@@ -65,6 +65,7 @@ type CommitSpec struct {
 	SigningKey *SigningKey `json:"signingKey,omitempty"`
 	// MessageTemplate provides a template for the commit message,
 	// into which will be interpolated the details of the change made.
+	// Note: The `Updated` template field has been removed. Use `Changed` instead.
 	// +optional
 	MessageTemplate string `json:"messageTemplate,omitempty"`
 
