@@ -48,8 +48,28 @@ import (
 // ErrInvalidSourceConfiguration is an error for invalid source configuration.
 var ErrInvalidSourceConfiguration = errors.New("invalid source configuration")
 
-// ErrRemovedTemplateField is an error for removed template field usage.
-var ErrRemovedTemplateField = errors.New("template uses removed '.Updated' field. Please use '.Changed' instead. See: https://fluxcd.io/flux/components/image/imageupdateautomations/#message-template")
+// RemovedTemplateFieldError represents an error when a removed template field is used.
+type RemovedTemplateFieldError struct {
+	Field string
+}
+
+func (e *RemovedTemplateFieldError) Error() string {
+	switch e.Field {
+	case ".Updated":
+		return "template uses removed '.Updated' field. Please use '.Changed' instead. See: https://fluxcd.io/flux/components/image/imageupdateautomations/#message-template"
+	case ".Changed.ImageResult":
+		return "template uses removed '.Changed.ImageResult' field. Please use '.Changed.FileChanges' or '.Changed.Objects' instead. See: https://fluxcd.io/flux/components/image/imageupdateautomations/#message-template"
+	default:
+		return fmt.Sprintf("template uses removed '%s' field. See: https://fluxcd.io/flux/components/image/imageupdateautomations/#message-template", e.Field)
+	}
+}
+
+func (e *RemovedTemplateFieldError) Is(target error) bool {
+	return errors.Is(target, ErrRemovedTemplateField)
+}
+
+// ErrRemovedTemplateField is a sentinel error for removed template field usage.
+var ErrRemovedTemplateField = &RemovedTemplateFieldError{}
 
 const defaultMessageTemplate = `Update from image update automation`
 
@@ -57,7 +77,7 @@ const defaultMessageTemplate = `Update from image update automation`
 // template.
 type TemplateData struct {
 	AutomationObject types.NamespacedName
-	Changed          update.ResultV2
+	Changed          update.Result
 	Values           map[string]string
 }
 
@@ -270,7 +290,7 @@ func WithPushConfigOptions(opts map[string]string) PushConfig {
 
 // CommitAndPush performs a commit in the source and pushes it to the remote
 // repository.
-func (sm SourceManager) CommitAndPush(ctx context.Context, obj *imagev1.ImageUpdateAutomation, policyResult update.ResultV2, pushOptions ...PushConfig) (*PushResult, error) {
+func (sm SourceManager) CommitAndPush(ctx context.Context, obj *imagev1.ImageUpdateAutomation, policyResult update.Result, pushOptions ...PushConfig) (*PushResult, error) {
 	tracelog := log.FromContext(ctx).V(logger.TraceLevel)
 
 	// Make sure there were file changes that need to be committed.
@@ -357,12 +377,30 @@ func templateMsg(messageTemplate string, templateValues *TemplateData) (string, 
 
 	b := &strings.Builder{}
 	if err := t.Execute(b, *templateValues); err != nil {
-		if strings.Contains(err.Error(), "can't evaluate field Updated in type source.TemplateData") {
-			return "", ErrRemovedTemplateField
+		if removedFieldErr := checkRemovedTemplateField(err); removedFieldErr != nil {
+			return "", removedFieldErr
 		}
 		return "", fmt.Errorf("failed to run template from spec: %w", err)
 	}
 	return b.String(), nil
+}
+
+// checkRemovedTemplateField checks if the template error is due to removed fields
+func checkRemovedTemplateField(err error) error {
+	removedFieldChecks := []struct {
+		fieldName    string
+		errorPattern string
+	}{
+		{".Updated", "can't evaluate field Updated in type source.TemplateData"},
+		{".Changed.ImageResult", "can't evaluate field ImageResult in type update.Result"},
+	}
+
+	for _, check := range removedFieldChecks {
+		if strings.Contains(err.Error(), check.errorPattern) {
+			return &RemovedTemplateFieldError{Field: check.fieldName}
+		}
+	}
+	return nil
 }
 
 // PushResultOption allows configuring the options of PushResult.

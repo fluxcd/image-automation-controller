@@ -55,54 +55,10 @@ type ObjectIdentifier struct {
 	yaml.ResourceIdentifier
 }
 
-// Result reports the outcome of an automated update. It has a nested
-// structure file->objects->images. Different projections (e.g., all
-// the images, regardless of object) are available via methods.
+// Result contains the file changes made during the update. It contains
+// details about the exact changes made to the files and the objects in them.
+// It has a nested structure file->objects->changes.
 type Result struct {
-	Files map[string]FileResult
-}
-
-// FileResult gives the updates in a particular file.
-type FileResult struct {
-	Objects map[ObjectIdentifier][]ImageRef
-}
-
-// Images returns all the images that were involved in at least one
-// update.
-func (r Result) Images() []ImageRef {
-	seen := make(map[ImageRef]struct{})
-	var result []ImageRef
-	for _, file := range r.Files {
-		for _, images := range file.Objects {
-			for _, ref := range images {
-				if _, ok := seen[ref]; !ok {
-					seen[ref] = struct{}{}
-					result = append(result, ref)
-				}
-			}
-		}
-	}
-	return result
-}
-
-// Objects returns a map of all the objects against the images updated
-// within, regardless of which file they appear in.
-func (r Result) Objects() map[ObjectIdentifier][]ImageRef {
-	result := make(map[ObjectIdentifier][]ImageRef)
-	for _, file := range r.Files {
-		for res, refs := range file.Objects {
-			result[res] = append(result[res], refs...)
-		}
-	}
-	return result
-}
-
-// ResultV2 contains Result of update and also the file changes made during the
-// update. This extends the Result to include details about the exact changes
-// made to the files and the objects in them. It has a nested structure
-// file->objects->changes.
-type ResultV2 struct {
-	ImageResult Result
 	FileChanges map[string]ObjectChanges
 }
 
@@ -117,9 +73,9 @@ type Change struct {
 	Setter   string
 }
 
-// AddChange adds changes to Resultv2 for a given file, object and changes
+// AddChange adds changes to Result for a given file, object and changes
 // associated with it.
-func (r *ResultV2) AddChange(file string, objectID ObjectIdentifier, changes ...Change) {
+func (r *Result) AddChange(file string, objectID ObjectIdentifier, changes ...Change) {
 	if r.FileChanges == nil {
 		r.FileChanges = map[string]ObjectChanges{}
 	}
@@ -133,7 +89,7 @@ func (r *ResultV2) AddChange(file string, objectID ObjectIdentifier, changes ...
 }
 
 // Changes returns all the changes that were made in at least one update.
-func (r ResultV2) Changes() []Change {
+func (r Result) Changes() []Change {
 	seen := make(map[Change]struct{})
 	var result []Change
 	for _, objChanges := range r.FileChanges {
@@ -150,7 +106,7 @@ func (r ResultV2) Changes() []Change {
 }
 
 // Objects returns ObjectChanges, regardless of which file they appear in.
-func (r ResultV2) Objects() ObjectChanges {
+func (r Result) Objects() ObjectChanges {
 	result := make(ObjectChanges)
 	for _, objChanges := range r.FileChanges {
 		for obj, change := range objChanges {

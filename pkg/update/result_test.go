@@ -42,61 +42,10 @@ func TestMustRef(t *testing.T) {
 	})
 }
 
-func TestUpdateResults(t *testing.T) {
+func TestResult(t *testing.T) {
 	g := NewWithT(t)
 
 	var result Result
-	objectNames := []ObjectIdentifier{
-		{yaml.ResourceIdentifier{
-			NameMeta: yaml.NameMeta{Namespace: "ns", Name: "foo"},
-		}},
-		{yaml.ResourceIdentifier{
-			NameMeta: yaml.NameMeta{Namespace: "ns", Name: "bar"},
-		}},
-	}
-
-	result = Result{
-		Files: map[string]FileResult{
-			"foo.yaml": {
-				Objects: map[ObjectIdentifier][]ImageRef{
-					objectNames[0]: {
-						mustRef("image:v1.0"),
-						mustRef("other:v2.0"),
-					},
-				},
-			},
-			"bar.yaml": {
-				Objects: map[ObjectIdentifier][]ImageRef{
-					objectNames[1]: {
-						mustRef("image:v1.0"),
-						mustRef("other:v2.0"),
-					},
-				},
-			},
-		},
-	}
-
-	g.Expect(result.Images()).To(Equal([]ImageRef{
-		mustRef("image:v1.0"),
-		mustRef("other:v2.0"),
-	}))
-
-	g.Expect(result.Objects()).To(Equal(map[ObjectIdentifier][]ImageRef{
-		objectNames[0]: {
-			mustRef("image:v1.0"),
-			mustRef("other:v2.0"),
-		},
-		objectNames[1]: {
-			mustRef("image:v1.0"),
-			mustRef("other:v2.0"),
-		},
-	}))
-}
-
-func TestResultV2(t *testing.T) {
-	g := NewWithT(t)
-
-	var result ResultV2
 	objectNames := []ObjectIdentifier{
 		{yaml.ResourceIdentifier{
 			NameMeta: yaml.NameMeta{Namespace: "ns", Name: "foo"},
@@ -117,7 +66,7 @@ func TestResultV2(t *testing.T) {
 		Setter:   "foo-ns:policy",
 	})
 
-	result = ResultV2{
+	result = Result{
 		FileChanges: map[string]ObjectChanges{
 			"foo.yaml": {
 				objectNames[0]: []Change{
