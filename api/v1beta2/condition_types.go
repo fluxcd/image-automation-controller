@@ -36,4 +36,7 @@ const (
 
 	// InvalidPolicySelectorReason represents an invalid policy selector.
 	InvalidPolicySelectorReason string = "InvalidPolicySelector"
+
+	// RemovedTemplateFieldReason represents usage of removed template field.
+	RemovedTemplateFieldReason string = "RemovedTemplateField"
 )

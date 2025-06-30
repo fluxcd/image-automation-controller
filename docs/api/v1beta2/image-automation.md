@@ -67,7 +67,8 @@ string
 <td>
 <em>(Optional)</em>
 <p>MessageTemplate provides a template for the commit message,
-into which will be interpolated the details of the change made.</p>
+into which will be interpolated the details of the change made.
+Note: The <code>Updated</code> template field has been removed. Use <code>Changed</code> instead.</p>
 </td>
 </tr>
 <tr>

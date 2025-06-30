@@ -49,17 +49,9 @@ func init() {
 
 // UpdateWithSetters takes all YAML files from `inpath`, updates any
 // that contain an "in scope" image policy marker, and writes files it
-// updated (and only those files) back to `outpath`.
-func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []imagev1_reflect.ImagePolicy) (Result, error) {
-	result, err := UpdateV2WithSetters(tracelog, inpath, outpath, policies)
-	return result.ImageResult, err
-}
-
-// UpdateV2WithSetters takes all YAML files from `inpath`, updates any
-// that contain an "in scope" image policy marker, and writes files it
 // updated (and only those files) back to `outpath`. It also returns the result
-// of the changes it made as ResultV2.
-func UpdateV2WithSetters(tracelog logr.Logger, inpath, outpath string, policies []imagev1_reflect.ImagePolicy) (ResultV2, error) {
+// of the changes it made as Result.
+func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []imagev1_reflect.ImagePolicy) (Result, error) {
 	// the OpenAPI schema is a package variable in kyaml/openapi. In
 	// lieu of being able to isolate invocations (per
 	// https://github.com/kubernetes-sigs/kustomize/issues/3058), I
@@ -99,11 +91,7 @@ func UpdateV2WithSetters(tracelog logr.Logger, inpath, outpath string, policies 
 
 	// collect setter defs and setters by going through all the image
 	// policies available.
-	result := Result{
-		Files: make(map[string]FileResult),
-	}
-
-	var resultV2 ResultV2
+	var result Result
 
 	// Compilng the result needs the file, the image ref used, and the
 	// object. Each setter will supply its own name to its callback,
@@ -112,7 +100,7 @@ func UpdateV2WithSetters(tracelog logr.Logger, inpath, outpath string, policies 
 	// iterates.
 	imageRefs := make(map[string]imageRef)
 	setAllCallback := func(file, setterName string, node *yaml.RNode, old, new string) {
-		ref, ok := imageRefs[setterName]
+		_, ok := imageRefs[setterName]
 		if !ok {
 			return
 		}
@@ -130,23 +118,7 @@ func UpdateV2WithSetters(tracelog logr.Logger, inpath, outpath string, policies 
 			Setter:   setterName,
 		}
 		// Append the change for the file and identifier.
-		resultV2.AddChange(file, oid, ch)
-
-		fileres, ok := result.Files[file]
-		if !ok {
-			fileres = FileResult{
-				Objects: make(map[ObjectIdentifier][]ImageRef),
-			}
-			result.Files[file] = fileres
-		}
-		objres := fileres.Objects[oid]
-		for _, n := range objres {
-			if n == ref {
-				return
-			}
-		}
-		objres = append(objres, ref)
-		fileres.Objects[oid] = objres
+		result.AddChange(file, oid, ch)
 	}
 
 	defs := map[string]spec.Schema{}
@@ -163,7 +135,7 @@ func UpdateV2WithSetters(tracelog logr.Logger, inpath, outpath string, policies 
 		image := policy.Status.LatestRef.String()
 		r, err := name.ParseReference(image, name.WeakValidation)
 		if err != nil {
-			return ResultV2{}, fmt.Errorf("encountered invalid image ref %q: %w", image, err)
+			return Result{}, fmt.Errorf("encountered invalid image ref %q: %w", image, err)
 		}
 		ref := imageRef{
 			Reference: r,
@@ -221,12 +193,10 @@ func UpdateV2WithSetters(tracelog logr.Logger, inpath, outpath string, policies 
 	// go!
 	err := pipeline.Execute()
 	if err != nil {
-		return ResultV2{}, err
+		return Result{}, err
 	}
 
-	// Combine the results.
-	resultV2.ImageResult = result
-	return resultV2, nil
+	return result, nil
 }
 
 // setAll returns a kio.Filter using the supplied SetAllCallback

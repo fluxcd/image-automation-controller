@@ -374,12 +374,12 @@ spec:
         Automated image update by Flux
 ```
 
-**Deprecation Note:** The `Updated` template data available in v1beta1 API is
-deprecated. `Changed` template data is recommended for template data, as it
-accommodates for all the updates, including partial updates to just the image
-name or the tag, not just full image with name and tag update. The old templates
-will continue to work in v1beta2 API as `Updated` has not been removed yet. In
-the next API version, `Updated` may be removed.
+**Removal Note:** The `Updated` template data has been removed from the API.
+Use `Changed` template data instead, as it accommodates for all the updates,
+including partial updates to just the image name or the tag, not just full image
+with name and tag update. Templates using `Updated` will result in an error and
+the ImageUpdateAutomation will be marked as Stalled.
+
 
 The message template also has access to the data related to the changes made by
 the automation. The template is a [Go text template][go-text-template]. The data
@@ -393,14 +393,14 @@ type TemplateData struct {
 	AutomationObject struct {
 	  Name, Namespace string
 	}
-	Changed update.ResultV2
+	Changed update.Result
 	Values map[string]string
 }
 
-// ResultV2 contains the file changes made during the update. It contains
+// Result contains the file changes made during the update. It contains
 // details about the exact changes made to the files and the objects in them. It
 // has a nested structure file->objects->changes.
-type ResultV2 struct {
+type Result struct {
 	FileChanges map[string]ObjectChanges
 }
 
@@ -427,10 +427,10 @@ over the changed objects and changes:
 
 ```go
 // Changes returns all the changes that were made in at least one update.
-func (r ResultV2) Changes() []Change
+func (r Result) Changes() []Change
 
 // Objects returns ObjectChanges, regardless of which file they appear in.
-func (r ResultV2) Objects() ObjectChanges
+func (r Result) Objects() ObjectChanges
 ```
 
 Example of using the methods in a template:

@@ -31,7 +31,6 @@ import (
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta2"
 	"github.com/fluxcd/image-automation-controller/internal/testutil"
 	"github.com/fluxcd/image-automation-controller/pkg/test"
-	"github.com/fluxcd/image-automation-controller/pkg/update"
 )
 
 func testdataPath(path string) string {
@@ -48,7 +47,6 @@ func Test_applyPolicies(t *testing.T) {
 		inputPath          string
 		expectedPath       string
 		wantErr            bool
-		wantResult         update.Result
 	}{
 		{
 			name: "valid update strategy and one policy",
