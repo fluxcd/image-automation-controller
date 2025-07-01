@@ -13,25 +13,25 @@ replace (
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6
 	github.com/Masterminds/sprig/v3 v3.3.0
-	github.com/ProtonMail/go-crypto v1.2.0
+	github.com/ProtonMail/go-crypto v1.3.0
 	github.com/cyphar/filepath-securejoin v0.4.1
 	github.com/fluxcd/image-automation-controller/api v0.41.2
 	github.com/fluxcd/image-reflector-controller/api v0.35.2
 	github.com/fluxcd/pkg/apis/acl v0.7.0
 	github.com/fluxcd/pkg/apis/event v0.17.0
-	github.com/fluxcd/pkg/apis/meta v1.12.0
-	github.com/fluxcd/pkg/auth v0.17.0
+	github.com/fluxcd/pkg/apis/meta v1.13.0
+	github.com/fluxcd/pkg/auth v0.18.0
 	github.com/fluxcd/pkg/cache v0.9.0
 	github.com/fluxcd/pkg/git v0.32.0
 	github.com/fluxcd/pkg/git/gogit v0.35.1
 	github.com/fluxcd/pkg/gittestserver v0.17.0
-	github.com/fluxcd/pkg/runtime v0.60.0
+	github.com/fluxcd/pkg/runtime v0.62.0
 	github.com/fluxcd/pkg/ssh v0.19.0
 	github.com/fluxcd/source-controller/api v1.6.1
 	github.com/go-git/go-billy/v5 v5.6.2
 	github.com/go-git/go-git/v5 v5.16.2
-	github.com/go-logr/logr v1.4.2
-	github.com/google/go-containerregistry v0.20.3
+	github.com/go-logr/logr v1.4.3
+	github.com/google/go-containerregistry v0.20.6
 	github.com/onsi/gomega v1.37.0
 	github.com/otiai10/copy v1.14.1
 	github.com/spf13/pflag v1.0.6
@@ -45,7 +45,7 @@ require (
 )
 
 require (
-	cloud.google.com/go/compute/metadata v0.6.0 // indirect
+	cloud.google.com/go/compute/metadata v0.7.0 // indirect
 	dario.cat/mergo v1.0.1 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.18.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.9.0 // indirect
@@ -79,8 +79,8 @@ require (
 	github.com/chai2010/gettext-go v1.0.3 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/docker/cli v27.5.0+incompatible // indirect
-	github.com/docker/docker-credential-helpers v0.8.2 // indirect
+	github.com/docker/cli v28.2.2+incompatible // indirect
+	github.com/docker/docker-credential-helpers v0.9.3 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
@@ -157,7 +157,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.3 // indirect
 	golang.org/x/crypto v0.39.0 // indirect
 	golang.org/x/net v0.40.0 // indirect
-	golang.org/x/oauth2 v0.29.0 // indirect
+	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sync v0.15.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/term v0.32.0 // indirect
