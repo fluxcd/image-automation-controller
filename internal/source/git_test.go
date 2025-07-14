@@ -183,9 +183,9 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 					Name: "githubAppSecret",
 				},
 				Data: map[string][]byte{
-					github.AppIDKey:             []byte("123"),
-					github.AppInstallationIDKey: []byte("456"),
-					github.AppPrivateKey:        []byte("abc"),
+					github.KeyAppID:             []byte("123"),
+					github.KeyAppInstallationID: []byte("456"),
+					github.KeyAppPrivateKey:     []byte("abc"),
 				},
 			},
 			beforeFunc: func(obj *sourcev1.GitRepository) {
@@ -204,7 +204,7 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 					Name: "githubAppSecret",
 				},
 				Data: map[string][]byte{
-					github.AppIDKey: []byte("123"),
+					github.KeyAppID: []byte("123"),
 				},
 			},
 			beforeFunc: func(obj *sourcev1.GitRepository) {
