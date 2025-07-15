@@ -239,7 +239,7 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 		}
 	default:
 		// analyze secret, if it has github app data, perhaps provider should have been github.
-		if appID := data[github.AppIDKey]; len(appID) != 0 {
+		if appID := data[github.KeyAppID]; len(appID) != 0 {
 			return nil, fmt.Errorf("secretRef '%s/%s' has github app data but provider is not set to github: %w", repo.GetNamespace(), repo.Spec.SecretRef.Name, ErrInvalidSourceConfiguration)
 		}
 	}
