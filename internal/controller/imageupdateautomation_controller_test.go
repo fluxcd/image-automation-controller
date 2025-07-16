@@ -1409,7 +1409,7 @@ func TestImageUpdateAutomationReconciler_e2e(t *testing.T) {
 	}
 }
 
-func TestImageUpdateAutomationReconciler_defaulting(t *testing.T) {
+func TestImageUpdateAutomationReconciler_DefaultUpdate(t *testing.T) {
 	g := NewWithT(t)
 
 	branch := rand.String(8)
@@ -1466,6 +1466,70 @@ func TestImageUpdateAutomationReconciler_defaulting(t *testing.T) {
 	}, timeout, time.Second).Should(BeTrue())
 	g.Expect(fetchedAuto.Spec.Update).
 		To(Equal(&imagev1.UpdateStrategy{Strategy: imagev1.UpdateStrategySetters}))
+}
+
+func TestImageUpdateAutomationReconciler_DefaultStrategy(t *testing.T) {
+	g := NewWithT(t)
+
+	branch := rand.String(8)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	// Create a test namespace.
+	namespace, err := testEnv.CreateNamespace(ctx, "image-auto-test")
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { g.Expect(testEnv.Delete(ctx, namespace)).To(Succeed()) }()
+
+	// Create an instance of ImageUpdateAutomation.
+	key := types.NamespacedName{
+		Name:      "update-" + rand.String(5),
+		Namespace: namespace.Name,
+	}
+	auto := &imagev1.ImageUpdateAutomation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      key.Name,
+			Namespace: key.Namespace,
+		},
+		Spec: imagev1.ImageUpdateAutomationSpec{
+			SourceRef: imagev1.CrossNamespaceSourceReference{
+				Kind: "GitRepository",
+				Name: "garbage",
+			},
+			Interval: metav1.Duration{Duration: 2 * time.Hour},
+			GitSpec: &imagev1.GitSpec{
+				Checkout: &imagev1.GitCheckoutSpec{
+					Reference: sourcev1.GitRepositoryRef{
+						Branch: branch,
+					},
+				},
+				Commit: imagev1.CommitSpec{
+					Author: imagev1.CommitUser{
+						Email: testAuthorEmail,
+					},
+					MessageTemplate: "nothing",
+				},
+			},
+			Update: &imagev1.UpdateStrategy{
+				Path: "./test-path",
+			},
+		},
+	}
+	g.Expect(testEnv.Create(ctx, auto)).To(Succeed())
+	defer func() {
+		g.Expect(testEnv.Delete(ctx, auto)).To(Succeed())
+	}()
+
+	// Should default .spec.update to {strategy: Setters}.
+	var fetchedAuto imagev1.ImageUpdateAutomation
+	g.Eventually(func() bool {
+		err := testEnv.Get(ctx, key, &fetchedAuto)
+		return err == nil
+	}, timeout, time.Second).Should(BeTrue())
+	g.Expect(fetchedAuto.Spec.Update).
+		To(Equal(&imagev1.UpdateStrategy{
+			Strategy: imagev1.UpdateStrategySetters,
+			Path:     "./test-path",
+		}))
 }
 
 func TestImageUpdateAutomationReconciler_notify(t *testing.T) {

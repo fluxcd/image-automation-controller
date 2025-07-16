@@ -608,8 +608,6 @@ spec:
                     enum:
                     - Setters
                     type: string
-                required:
-                - strategy
                 type: object
             required:
             - interval

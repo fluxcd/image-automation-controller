@@ -874,6 +874,7 @@ UpdateStrategyName
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>Strategy names the strategy to be used.</p>
 </td>
 </tr>

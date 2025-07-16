@@ -83,9 +83,9 @@ const (
 // inlined here.
 type UpdateStrategy struct {
 	// Strategy names the strategy to be used.
-	// +required
+	// +optional
 	// +kubebuilder:default=Setters
-	Strategy UpdateStrategyName `json:"strategy"`
+	Strategy UpdateStrategyName `json:"strategy,omitempty"`
 
 	// Path to the directory containing the manifests to be updated.
 	// Defaults to 'None', which translates to the root path
