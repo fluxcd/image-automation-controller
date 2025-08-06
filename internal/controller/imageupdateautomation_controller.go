@@ -134,7 +134,11 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(ctx context.Context, 
 	if err := mgr.GetFieldIndexer().IndexField(ctx, &imagev1.ImageUpdateAutomation{}, repoRefKey, func(obj client.Object) []string {
 		updater := obj.(*imagev1.ImageUpdateAutomation)
 		ref := updater.Spec.SourceRef
-		return []string{ref.Name}
+		ns := ref.Namespace
+		if ns == "" {
+			ns = obj.GetNamespace()
+		}
+		return []string{fmt.Sprintf("%s/%s", ns, ref.Name)}
 	}); err != nil {
 		return err
 	}
@@ -162,8 +166,8 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(ctx context.Context, 
 // particular source.GitRepository object.
 func (r *ImageUpdateAutomationReconciler) automationsForGitRepo(ctx context.Context, obj client.Object) []reconcile.Request {
 	var autoList imagev1.ImageUpdateAutomationList
-	if err := r.List(ctx, &autoList, client.InNamespace(obj.GetNamespace()),
-		client.MatchingFields{repoRefKey: obj.GetName()}); err != nil {
+	objKey := fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetName())
+	if err := r.List(ctx, &autoList, client.MatchingFields{repoRefKey: objKey}); err != nil {
 		ctrl.LoggerFrom(ctx).Error(err, "failed to list ImageUpdateAutomations for GitRepository change")
 		return nil
 	}
