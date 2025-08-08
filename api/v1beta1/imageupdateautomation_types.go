@@ -133,10 +133,8 @@ func SetImageUpdateAutomationReadiness(auto *ImageUpdateAutomation, status metav
 	apimeta.SetStatusCondition(auto.GetStatusConditions(), newCondition)
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+kubebuilder:deprecatedversion:warning="v1beta1 ImageUpdateAutomation is deprecated, upgrade to v1beta2"
-//+kubebuilder:printcolumn:name="Last run",type=string,JSONPath=`.status.lastAutomationRunTime`
+// +kubebuilder:object:root=true
+// +kubebuilder:skipversion
 
 // ImageUpdateAutomation is the Schema for the imageupdateautomations API
 type ImageUpdateAutomation struct {
