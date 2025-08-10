@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
+	"github.com/fluxcd/pkg/runtime/secrets"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -62,13 +63,14 @@ type gitSrcCfg struct {
 }
 
 func buildGitConfig(ctx context.Context, c client.Client, originKey, srcKey types.NamespacedName, gitSpec *imagev1.GitSpec, opts SourceOptions) (*gitSrcCfg, error) {
+	var err error
 	cfg := &gitSrcCfg{
 		srcKey: srcKey,
 	}
 
 	// Get the repo.
 	repo := &sourcev1.GitRepository{}
-	if err := c.Get(ctx, srcKey, repo); err != nil {
+	if err = c.Get(ctx, srcKey, repo); err != nil {
 		if client.IgnoreNotFound(err) == nil {
 			return nil, fmt.Errorf("referenced git repository does not exist: %w", err)
 		}
@@ -94,14 +96,26 @@ func buildGitConfig(ctx context.Context, c client.Client, originKey, srcKey type
 
 	// Configure push first as the client options below depend on the push
 	// configuration.
-	if err := configurePush(cfg, gitSpec, cfg.checkoutRef); err != nil {
+	if err = configurePush(cfg, gitSpec, cfg.checkoutRef); err != nil {
 		return nil, err
 	}
 
-	proxyOpts, proxyURL, err := getProxyOpts(ctx, c, repo)
-	if err != nil {
-		return nil, err
+	var proxyURL *url.URL
+	var proxyOpts *transport.ProxyOptions
+	// Check if a proxy secret reference is provided in the GitRepository spec.
+	if repo.Spec.ProxySecretRef != nil {
+		secretRef := types.NamespacedName{
+			Name:      repo.Spec.ProxySecretRef.Name,
+			Namespace: repo.GetNamespace(),
+		}
+		// Get the proxy URL from runtime/secret
+		proxyURL, err = secrets.ProxyURLFromSecretRef(ctx, c, secretRef)
+		if err != nil {
+			return nil, err
+		}
+		proxyOpts = &transport.ProxyOptions{URL: proxyURL.String()}
 	}
+
 	cfg.authOpts, err = getAuthOpts(ctx, c, repo, opts, proxyURL)
 	if err != nil {
 		return nil, err
@@ -165,13 +179,15 @@ func configurePush(cfg *gitSrcCfg, gitSpec *imagev1.GitSpec, checkoutRef *source
 
 func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitRepository,
 	srcOpts SourceOptions, proxyURL *url.URL) (*git.AuthOptions, error) {
+	var secret *corev1.Secret
 	var data map[string][]byte
 	var err error
 	if repo.Spec.SecretRef != nil {
-		data, err = getSecretData(ctx, c, repo.Spec.SecretRef.Name, repo.GetNamespace())
+		secret, err = getSecret(ctx, c, repo.Spec.SecretRef.Name, repo.GetNamespace())
 		if err != nil {
 			return nil, fmt.Errorf("failed to get auth secret '%s/%s': %w", repo.GetNamespace(), repo.Spec.SecretRef.Name, err)
 		}
+		data = secret.Data
 	}
 
 	u, err := url.Parse(repo.Spec.URL)
@@ -211,24 +227,34 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 		if repo.Spec.SecretRef == nil {
 			return nil, fmt.Errorf("secretRef with github app data must be specified when provider is set to github: %w", ErrInvalidSourceConfiguration)
 		}
+		targetURL := fmt.Sprintf("%s://%s", u.Scheme, u.Host)
+		authMethods, err := secrets.AuthMethodsFromSecret(ctx, secret, secrets.WithTargetURL(targetURL), secrets.WithTLSSystemCertPool())
+		if err != nil {
+			return nil, err
+		}
+		if !authMethods.HasGitHubAppData() {
+			return nil, fmt.Errorf("secretRef with github app data must be specified when provider is set to github: %w", ErrInvalidSourceConfiguration)
+		}
 
 		getCreds = func() (*authutils.GitCredentials, error) {
-			var opts []github.OptFunc
+			var appOpts []github.OptFunc
 
-			if len(data) > 0 {
-				opts = append(opts, github.WithAppData(data))
-			}
+			appOpts = append(appOpts, github.WithAppData(authMethods.GitHubAppData))
 
 			if proxyURL != nil {
-				opts = append(opts, github.WithProxyURL(proxyURL))
+				appOpts = append(appOpts, github.WithProxyURL(proxyURL))
 			}
 
 			if srcOpts.tokenCache != nil {
-				opts = append(opts, github.WithCache(srcOpts.tokenCache, imagev1.ImageUpdateAutomationKind,
+				appOpts = append(appOpts, github.WithCache(srcOpts.tokenCache, imagev1.ImageUpdateAutomationKind,
 					srcOpts.objName, srcOpts.objNamespace, cache.OperationReconcile))
 			}
 
-			username, password, err := github.GetCredentials(ctx, opts...)
+			if authMethods.HasTLS() {
+				appOpts = append(appOpts, github.WithTLSConfig(authMethods.TLS))
+			}
+
+			username, password, err := github.GetCredentials(ctx, appOpts...)
 			if err != nil {
 				return nil, err
 			}
@@ -253,45 +279,6 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 		opts.Password = creds.Password
 	}
 	return opts, nil
-}
-
-func getProxyOpts(ctx context.Context, c client.Client, repo *sourcev1.GitRepository) (*transport.ProxyOptions, *url.URL, error) {
-	if repo.Spec.ProxySecretRef == nil {
-		return nil, nil, nil
-	}
-	name := repo.Spec.ProxySecretRef.Name
-	namespace := repo.GetNamespace()
-	proxyData, err := getSecretData(ctx, c, name, namespace)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get proxy secret '%s/%s': %w", namespace, name, err)
-	}
-	b, ok := proxyData["address"]
-	if !ok {
-		return nil, nil, fmt.Errorf("invalid proxy secret '%s/%s': key 'address' is missing", namespace, name)
-	}
-
-	address := string(b)
-	username := string(proxyData["username"])
-	password := string(proxyData["password"])
-
-	proxyOpts := &transport.ProxyOptions{
-		URL:      address,
-		Username: username,
-		Password: password,
-	}
-
-	proxyURL, err := url.Parse(string(address))
-	if err != nil {
-		return nil, nil, fmt.Errorf("invalid address in proxy secret '%s/%s': %w", namespace, name, err)
-	}
-	switch {
-	case username != "" && password == "":
-		proxyURL.User = url.User(username)
-	case username != "" && password != "":
-		proxyURL.User = url.UserPassword(username, password)
-	}
-
-	return proxyOpts, proxyURL, nil
 }
 
 func getSigningEntity(ctx context.Context, c client.Client, namespace string, gitSpec *imagev1.GitSpec) (*openpgp.Entity, error) {
@@ -330,13 +317,21 @@ func getSigningEntity(ctx context.Context, c client.Client, namespace string, gi
 }
 
 func getSecretData(ctx context.Context, c client.Client, name, namespace string) (map[string][]byte, error) {
+	secret, err := getSecret(ctx, c, name, namespace)
+	if err != nil {
+		return nil, err
+	}
+	return secret.Data, nil
+}
+
+func getSecret(ctx context.Context, c client.Client, name, namespace string) (*corev1.Secret, error) {
 	key := types.NamespacedName{
 		Namespace: namespace,
 		Name:      name,
 	}
-	var secret corev1.Secret
-	if err := c.Get(ctx, key, &secret); err != nil {
+	secret := &corev1.Secret{}
+	if err := c.Get(ctx, key, secret); err != nil {
 		return nil, err
 	}
-	return secret.Data, nil
+	return secret, nil
 }
