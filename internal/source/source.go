@@ -42,7 +42,7 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta2"
-	"github.com/fluxcd/image-automation-controller/pkg/update"
+	"github.com/fluxcd/image-automation-controller/internal/update"
 )
 
 // ErrInvalidSourceConfiguration is an error for invalid source configuration.

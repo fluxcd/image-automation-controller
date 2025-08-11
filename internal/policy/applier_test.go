@@ -26,11 +26,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
-	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta2"
 	"github.com/fluxcd/image-automation-controller/internal/testutil"
-	"github.com/fluxcd/image-automation-controller/pkg/test"
 )
 
 func testdataPath(path string) string {
@@ -116,12 +115,12 @@ func Test_applyPolicies(t *testing.T) {
 			workDir := t.TempDir()
 
 			// Create all the policy objects.
-			policyList := []imagev1_reflect.ImagePolicy{}
+			policyList := []reflectorv1.ImagePolicy{}
 			for name, image := range tt.policyLatestImages {
-				policy := &imagev1_reflect.ImagePolicy{}
+				policy := &reflectorv1.ImagePolicy{}
 				policy.Name = name
 				policy.Namespace = testNS
-				policy.Status = imagev1_reflect.ImagePolicyStatus{
+				policy.Status = reflectorv1.ImagePolicyStatus{
 					LatestRef: testutil.ImageToRef(image),
 				}
 				policyList = append(policyList, *policy)
@@ -148,7 +147,7 @@ func Test_applyPolicies(t *testing.T) {
 			}
 
 			scheme := runtime.NewScheme()
-			imagev1_reflect.AddToScheme(scheme)
+			reflectorv1.AddToScheme(scheme)
 			imagev1.AddToScheme(scheme)
 
 			_, err := ApplyPolicies(context.TODO(), workDir, updateAuto, policyList)
@@ -164,7 +163,7 @@ func Test_applyPolicies(t *testing.T) {
 				} else {
 					g.Expect(testutil.ReplaceMarker(filepath.Join(expected, "deploy.yaml"), targetPolicyKey)).ToNot(HaveOccurred())
 				}
-				test.ExpectMatchingDirectories(g, workDir, expected)
+				testutil.ExpectMatchingDirectories(g, workDir, expected)
 			}
 		})
 	}

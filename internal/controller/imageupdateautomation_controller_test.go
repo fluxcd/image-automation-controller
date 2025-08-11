@@ -45,7 +45,7 @@ import (
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	aclapi "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/gittestserver"
@@ -58,7 +58,6 @@ import (
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta2"
 	"github.com/fluxcd/image-automation-controller/internal/source"
 	"github.com/fluxcd/image-automation-controller/internal/testutil"
-	"github.com/fluxcd/image-automation-controller/pkg/test"
 )
 
 const (
@@ -141,12 +140,12 @@ func TestImageUpdateAutomationReconciler_deleteBeforeFinalizer(t *testing.T) {
 func TestImageUpdateAutomationReconciler_watchSourceAndLatestImage(t *testing.T) {
 	g := NewWithT(t)
 
-	policySpec := imagev1_reflect.ImagePolicySpec{
+	policySpec := reflectorv1.ImagePolicySpec{
 		ImageRepositoryRef: meta.NamespacedObjectReference{
 			Name: "not-expected-to-exist",
 		},
-		Policy: imagev1_reflect.ImagePolicyChoice{
-			SemVer: &imagev1_reflect.SemVerPolicy{
+		Policy: reflectorv1.ImagePolicyChoice{
+			SemVer: &reflectorv1.SemVerPolicy{
 				Range: "1.x",
 			},
 		},
@@ -267,12 +266,12 @@ func TestImageUpdateAutomationReconciler_suspended(t *testing.T) {
 }
 
 func TestImageUpdateAutomationReconciler_Reconcile(t *testing.T) {
-	policySpec := imagev1_reflect.ImagePolicySpec{
+	policySpec := reflectorv1.ImagePolicySpec{
 		ImageRepositoryRef: meta.NamespacedObjectReference{
 			Name: "not-expected-to-exist",
 		},
-		Policy: imagev1_reflect.ImagePolicyChoice{
-			SemVer: &imagev1_reflect.SemVerPolicy{
+		Policy: reflectorv1.ImagePolicyChoice{
+			SemVer: &reflectorv1.SemVerPolicy{
 				Range: "1.x",
 			},
 		},
@@ -707,12 +706,12 @@ func TestImageUpdateAutomationReconciler_Reconcile(t *testing.T) {
 }
 
 func TestImageUpdateAutomationReconciler_commitMessage(t *testing.T) {
-	policySpec := imagev1_reflect.ImagePolicySpec{
+	policySpec := reflectorv1.ImagePolicySpec{
 		ImageRepositoryRef: meta.NamespacedObjectReference{
 			Name: "not-expected-to-exist",
 		},
-		Policy: imagev1_reflect.ImagePolicyChoice{
-			SemVer: &imagev1_reflect.SemVerPolicy{
+		Policy: reflectorv1.ImagePolicyChoice{
+			SemVer: &reflectorv1.SemVerPolicy{
 				Range: "1.x",
 			},
 		},
@@ -845,12 +844,12 @@ Automation: %s/update-test
 
 // TestImageUpdateAutomationReconciler_removedTemplateField tests removed template field usage (.Updated and .Changed.ImageResult).
 func TestImageUpdateAutomationReconciler_removedTemplateField(t *testing.T) {
-	policySpec := imagev1_reflect.ImagePolicySpec{
+	policySpec := reflectorv1.ImagePolicySpec{
 		ImageRepositoryRef: meta.NamespacedObjectReference{
 			Name: "not-expected-to-exist",
 		},
-		Policy: imagev1_reflect.ImagePolicyChoice{
-			SemVer: &imagev1_reflect.SemVerPolicy{
+		Policy: reflectorv1.ImagePolicyChoice{
+			SemVer: &reflectorv1.SemVerPolicy{
 				Range: "1.x",
 			},
 		},
@@ -973,12 +972,12 @@ Images:
 
 func TestImageUpdateAutomationReconciler_crossNamespaceRef(t *testing.T) {
 	g := NewWithT(t)
-	policySpec := imagev1_reflect.ImagePolicySpec{
+	policySpec := reflectorv1.ImagePolicySpec{
 		ImageRepositoryRef: meta.NamespacedObjectReference{
 			Name: "not-expected-to-exist",
 		},
-		Policy: imagev1_reflect.ImagePolicyChoice{
-			SemVer: &imagev1_reflect.SemVerPolicy{
+		Policy: reflectorv1.ImagePolicyChoice{
+			SemVer: &reflectorv1.SemVerPolicy{
 				Range: "1.x",
 			},
 		},
@@ -1056,7 +1055,7 @@ func TestImageUpdateAutomationReconciler_crossNamespaceRef(t *testing.T) {
 	r := &ImageUpdateAutomationReconciler{
 		Client: fakeclient.NewClientBuilder().
 			WithScheme(testEnv.Scheme()).
-			WithStatusSubresource(&imagev1.ImageUpdateAutomation{}, &imagev1_reflect.ImagePolicy{}).
+			WithStatusSubresource(&imagev1.ImageUpdateAutomation{}, &reflectorv1.ImagePolicy{}).
 			Build(),
 		EventRecorder:       testEnv.GetEventRecorderFor("image-automation-controller"),
 		NoCrossNamespaceRef: true,
@@ -1105,12 +1104,12 @@ func TestImageUpdateAutomationReconciler_crossNamespaceRef(t *testing.T) {
 }
 
 func TestImageUpdateAutomationReconciler_updatePath(t *testing.T) {
-	policySpec := imagev1_reflect.ImagePolicySpec{
+	policySpec := reflectorv1.ImagePolicySpec{
 		ImageRepositoryRef: meta.NamespacedObjectReference{
 			Name: "not-expected-to-exist",
 		},
-		Policy: imagev1_reflect.ImagePolicyChoice{
-			SemVer: &imagev1_reflect.SemVerPolicy{
+		Policy: reflectorv1.ImagePolicyChoice{
+			SemVer: &reflectorv1.SemVerPolicy{
 				Range: "1.x",
 			},
 		},
@@ -1187,12 +1186,12 @@ func TestImageUpdateAutomationReconciler_updatePath(t *testing.T) {
 }
 
 func TestImageUpdateAutomationReconciler_signedCommit(t *testing.T) {
-	policySpec := imagev1_reflect.ImagePolicySpec{
+	policySpec := reflectorv1.ImagePolicySpec{
 		ImageRepositoryRef: meta.NamespacedObjectReference{
 			Name: "not-expected-to-exist",
 		},
-		Policy: imagev1_reflect.ImagePolicyChoice{
-			SemVer: &imagev1_reflect.SemVerPolicy{
+		Policy: reflectorv1.ImagePolicyChoice{
+			SemVer: &reflectorv1.SemVerPolicy{
 				Range: "1.x",
 			},
 		},
@@ -1722,10 +1721,10 @@ func Test_getPolicies(t *testing.T) {
 			// Create all the test policies.
 			testObjects := []client.Object{}
 			for _, p := range tt.policies {
-				aPolicy := &imagev1_reflect.ImagePolicy{}
+				aPolicy := &reflectorv1.ImagePolicy{}
 				aPolicy.Name = p.name
 				aPolicy.Namespace = p.namespace
-				aPolicy.Status = imagev1_reflect.ImagePolicyStatus{
+				aPolicy.Status = reflectorv1.ImagePolicyStatus{
 					LatestRef: testutil.ImageToRef(p.latestImage),
 				}
 				aPolicy.Labels = p.labels
@@ -1846,7 +1845,7 @@ func compareRepoWithExpected(ctx context.Context, g *WithT, repoURL, branch, fix
 	defer wt.Filesystem.Remove(".")
 
 	g.Expect(err).ToNot(HaveOccurred())
-	test.ExpectMatchingDirectories(g, wt.Filesystem.Root(), expected)
+	testutil.ExpectMatchingDirectories(g, wt.Filesystem.Root(), expected)
 }
 
 func waitForNewHead(g *WithT, repo *extgogit.Repository, branch, preChangeHash string) {
@@ -1938,7 +1937,7 @@ func testWithRepoAndImagePolicy(
 	kClient client.Client,
 	namespace string,
 	fixture string,
-	policySpec imagev1_reflect.ImagePolicySpec,
+	policySpec reflectorv1.ImagePolicySpec,
 	latest string,
 	testFunc testWithRepoAndImagePolicyTestFunc) {
 	// Generate unique repo and policy arguments.
@@ -1955,7 +1954,7 @@ func testWithCustomRepoAndImagePolicy(
 	g *WithT,
 	kClient client.Client,
 	fixture string,
-	policySpec imagev1_reflect.ImagePolicySpec,
+	policySpec reflectorv1.ImagePolicySpec,
 	latest string,
 	args repoAndPolicyArgs,
 	testFunc testWithRepoAndImagePolicyTestFunc) {
@@ -2013,12 +2012,12 @@ func createGitRepository(ctx context.Context, kClient client.Client, name, names
 }
 
 func createImagePolicyWithLatestImage(ctx context.Context, kClient client.Client, name, namespace, repoRef, semverRange, latest string) error {
-	policySpec := imagev1_reflect.ImagePolicySpec{
+	policySpec := reflectorv1.ImagePolicySpec{
 		ImageRepositoryRef: meta.NamespacedObjectReference{
 			Name: repoRef,
 		},
-		Policy: imagev1_reflect.ImagePolicyChoice{
-			SemVer: &imagev1_reflect.SemVerPolicy{
+		Policy: reflectorv1.ImagePolicyChoice{
+			SemVer: &reflectorv1.SemVerPolicy{
 				Range: semverRange,
 			},
 		},
@@ -2026,8 +2025,8 @@ func createImagePolicyWithLatestImage(ctx context.Context, kClient client.Client
 	return createImagePolicyWithLatestImageForSpec(ctx, kClient, name, namespace, policySpec, latest)
 }
 
-func createImagePolicyWithLatestImageForSpec(ctx context.Context, kClient client.Client, name, namespace string, policySpec imagev1_reflect.ImagePolicySpec, latest string) error {
-	policy := &imagev1_reflect.ImagePolicy{
+func createImagePolicyWithLatestImageForSpec(ctx context.Context, kClient client.Client, name, namespace string, policySpec reflectorv1.ImagePolicySpec, latest string) error {
+	policy := &reflectorv1.ImagePolicy{
 		Spec: policySpec,
 	}
 	policy.Name = name
@@ -2042,7 +2041,7 @@ func createImagePolicyWithLatestImageForSpec(ctx context.Context, kClient client
 }
 
 func updateImagePolicyWithLatestImage(ctx context.Context, kClient client.Client, name, namespace, latest string) error {
-	policy := &imagev1_reflect.ImagePolicy{}
+	policy := &reflectorv1.ImagePolicy{}
 	key := types.NamespacedName{
 		Name:      name,
 		Namespace: namespace,
@@ -2107,7 +2106,7 @@ func deleteImageUpdateAutomation(ctx context.Context, kClient client.Client, nam
 }
 
 func deleteImagePolicy(ctx context.Context, kClient client.Client, name, namespace string) error {
-	imagePolicy := &imagev1_reflect.ImagePolicy{}
+	imagePolicy := &reflectorv1.ImagePolicy{}
 	imagePolicy.Name = name
 	imagePolicy.Namespace = namespace
 	return kClient.Delete(ctx, imagePolicy)

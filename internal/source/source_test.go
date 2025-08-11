@@ -42,7 +42,7 @@ import (
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/gittestserver"
@@ -124,7 +124,7 @@ Images:
 )
 
 func init() {
-	utilruntime.Must(imagev1_reflect.AddToScheme(scheme.Scheme))
+	utilruntime.Must(reflectorv1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(sourcev1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(imagev1.AddToScheme(scheme.Scheme))
 
@@ -700,10 +700,10 @@ Testing: value
 			workDir := t.TempDir()
 			testNS := "test-ns"
 
-			imgPolicy := &imagev1_reflect.ImagePolicy{}
+			imgPolicy := &reflectorv1.ImagePolicy{}
 			imgPolicy.Name = "policy1"
 			imgPolicy.Namespace = testNS
-			imgPolicy.Status = imagev1_reflect.ImagePolicyStatus{
+			imgPolicy.Status = reflectorv1.ImagePolicyStatus{
 				LatestRef: testutil.ImageToRef(tt.latestImage),
 			}
 			testObjects = append(testObjects, imgPolicy)
@@ -789,7 +789,7 @@ Testing: value
 			_, err = sm.CheckoutSource(ctx)
 			g.Expect(err).ToNot(HaveOccurred())
 
-			policies := []imagev1_reflect.ImagePolicy{*imgPolicy}
+			policies := []reflectorv1.ImagePolicy{*imgPolicy}
 			result, err := policy.ApplyPolicies(ctx, sm.workingDir, updateAuto, policies)
 			g.Expect(err).ToNot(HaveOccurred())
 
@@ -930,10 +930,10 @@ func test_pushBranchUpdateScenarios(t *testing.T, proto string, srcOpts []Source
 	// Create ImagePolicy, GitRepository and ImageUpdateAutomation objects.
 	latestImage := "helloworld:1.0.1"
 
-	imgPolicy := &imagev1_reflect.ImagePolicy{}
+	imgPolicy := &reflectorv1.ImagePolicy{}
 	imgPolicy.Name = "policy1"
 	imgPolicy.Namespace = testNS
-	imgPolicy.Status = imagev1_reflect.ImagePolicyStatus{
+	imgPolicy.Status = reflectorv1.ImagePolicyStatus{
 		LatestRef: testutil.ImageToRef(latestImage),
 	}
 	testObjects = append(testObjects, imgPolicy)
@@ -1003,7 +1003,7 @@ func test_pushBranchUpdateScenarios(t *testing.T, proto string, srcOpts []Source
 	checkoutBranchHead, err := testutil.HeadFromBranch(localRepo, branch)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	policies := []imagev1_reflect.ImagePolicy{*imgPolicy}
+	policies := []reflectorv1.ImagePolicy{*imgPolicy}
 	checkoutAndUpdate(ctx, g, kClient, updateAuto, policies, srcOpts, checkoutOpts, pushCfg)
 
 	// Pull the new changes to the local repo.
@@ -1038,7 +1038,7 @@ func test_pushBranchUpdateScenarios(t *testing.T, proto string, srcOpts []Source
 	imgPolicy.Status.LatestRef = testutil.ImageToRef(latestImage)
 	g.Expect(kClient.Update(ctx, imgPolicy)).To(Succeed())
 
-	policies = []imagev1_reflect.ImagePolicy{*imgPolicy}
+	policies = []reflectorv1.ImagePolicy{*imgPolicy}
 	checkoutAndUpdate(ctx, g, kClient, updateAuto, policies, srcOpts, checkoutOpts, pushCfg)
 
 	// Pull the new changes to the local repo.
@@ -1086,7 +1086,7 @@ func test_pushBranchUpdateScenarios(t *testing.T, proto string, srcOpts []Source
 	imgPolicy.Status.LatestRef = testutil.ImageToRef(latestImage)
 	g.Expect(kClient.Update(ctx, imgPolicy)).To(Succeed())
 
-	policies = []imagev1_reflect.ImagePolicy{*imgPolicy}
+	policies = []reflectorv1.ImagePolicy{*imgPolicy}
 	checkoutAndUpdate(ctx, g, kClient, updateAuto, policies, srcOpts, checkoutOpts, pushCfg)
 
 	// Pull the new changes to the local repo.
@@ -1176,7 +1176,7 @@ Update from image update automation`, "foo", testBranch),
 // checkoutAndUpdate performs source checkout, update and push for the given
 // arguments.
 func checkoutAndUpdate(ctx context.Context, g *WithT, kClient client.Client,
-	updateAuto *imagev1.ImageUpdateAutomation, policies []imagev1_reflect.ImagePolicy,
+	updateAuto *imagev1.ImageUpdateAutomation, policies []reflectorv1.ImagePolicy,
 	srcOpts []SourceOption, checkoutOpts []CheckoutOption, pushCfg []PushConfig) {
 	g.THelper()
 
