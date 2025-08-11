@@ -1,5 +1,5 @@
 /*
-Copyright 2020, 2021 The Flux authors
+Copyright 2025 The Flux authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,12 +30,13 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/sets"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 
+	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+
 	"github.com/fluxcd/image-automation-controller/internal/constants"
-	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 )
 
 const (
-	// This is preserved from setters2
+	// K8sCliExtensionKey is preserved from setters2
 	K8sCliExtensionKey = "x-k8s-cli"
 )
 
@@ -51,7 +52,7 @@ func init() {
 // that contain an "in scope" image policy marker, and writes files it
 // updated (and only those files) back to `outpath`. It also returns the result
 // of the changes it made as Result.
-func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []imagev1_reflect.ImagePolicy) (Result, error) {
+func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []reflectorv1.ImagePolicy) (Result, error) {
 	// the OpenAPI schema is a package variable in kyaml/openapi. In
 	// lieu of being able to isolate invocations (per
 	// https://github.com/kubernetes-sigs/kustomize/issues/3058), I

@@ -20,7 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 )
 
 // latestImageChangePredicate implements a predicate for latest image change.
@@ -43,12 +43,12 @@ func (latestImageChangePredicate) Update(e event.UpdateEvent) bool {
 		return false
 	}
 
-	oldSource, ok := e.ObjectOld.(*imagev1_reflect.ImagePolicy)
+	oldSource, ok := e.ObjectOld.(*reflectorv1.ImagePolicy)
 	if !ok {
 		return false
 	}
 
-	newSource, ok := e.ObjectNew.(*imagev1_reflect.ImagePolicy)
+	newSource, ok := e.ObjectNew.(*reflectorv1.ImagePolicy)
 	if !ok {
 		return false
 	}

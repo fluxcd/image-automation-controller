@@ -1,5 +1,5 @@
 /*
-Copyright 2020, 2021 The Flux authors
+Copyright 2025 The Flux authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,21 +24,21 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 
+	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+
 	"github.com/fluxcd/image-automation-controller/internal/testutil"
-	"github.com/fluxcd/image-automation-controller/pkg/test"
-	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 )
 
 func TestUpdateWithSetters(t *testing.T) {
 	g := NewWithT(t)
 
-	policies := []imagev1_reflect.ImagePolicy{
+	policies := []reflectorv1.ImagePolicy{
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "automation-ns",
 				Name:      "policy",
 			},
-			Status: imagev1_reflect.ImagePolicyStatus{
+			Status: reflectorv1.ImagePolicyStatus{
 				LatestRef: testutil.ImageToRef("index.repo.fake/updated:v1.0.1"),
 			},
 		},
@@ -47,7 +47,7 @@ func TestUpdateWithSetters(t *testing.T) {
 				Namespace: "automation-ns",
 				Name:      "unchanged",
 			},
-			Status: imagev1_reflect.ImagePolicyStatus{
+			Status: reflectorv1.ImagePolicyStatus{
 				LatestRef: testutil.ImageToRef("image:v1.0.0"),
 			},
 		},
@@ -56,7 +56,7 @@ func TestUpdateWithSetters(t *testing.T) {
 				Namespace: "automation-ns",
 				Name:      "policy-with-digest",
 			},
-			Status: imagev1_reflect.ImagePolicyStatus{
+			Status: reflectorv1.ImagePolicyStatus{
 				LatestRef: testutil.ImageToRef("image:v1.0.0@sha256:6745aaad46d795c9836632e1fb62f24b7e7f4c843144da8e47a5465c411a14be"),
 			},
 		},
@@ -66,7 +66,7 @@ func TestUpdateWithSetters(t *testing.T) {
 	tmp := t.TempDir()
 	result, err := UpdateWithSetters(logr.Discard(), "testdata/setters/original", tmp, policies)
 	g.Expect(err).ToNot(HaveOccurred())
-	test.ExpectMatchingDirectories(g, tmp, "testdata/setters/expected")
+	testutil.ExpectMatchingDirectories(g, tmp, "testdata/setters/expected")
 
 	kustomizeResourceID := ObjectIdentifier{yaml.ResourceIdentifier{
 		TypeMeta: yaml.TypeMeta{

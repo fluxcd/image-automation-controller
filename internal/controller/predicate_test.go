@@ -22,19 +22,19 @@ import (
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 )
 
 func Test_latestImageChangePredicate_Update(t *testing.T) {
 	tests := []struct {
 		name       string
-		beforeFunc func(oldObj, newObj *imagev1_reflect.ImagePolicy)
+		beforeFunc func(oldObj, newObj *reflectorv1.ImagePolicy)
 		want       bool
 	}{
 		{
 			name: "no latest image",
-			beforeFunc: func(oldObj, newObj *imagev1_reflect.ImagePolicy) {
+			beforeFunc: func(oldObj, newObj *reflectorv1.ImagePolicy) {
 				oldObj.Status.LatestRef = nil
 				newObj.Status.LatestRef = nil
 			},
@@ -42,17 +42,17 @@ func Test_latestImageChangePredicate_Update(t *testing.T) {
 		},
 		{
 			name: "new image, no old image",
-			beforeFunc: func(oldObj, newObj *imagev1_reflect.ImagePolicy) {
+			beforeFunc: func(oldObj, newObj *reflectorv1.ImagePolicy) {
 				oldObj.Status.LatestRef = nil
-				newObj.Status.LatestRef = &imagev1_reflect.ImageRef{Name: "foo"}
+				newObj.Status.LatestRef = &reflectorv1.ImageRef{Name: "foo"}
 			},
 			want: true,
 		},
 		{
 			name: "different old and new image",
-			beforeFunc: func(oldObj, newObj *imagev1_reflect.ImagePolicy) {
-				oldObj.Status.LatestRef = &imagev1_reflect.ImageRef{Name: "bar"}
-				newObj.Status.LatestRef = &imagev1_reflect.ImageRef{Name: "foo"}
+			beforeFunc: func(oldObj, newObj *reflectorv1.ImagePolicy) {
+				oldObj.Status.LatestRef = &reflectorv1.ImageRef{Name: "bar"}
+				newObj.Status.LatestRef = &reflectorv1.ImageRef{Name: "foo"}
 			},
 			want: true,
 		},
@@ -61,7 +61,7 @@ func Test_latestImageChangePredicate_Update(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
 
-			oldObj := &imagev1_reflect.ImagePolicy{}
+			oldObj := &reflectorv1.ImagePolicy{}
 			newObj := oldObj.DeepCopy()
 			if tt.beforeFunc != nil {
 				tt.beforeFunc(oldObj, newObj)

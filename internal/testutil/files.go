@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package test
+package testutil
 
 import (
 	"os"
@@ -24,8 +24,10 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// TODO rewrite this as just doing the diff, so I can test that it
-// fails at the right times too.
+// ExpectMatchingDirectories compares two directories, recursively, and
+// expects them to match. It will fail if there are files that are
+// present in one directory but not the other, or if files that are
+// present in both directories have different contents.
 func ExpectMatchingDirectories(g *WithT, actualRoot, expectedRoot string) {
 	g.Expect(actualRoot).To(BeADirectory())
 	g.Expect(expectedRoot).To(BeADirectory())
@@ -43,29 +45,28 @@ type Diff interface {
 	FailedExpectation(g *WithT)
 }
 
-type contentdiff struct {
+type contentDiff struct {
 	path, actual, expected string
 }
 
-func (d contentdiff) Path() string {
+func (d contentDiff) Path() string {
 	return d.path
 }
 
-// Run an expectation that will fail, giving an appropriate error
-func (d contentdiff) FailedExpectation(g *WithT) {
+func (d contentDiff) FailedExpectation(g *WithT) {
 	g.Expect(d.actual).To(Equal(d.expected))
 }
 
-type dirfile struct {
+type dirFile struct {
 	abspath, path       string
 	expectedRegularFile bool
 }
 
-func (d dirfile) Path() string {
+func (d dirFile) Path() string {
 	return d.path
 }
 
-func (d dirfile) FailedExpectation(g *WithT) {
+func (d dirFile) FailedExpectation(g *WithT) {
 	if d.expectedRegularFile {
 		g.Expect(d.path).To(BeARegularFile())
 	} else {
@@ -125,7 +126,7 @@ func DiffDirectories(actual, expected string) (actualonly []string, expectedonly
 		case actualInfo.IsDir() && expectedInfo.IsDir():
 			return nil // i.e., keep recursing
 		case actualInfo.IsDir() || expectedInfo.IsDir():
-			different = append(different, dirfile{path: relPath, abspath: actualPath, expectedRegularFile: actualInfo.IsDir()})
+			different = append(different, dirFile{path: relPath, abspath: actualPath, expectedRegularFile: actualInfo.IsDir()})
 			if expectedInfo.IsDir() {
 				return filepath.SkipDir
 			}
@@ -143,7 +144,7 @@ func DiffDirectories(actual, expected string) (actualonly []string, expectedonly
 			panic(err)
 		}
 		if string(actualBytes) != string(expectedBytes) {
-			different = append(different, contentdiff{path: relPath, actual: string(actualBytes), expected: string(expectedBytes)})
+			different = append(different, contentDiff{path: relPath, actual: string(actualBytes), expected: string(expectedBytes)})
 		}
 		return nil
 	})

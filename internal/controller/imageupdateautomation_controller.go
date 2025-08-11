@@ -39,7 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	aclapi "github.com/fluxcd/pkg/apis/acl"
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
@@ -152,7 +152,7 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(ctx context.Context, 
 			builder.WithPredicates(sourceConfigChangePredicate{}),
 		).
 		Watches(
-			&imagev1_reflect.ImagePolicy{},
+			&reflectorv1.ImagePolicy{},
 			handler.EnqueueRequestsFromMapFunc(r.automationsForImagePolicy),
 			builder.WithPredicates(latestImageChangePredicate{}),
 		).
@@ -549,7 +549,7 @@ func (r *ImageUpdateAutomationReconciler) reconcileDelete(obj *imagev1.ImageUpda
 
 // getPolicies returns list of policies in the given namespace that have latest
 // image.
-func getPolicies(ctx context.Context, kclient client.Client, namespace string, selector *metav1.LabelSelector) ([]imagev1_reflect.ImagePolicy, error) {
+func getPolicies(ctx context.Context, kclient client.Client, namespace string, selector *metav1.LabelSelector) ([]reflectorv1.ImagePolicy, error) {
 	policySelector := labels.Everything()
 	var err error
 	if selector != nil {
@@ -558,12 +558,12 @@ func getPolicies(ctx context.Context, kclient client.Client, namespace string, s
 		}
 	}
 
-	var policies imagev1_reflect.ImagePolicyList
+	var policies reflectorv1.ImagePolicyList
 	if err := kclient.List(ctx, &policies, &client.ListOptions{Namespace: namespace, LabelSelector: policySelector}); err != nil {
 		return nil, fmt.Errorf("failed to list policies: %w", err)
 	}
 
-	readyPolicies := []imagev1_reflect.ImagePolicy{}
+	readyPolicies := []reflectorv1.ImagePolicy{}
 	for _, policy := range policies.Items {
 		// Ignore the policies that don't have a latest image.
 		if policy.Status.LatestRef == nil {

@@ -1,5 +1,5 @@
 /*
-Copyright 2020, 2021 The Flux authors
+Copyright 2025 The Flux authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
-// ScreeningReader is a kio.Reader that includes only files that are
+// ScreeningLocalReader is a kio.Reader that includes only files that are
 // pertinent to automation. In practice this means looking for a
 // particular token in each file, and ignoring those files without the
 // token. This avoids most problematic cases -- e.g., templates in a

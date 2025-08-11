@@ -25,10 +25,10 @@ import (
 	"github.com/fluxcd/pkg/runtime/logger"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta2"
-	"github.com/fluxcd/image-automation-controller/pkg/update"
+	"github.com/fluxcd/image-automation-controller/internal/update"
 )
 
 var (
@@ -42,7 +42,7 @@ var (
 
 // ApplyPolicies applies the given set of policies on the source present in the
 // workDir based on the provided ImageUpdateAutomation configuration.
-func ApplyPolicies(ctx context.Context, workDir string, obj *imagev1.ImageUpdateAutomation, policies []imagev1_reflect.ImagePolicy) (update.Result, error) {
+func ApplyPolicies(ctx context.Context, workDir string, obj *imagev1.ImageUpdateAutomation, policies []reflectorv1.ImagePolicy) (update.Result, error) {
 	var result update.Result
 	if obj.Spec.Update == nil {
 		return result, ErrNoUpdateStrategy

@@ -44,8 +44,9 @@ import (
 
 	"github.com/fluxcd/pkg/gittestserver"
 
+	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+
 	"github.com/fluxcd/image-automation-controller/internal/constants"
-	imagev1_reflect "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 )
 
 const (
@@ -459,7 +460,7 @@ func GetSigningKeyPair(g *WithT, passphrase string) (*openpgp.Entity, []byte) {
 	return pgpEntity, b.Bytes()
 }
 
-func ImageToRef(image string) *imagev1_reflect.ImageRef {
+func ImageToRef(image string) *reflectorv1.ImageRef {
 	var digest string
 
 	if idx := strings.LastIndex(image, "@"); idx != -1 {
@@ -472,7 +473,7 @@ func ImageToRef(image string) *imagev1_reflect.ImageRef {
 		image, tag = image[:idx], image[idx+1:]
 	}
 
-	return &imagev1_reflect.ImageRef{
+	return &reflectorv1.ImageRef{
 		Name:   image,
 		Tag:    tag,
 		Digest: digest,
