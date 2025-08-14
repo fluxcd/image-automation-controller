@@ -19,11 +19,9 @@ package source
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"testing"
 	"time"
 
-	"github.com/go-git/go-git/v5/plumbing/transport"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,12 +30,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta2"
-	"github.com/fluxcd/image-automation-controller/internal/testutil"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/git/github"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta2"
+	"github.com/fluxcd/image-automation-controller/internal/testutil"
 )
 
 func Test_getAuthOpts(t *testing.T) {
@@ -197,6 +196,26 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 			wantErr: "Key must be a PEM encoded PKCS1 or PKCS8 key",
 		},
 		{
+			name: "github provider with basic auth in secret",
+			url:  "https://example.com/org/repo",
+			secret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "basic-auth-secret",
+				},
+				Data: map[string][]byte{
+					"username": []byte("abc"),
+					"password": []byte(""),
+				},
+			},
+			beforeFunc: func(obj *sourcev1.GitRepository) {
+				obj.Spec.Provider = sourcev1.GitProviderGitHub
+				obj.Spec.SecretRef = &meta.LocalObjectReference{
+					Name: "basic-auth-secret",
+				}
+			},
+			wantErr: "secretRef with github app data must be specified when provider is set to github",
+		},
+		{
 			name: "generic provider with github app data in secret",
 			url:  "https://example.com/org/repo",
 			secret: &corev1.Secret{
@@ -262,94 +281,6 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 				g.Expect(opts.Username).To(BeEmpty())
 				g.Expect(opts.Password).To(BeEmpty())
 			}
-		})
-	}
-}
-
-func Test_getProxyOpts(t *testing.T) {
-	namespace := "default"
-	invalidProxy := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "invalid-proxy",
-			Namespace: namespace,
-		},
-		Data: map[string][]byte{
-			"url": []byte("https://example.com"),
-		},
-	}
-	validProxy := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "valid-proxy",
-			Namespace: namespace,
-		},
-		Data: map[string][]byte{
-			"address":  []byte("https://example.com"),
-			"username": []byte("user"),
-			"password": []byte("pass"),
-		},
-	}
-
-	tests := []struct {
-		name         string
-		secretName   string
-		want         *transport.ProxyOptions
-		wantProxyURL *url.URL
-		wantErr      bool
-	}{
-		{
-			name:         "non-existing secret",
-			secretName:   "non-existing",
-			want:         nil,
-			wantProxyURL: nil,
-			wantErr:      true,
-		},
-		{
-			name:         "invalid proxy secret",
-			secretName:   "invalid-proxy",
-			want:         nil,
-			wantProxyURL: nil,
-			wantErr:      true,
-		},
-		{
-			name:       "valid proxy secret",
-			secretName: "valid-proxy",
-			want: &transport.ProxyOptions{
-				URL:      "https://example.com",
-				Username: "user",
-				Password: "pass",
-			},
-			wantProxyURL: &url.URL{
-				Scheme: "https",
-				Host:   "example.com",
-				User:   url.UserPassword("user", "pass"),
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g := NewWithT(t)
-
-			clientBuilder := fakeclient.NewClientBuilder().
-				WithScheme(scheme.Scheme).
-				WithObjects(invalidProxy, validProxy)
-			c := clientBuilder.Build()
-
-			gitRepo := &sourcev1.GitRepository{}
-			gitRepo.Namespace = namespace
-			if tt.secretName != "" {
-				gitRepo.Spec = sourcev1.GitRepositorySpec{
-					ProxySecretRef: &meta.LocalObjectReference{Name: tt.secretName},
-				}
-			}
-
-			got, gotProxyURL, err := getProxyOpts(context.TODO(), c, gitRepo)
-			if (err != nil) != tt.wantErr {
-				g.Fail(fmt.Sprintf("unexpected error: %v", err))
-				return
-			}
-			g.Expect(got).To(Equal(tt.want))
-			g.Expect(gotProxyURL).To(Equal(tt.wantProxyURL))
 		})
 	}
 }
