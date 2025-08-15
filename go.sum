@@ -102,6 +102,8 @@ github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f h1:lO4WD4F/rVNCu3HqELle0jiPLLBs70cWOduZpkS1E78=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f/go.mod h1:cuUVRXasLTGF7a8hSLbxyZXjz+1KgoB3wDUb6vlszIc=
+github.com/dipti-pai/source-controller/api v0.0.0-20250815055530-ae30fe521c22 h1:cQx98gGW+xPQHh/rxa16qTbEUKjYwtA4xKX6/Nw/0Cg=
+github.com/dipti-pai/source-controller/api v0.0.0-20250815055530-ae30fe521c22/go.mod h1:MGk/yprMK9SjHbzAT89PUsGV8WnUmpbCiqxbW+K/e+w=
 github.com/docker/cli v28.2.2+incompatible h1:qzx5BNUDFqlvyq4AHzdNB7gSyVTmU4cgsyN9SdInc1A=
 github.com/docker/cli v28.2.2+incompatible/go.mod h1:JLrzqnKDaYBop7H2jaqPtU4hHvMKP+vjCwu2uszcLI8=
 github.com/docker/docker-credential-helpers v0.9.3 h1:gAm/VtF9wgqJMoxzT3Gj5p4AqIjCBS4wrsOh9yRqcz8=
@@ -150,8 +152,6 @@ github.com/fluxcd/pkg/ssh v0.20.0 h1:Ak0laIYIc/L8lEfqls/LDWRW8wYPESGaravQsCRGLb8
 github.com/fluxcd/pkg/ssh v0.20.0/go.mod h1:sRfAAkxx1GwCGjYirKPnTKdNkNrJRo9kqzWLVFXKv7E=
 github.com/fluxcd/pkg/version v0.9.0 h1:pQBHMt9TbnnTUzj3EoMhRi5JUkNBqrTBSAaoLG1ovUA=
 github.com/fluxcd/pkg/version v0.9.0/go.mod h1:JU6/UwNbGeMm4gqeyUn/dxl+qwLTi2+X10xpfgWdt9I=
-github.com/fluxcd/source-controller/api v1.6.1 h1:ZPTA9lNzBYHmwHfFX978qb8xVkdnQZHF1ggo6BoFm4w=
-github.com/fluxcd/source-controller/api v1.6.1/go.mod h1:ZJcAi0nemsnBxjVgmJl0WQzNvB0rMETxQMTdoFosmMw=
 github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHkI4W8=
 github.com/frankban/quicktest v1.14.6/go.mod h1:4ptaffx2x8+WTWXmUCuVU6aPUX1/Mz7zb5vbUoiM6w0=
 github.com/fsnotify/fsnotify v1.9.0 h1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S9k=

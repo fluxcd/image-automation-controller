@@ -31,6 +31,7 @@ import (
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/auth"
 	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/git/github"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
@@ -154,6 +155,15 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 				obj.Spec.Provider = sourcev1.GitProviderAzure
 			},
 			wantErr: "ManagedIdentityCredential",
+		},
+		{
+			name: "azure provider with service account and feature gate for object-level identity disabled",
+			url:  "https://dev.azure.com/foo/bar/_git/baz",
+			beforeFunc: func(obj *sourcev1.GitRepository) {
+				obj.Spec.Provider = sourcev1.GitProviderAzure
+				obj.Spec.ServiceAccountName = "azure-sa"
+			},
+			wantErr: auth.FeatureGateObjectLevelWorkloadIdentity,
 		},
 		{
 			name: "github provider with no secret ref",

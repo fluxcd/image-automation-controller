@@ -206,6 +206,20 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 		getCreds = func() (*authutils.GitCredentials, error) {
 			var opts []auth.Option
 
+			if repo.Spec.ServiceAccountName != "" {
+				// Check object-level workload identity feature gate.
+				if !auth.IsObjectLevelWorkloadIdentityEnabled() {
+					const gate = auth.FeatureGateObjectLevelWorkloadIdentity
+					const msgFmt = "to use spec.serviceAccountName for provider authentication please enable the %s feature gate in the controller"
+					return nil, fmt.Errorf(msgFmt, gate)
+				}
+				serviceAccount := client.ObjectKey{
+					Name:      repo.Spec.ServiceAccountName,
+					Namespace: repo.GetNamespace(),
+				}
+				opts = append(opts, auth.WithServiceAccount(serviceAccount, c))
+			}
+
 			if srcOpts.tokenCache != nil {
 				involvedObject := cache.InvolvedObject{
 					Kind:      imagev1.ImageUpdateAutomationKind,
