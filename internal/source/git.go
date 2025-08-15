@@ -209,6 +209,14 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 				auth.WithServiceAccountNamespace(srcOpts.objNamespace),
 			}
 
+			if repo.Spec.ServiceAccountName != "" {
+				// Check object-level workload identity feature gate.
+				if !auth.IsObjectLevelWorkloadIdentityEnabled() {
+					return nil, ErrFeatureGateNotEnabled
+				}
+				opts = append(opts, auth.WithServiceAccountName(repo.Spec.ServiceAccountName))
+			}
+
 			if srcOpts.tokenCache != nil {
 				involvedObject := cache.InvolvedObject{
 					Kind:      imagev1.ImageUpdateAutomationKind,

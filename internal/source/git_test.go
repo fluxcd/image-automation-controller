@@ -156,6 +156,15 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 			wantErr: "ManagedIdentityCredential",
 		},
 		{
+			name: "azure provider with service account and feature gate for object-level identity disabled",
+			url:  "https://dev.azure.com/foo/bar/_git/baz",
+			beforeFunc: func(obj *sourcev1.GitRepository) {
+				obj.Spec.Provider = sourcev1.GitProviderAzure
+				obj.Spec.ServiceAccountName = "azure-sa"
+			},
+			wantErr: ErrFeatureGateNotEnabled.Error(),
+		},
+		{
 			name: "github provider with no secret ref",
 			url:  "https://github.com/org/repo.git",
 			beforeFunc: func(obj *sourcev1.GitRepository) {
