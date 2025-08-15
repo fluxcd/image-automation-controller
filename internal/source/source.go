@@ -48,6 +48,9 @@ import (
 // ErrInvalidSourceConfiguration is an error for invalid source configuration.
 var ErrInvalidSourceConfiguration = errors.New("invalid source configuration")
 
+// ErrFeatureGateNotEnabled is an error for when a required feature gate is not enabled.
+var ErrFeatureGateNotEnabled = errors.New("required feature gate not enabled")
+
 // RemovedTemplateFieldError represents an error when a removed template field is used.
 type RemovedTemplateFieldError struct {
 	Field string
