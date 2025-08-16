@@ -204,7 +204,10 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 	switch provider := repo.GetProvider(); provider {
 	case sourcev1.GitProviderAzure: // If AWS or GCP are added in the future they can be added here separated by a comma.
 		getCreds = func() (*authutils.GitCredentials, error) {
-			var opts []auth.Option
+			opts := []auth.Option{
+				auth.WithClient(c),
+				auth.WithServiceAccountNamespace(srcOpts.objNamespace),
+			}
 
 			if srcOpts.tokenCache != nil {
 				involvedObject := cache.InvolvedObject{
