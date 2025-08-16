@@ -230,8 +230,7 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 		if repo.Spec.SecretRef == nil {
 			return nil, fmt.Errorf("secretRef with github app data must be specified when provider is set to github: %w", ErrInvalidSourceConfiguration)
 		}
-		targetURL := fmt.Sprintf("%s://%s", u.Scheme, u.Host)
-		authMethods, err := secrets.AuthMethodsFromSecret(ctx, secret, secrets.WithTargetURL(targetURL), secrets.WithTLSSystemCertPool())
+		authMethods, err := secrets.AuthMethodsFromSecret(ctx, secret, secrets.WithTLSSystemCertPool())
 		if err != nil {
 			return nil, err
 		}
