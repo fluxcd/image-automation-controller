@@ -93,12 +93,15 @@ func main() {
 		watchOptions          helper.WatchOptions
 		concurrent            int
 		tokenCacheOptions     cache.TokenFlags
+		defaultServiceAccount string
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&eventsAddr, "events-addr", "", "The address of the events receiver.")
 	flag.StringVar(&healthAddr, "health-addr", ":9440", "The address the health endpoint binds to.")
 	flag.IntVar(&concurrent, "concurrent", 4, "The number of concurrent resource reconciles.")
+	flag.StringVar(&defaultServiceAccount, auth.ControllerFlagDefaultServiceAccount,
+		"", "Default service account to use for workload identity when not specified in resources.")
 	flag.StringSliceVar(&git.KexAlgos, "ssh-kex-algos", []string{},
 		"The list of key exchange algorithms to use for ssh connections, arranged from most preferred to the least.")
 	flag.StringSliceVar(&git.HostKeyAlgos, "ssh-hostkey-algos", []string{},
@@ -114,6 +117,10 @@ func main() {
 	tokenCacheOptions.BindFlags(flag.CommandLine, tokenCacheDefaultMaxSize)
 
 	flag.Parse()
+
+	if defaultServiceAccount != "" {
+		auth.SetDefaultServiceAccount(defaultServiceAccount)
+	}
 
 	logger.SetLogger(logger.NewLogger(logOptions))
 
