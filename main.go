@@ -118,10 +118,6 @@ func main() {
 
 	flag.Parse()
 
-	if defaultServiceAccount != "" {
-		auth.SetDefaultServiceAccount(defaultServiceAccount)
-	}
-
 	logger.SetLogger(logger.NewLogger(logOptions))
 
 	err := featureGates.WithLogger(setupLog).
@@ -137,6 +133,15 @@ func main() {
 		os.Exit(1)
 	case enabled:
 		auth.EnableObjectLevelWorkloadIdentity()
+	}
+
+	if defaultServiceAccount != "" {
+		auth.SetDefaultServiceAccount(defaultServiceAccount)
+	}
+
+	if auth.InconsistentObjectLevelConfiguration() {
+		setupLog.Error(auth.ErrInconsistentObjectLevelConfiguration, "invalid configuration")
+		os.Exit(1)
 	}
 
 	watchNamespace := ""
