@@ -43,6 +43,7 @@ import (
 	aclapi "github.com/fluxcd/pkg/apis/acl"
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/auth"
 	"github.com/fluxcd/pkg/cache"
 	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/runtime/acl"
@@ -372,6 +373,13 @@ func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *pat
 			result, retErr = ctrl.Result{}, nil
 			return
 		}
+		if errors.Is(err, source.ErrFeatureGateNotEnabled) {
+			const gate = auth.FeatureGateObjectLevelWorkloadIdentity
+			const msgFmt = "to use spec.serviceAccountName for provider authentication please enable the %s feature gate in the controller"
+			conditions.MarkStalled(obj, meta.FeatureGateDisabledReason, msgFmt, gate)
+			result, retErr = ctrl.Result{}, nil
+			return
+		}
 		e := fmt.Errorf("failed configuring source manager: %w", err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, imagev1.SourceManagerFailedReason, "%s", e)
 		result, retErr = ctrl.Result{}, e
@@ -383,7 +391,7 @@ func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *pat
 		}
 	}()
 	// Update any stale Ready=False condition from SourceManager failure.
-	if conditions.HasAnyReason(obj, meta.ReadyCondition, aclapi.AccessDeniedCondition, imagev1.InvalidSourceConfigReason, imagev1.SourceManagerFailedReason) {
+	if conditions.HasAnyReason(obj, meta.ReadyCondition, aclapi.AccessDeniedCondition, imagev1.InvalidSourceConfigReason, imagev1.SourceManagerFailedReason, meta.FeatureGateDisabledReason) {
 		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
 	}
 
