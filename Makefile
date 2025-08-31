@@ -15,9 +15,6 @@ BUILD_PLATFORMS ?= linux/amd64,linux/arm64,linux/arm/v7
 # Allows for defining additional Go test args, e.g. '-tags integration'.
 GO_TEST_ARGS ?= -race
 
-# Defines whether cosign verification should be skipped.
-SKIP_COSIGN_VERIFICATION ?= false
-
 # Directory with versioned, downloaded things
 CACHE := cache
 
@@ -37,16 +34,8 @@ BUILD_DIR := $(REPOSITORY_ROOT)/build
 # each fuzzer should run for.
 FUZZ_TIME ?= 1m
 
-ifeq ($(shell uname -s),Darwin)
-GO_STATIC_FLAGS=-ldflags "-s -w" -tags 'netgo,osusergo,static_build'
-endif
-
-ifeq ($(shell uname -s),Linux)
-	GO_STATIC_FLAGS=-ldflags "-s -w" -tags 'netgo,osusergo,static_build'
-endif
-
 # API (doc) generation utilities
-CONTROLLER_GEN_VERSION ?= v0.16.1
+CONTROLLER_GEN_VERSION ?= v0.19.0
 GEN_API_REF_DOCS_VERSION ?= e327d0730470cbd61b06300f81c5fcf91c23c113
 
 # If gobin not set, create one on ./build and add to path.
@@ -103,15 +92,10 @@ ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml:
 	curl -s --fail https://raw.githubusercontent.com/fluxcd/image-reflector-controller/${REFLECTOR_VER}/config/crd/bases/image.toolkit.fluxcd.io_imagepolicies.yaml \
 		-o ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml
 
-check-deps:
-ifeq ($(shell uname -s),Darwin)
-	if ! command -v pkg-config &> /dev/null; then echo "pkg-config is required"; exit 1; fi
-endif
-
 KUBEBUILDER_ASSETS?="$(shell $(ENVTEST) --arch=$(ENVTEST_ARCH) use -i $(ENVTEST_KUBERNETES_VERSION) --bin-dir=$(ENVTEST_ASSETS_DIR) -p path)"
 test: tidy test-api test_deps generate fmt vet manifests api-docs install-envtest ## Run tests
 	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) \
-	go test $(GO_STATIC_FLAGS) $(GO_TEST_ARGS) ./... -coverprofile cover.out
+	go test $(GO_TEST_ARGS) ./... -coverprofile cover.out
 
 test-api:	## Run api tests
 	cd api; go test $(GO_TEST_ARGS) ./... -coverprofile cover.out
@@ -120,7 +104,7 @@ manager: generate fmt vet	## Build manager binary
 	go build -o $(BUILD_DIR)/bin/manager ./main.go
 
 run: generate fmt vet manifests	# Run against the configured Kubernetes cluster in ~/.kube/config
-	go run $(GO_STATIC_FLAGS) ./main.go --log-level=${LOG_LEVEL} --log-encoding=console
+	go run ./main.go --log-level=${LOG_LEVEL} --log-encoding=console
 
 install: manifests	## Install CRDs into a cluster
 	kustomize build config/crd | kubectl apply -f -
@@ -146,8 +130,8 @@ api-docs: gen-crd-api-reference-docs	## Generate API reference documentation
 	$(GEN_CRD_API_REFERENCE_DOCS) -api-dir=./api/v1beta2 -config=./hack/api-docs/config.json -template-dir=./hack/api-docs/template -out-file=./docs/api/v1beta2/image-automation.md
 
 tidy:	## Run go mod tidy
-	cd api; rm -f go.sum; go mod tidy -compat=1.24
-	rm -f go.sum; go mod tidy -compat=1.24
+	cd api; rm -f go.sum; go mod tidy -compat=1.25
+	rm -f go.sum; go mod tidy -compat=1.25
 
 fmt:	## Run go fmt against code
 	go fmt ./...
@@ -235,9 +219,6 @@ env -i bash -c "GOBIN=$(GOBIN) PATH=$(PATH) GOPATH=$(shell go env GOPATH) GOCACH
 rm -rf $$TMP_DIR ;\
 }
 endef
-
-update-attributions:
-	./hack/update-attributions.sh
 
 verify:
 ifneq (, $(shell git status --porcelain --untracked-files=no))
