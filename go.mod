@@ -34,7 +34,7 @@ require (
 	github.com/google/go-containerregistry v0.20.6
 	github.com/onsi/gomega v1.38.2
 	github.com/otiai10/copy v1.14.1
-	github.com/spf13/pflag v1.0.7
+	github.com/spf13/pflag v1.0.9
 	k8s.io/api v0.34.0
 	k8s.io/apimachinery v0.34.0
 	k8s.io/client-go v0.34.0
