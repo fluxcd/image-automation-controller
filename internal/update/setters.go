@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/sets"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 
-	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1"
 
 	"github.com/fluxcd/image-automation-controller/internal/constants"
 )

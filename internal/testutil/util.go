@@ -44,7 +44,7 @@ import (
 
 	"github.com/fluxcd/pkg/gittestserver"
 
-	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1"
 
 	"github.com/fluxcd/image-automation-controller/internal/constants"
 )

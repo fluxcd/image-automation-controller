@@ -1,5 +1,5 @@
 /*
-Copyright 2024 The Flux authors
+Copyright 2025 The Flux authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta2
+package v1
 
 import (
 	"time"
@@ -129,10 +129,10 @@ type ImageUpdateAutomationStatus struct {
 // ImageRef.
 type ObservedPolicies map[string]ImageRef
 
+//+kubebuilder:storageversion
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:resource:shortName=iua;imgupd;imgauto
-// +kubebuilder:deprecatedversion:warning="v1beta2 ImageUpdateAutomation is deprecated, upgrade to v1"
 //+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
 //+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
 //+kubebuilder:printcolumn:name="Last run",type="string",JSONPath=".status.lastAutomationRunTime",priority=1

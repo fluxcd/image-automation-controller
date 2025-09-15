@@ -22,7 +22,7 @@ import (
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 )
 

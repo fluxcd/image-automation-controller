@@ -16,18 +16,18 @@ require (
 	github.com/ProtonMail/go-crypto v1.3.0
 	github.com/cyphar/filepath-securejoin v0.4.1
 	github.com/fluxcd/image-automation-controller/api v0.41.2
-	github.com/fluxcd/image-reflector-controller/api v0.35.2
+	github.com/fluxcd/image-reflector-controller/api v1.0.0
 	github.com/fluxcd/pkg/apis/acl v0.9.0
 	github.com/fluxcd/pkg/apis/event v0.19.0
 	github.com/fluxcd/pkg/apis/meta v1.21.0
-	github.com/fluxcd/pkg/auth v0.29.0
+	github.com/fluxcd/pkg/auth v0.31.0
 	github.com/fluxcd/pkg/cache v0.11.0
 	github.com/fluxcd/pkg/git v0.36.0
 	github.com/fluxcd/pkg/git/gogit v0.40.0
 	github.com/fluxcd/pkg/gittestserver v0.20.0
-	github.com/fluxcd/pkg/runtime v0.82.0
+	github.com/fluxcd/pkg/runtime v0.85.0
 	github.com/fluxcd/pkg/ssh v0.21.0
-	github.com/fluxcd/source-controller/api v1.7.0-rc.1
+	github.com/fluxcd/source-controller/api v1.7.0
 	github.com/go-git/go-billy/v5 v5.6.2
 	github.com/go-git/go-git/v5 v5.16.2
 	github.com/go-logr/logr v1.4.3
@@ -40,7 +40,7 @@ require (
 	k8s.io/client-go v0.34.0
 	k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b
 	k8s.io/utils v0.0.0-20250820121507-0af2bda4dd1d
-	sigs.k8s.io/controller-runtime v0.22.0
+	sigs.k8s.io/controller-runtime v0.22.1
 	sigs.k8s.io/kustomize/kyaml v0.20.1
 )
 
@@ -83,7 +83,7 @@ require (
 	github.com/chai2010/gettext-go v1.0.3 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/docker/cli v28.2.2+incompatible // indirect
+	github.com/docker/cli v28.3.3+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.3 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
@@ -170,14 +170,14 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/crypto v0.41.0 // indirect
-	golang.org/x/net v0.43.0 // indirect
-	golang.org/x/oauth2 v0.30.0 // indirect
-	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
-	golang.org/x/term v0.34.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
-	golang.org/x/time v0.12.0 // indirect
+	golang.org/x/crypto v0.42.0 // indirect
+	golang.org/x/net v0.44.0 // indirect
+	golang.org/x/oauth2 v0.31.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/term v0.35.0 // indirect
+	golang.org/x/text v0.29.0 // indirect
+	golang.org/x/time v0.13.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/api v0.248.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250818200422-3122310a409c // indirect

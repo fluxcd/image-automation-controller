@@ -40,7 +40,7 @@ import (
 	"github.com/fluxcd/pkg/git/gogit"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
-	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta2"
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1"
 )
 
 const (

@@ -51,13 +51,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	image_reflectv1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	image_reflectv1 "github.com/fluxcd/image-reflector-controller/api/v1"
 	"github.com/fluxcd/pkg/gittestserver"
 	"github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/testenv"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
-	image_automationv1 "github.com/fluxcd/image-automation-controller/api/v1beta2"
+	image_automationv1 "github.com/fluxcd/image-automation-controller/api/v1"
 	"github.com/fluxcd/image-automation-controller/internal/update"
 )
 

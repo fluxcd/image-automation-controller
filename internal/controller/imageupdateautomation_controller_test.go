@@ -45,7 +45,7 @@ import (
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1"
 	aclapi "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/gittestserver"
@@ -55,7 +55,7 @@ import (
 	"github.com/fluxcd/pkg/ssh"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
-	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta2"
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1"
 	"github.com/fluxcd/image-automation-controller/internal/source"
 	"github.com/fluxcd/image-automation-controller/internal/testutil"
 )
