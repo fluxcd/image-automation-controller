@@ -7,8 +7,6 @@
 - name: area/kyaml
   description: YAML patching related issues and pull requests
   color: '#86dbf2'
-
-# TODO: enable this when we have a release/v1.0.x branch
-#- name: backport:release/v1.0.x
-#  description: To be backported to release/v1.0.x
-#  color: '#ffd700'
+- name: backport:release/v1.0.x
+  description: To be backported to release/v1.0.x
+  color: '#ffd700'
