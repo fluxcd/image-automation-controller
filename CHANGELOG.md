@@ -1,5 +1,60 @@
 # Changelog
 
+## 1.0.0
+
+**Release date:** 2025-09-16
+
+This is the first GA release of the image-automation-controller. It comes with
+various bug fixes and improvements.
+
+The `ImageUpdateAutomation` API has been promoted to `v1` (GA) status. The `v1` API is backwards compatible with `v1beta2`.
+
+⚠️ The `v1beta1` APIs were removed. Before upgrading the CRDs, Flux users must run [`flux migrate`](https://github.com/fluxcd/flux2/pull/5473) to migrate the cluster storage off `v1beta1`. After the upgrade, all manifests in Git which contain `ImagePolicy`, `ImageRepository` and `ImageUpdateAutomation` definitions must be updated to:
+
+```yaml
+apiVersion: image.toolkit.fluxcd.io/v1
+```
+
+The `.spec.update.strategy` field is now optional, simplifying configuration for basic use cases. Object-level workload identity support has been added for Azure DevOps Git repositories. A `--default-service-account=<sa name>` flag was introduced for workload identity multi-tenancy lockdown. The controller now supports system certificate pools for improved CA compatibility, and TLS ServerName pinning has been removed from TLS configuration for better flexibility. TLS support was also added for GitHub App authentication. Sparse checkout is now performed when `.spec.update.path` is specified.
+
+In addition, the Kubernetes dependencies have been updated to v1.34
+and various other controller dependencies have been updated to their latest
+version. The controller is now built with Go 1.25.
+
+Fixes:
+- Fix GitRepository namespace not used in watch index key
+  [#945](https://github.com/fluxcd/image-automation-controller/pull/945)
+
+Improvements:
+- Promote `ImageUpdateAutomation` API to v1 (GA)
+  [#963](https://github.com/fluxcd/image-automation-controller/pull/963)
+- Remove deprecated APIs in group `image.toolkit.fluxcd.io/v1beta1`
+  [#946](https://github.com/fluxcd/image-automation-controller/pull/946)
+- [RFC-0010] Add multi-tenant workload identity support for ImageUpdateAutomation with Azure GitRepository
+  [#951](https://github.com/fluxcd/image-automation-controller/pull/951)
+- [RFC-0010] Add default-service-account for lockdown
+  [#952](https://github.com/fluxcd/image-automation-controller/pull/952)
+- [RFC-0010] Add object-level configuration validation
+  [#954](https://github.com/fluxcd/image-automation-controller/pull/954)
+- Add TLS config for GitHub App auth
+  [#947](https://github.com/fluxcd/image-automation-controller/pull/947)
+- Make `.spec.update.strategy` optional
+  [#942](https://github.com/fluxcd/image-automation-controller/pull/942)
+- Add deprecation handling for .Updated template field
+  [#931](https://github.com/fluxcd/image-automation-controller/pull/931)
+- Add better kubectl columns to ImageUpdateAutomation
+  [#930](https://github.com/fluxcd/image-automation-controller/pull/930)
+- Add shortNames aliases for ImageUpdateAutomation CRD
+  [#929](https://github.com/fluxcd/image-automation-controller/pull/929)
+- Add support for Git sparse checkout when .spec.update.path is specified
+  [#920](https://github.com/fluxcd/image-automation-controller/pull/920)
+- Refactor pkg structure
+  [#948](https://github.com/fluxcd/image-automation-controller/pull/948)
+- Various dependency updates
+  [#957](https://github.com/fluxcd/image-automation-controller/pull/957)
+  [#936](https://github.com/fluxcd/image-automation-controller/pull/936)
+  [#962](https://github.com/fluxcd/image-automation-controller/pull/962)
+
 ## 0.41.2
 
 **Release date:** 2025-06-27
