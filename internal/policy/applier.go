@@ -25,9 +25,9 @@ import (
 	"github.com/fluxcd/pkg/runtime/logger"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1"
 
-	imagev1 "github.com/fluxcd/image-automation-controller/api/v1beta2"
+	imagev1 "github.com/fluxcd/image-automation-controller/api/v1"
 	"github.com/fluxcd/image-automation-controller/internal/update"
 )
 

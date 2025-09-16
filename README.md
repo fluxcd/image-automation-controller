@@ -1,25 +1,37 @@
-# Image automation controller
+# image-automation-controller
 
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/4789/badge)](https://bestpractices.coreinfrastructure.org/projects/4789)
 [![report](https://goreportcard.com/badge/github.com/fluxcd/image-automation-controller)](https://goreportcard.com/report/github.com/fluxcd/image-automation-controller)
 [![license](https://img.shields.io/github/license/fluxcd/image-automation-controller.svg)](https://github.com/fluxcd/image-automation-controller/blob/main/LICENSE)
 [![release](https://img.shields.io/github/release/fluxcd/image-automation-controller/all.svg)](https://github.com/fluxcd/image-automation-controller/releases)
 
-This controller automates updates to YAML when new container images
-are available.
+The image-automation-controller is a [GitOps toolkit](https://fluxcd.io/flux/components/) controller
+that extends [Flux](https://github.com/fluxcd/flux2) with automated patch and commit capabilities for container image updates.
 
-Its sibling,
-[image-reflector-controller](https://github.com/fluxcd/image-reflector-controller),
-scans container image repositories and reflects the metadata in
-Kubernetes resources. This controller reacts to that image metadata by
-updating YAML files in a git repository, and committing the changes.
+![overview](https://fluxcd.io/img/image-update-automation.png)
 
-## How to install it
+The [image-reflector-controller](https://github.com/fluxcd/image-reflector-controller) and image-update-automation
+work together to update Git repositories when new container images are available.
 
-Please see the [installation and use
-guide](https://fluxcd.io/flux/guides/image-update/).
+- The image-reflector-controller scans image repositories and reflects the image metadata in Kubernetes resources.
+- The image-automation-controller updates YAML files based on the latest images scanned, and commits the changes to a given Git repository.
 
-## How to work on it
+## API Specification
 
-For additional information on dependecies and how to contribute
-please refer to [DEVELOPMENT.md](DEVELOPMENT.md).
+| Kind                                                            | API Version                  |
+|-----------------------------------------------------------------|------------------------------|
+| [ImageUpdateAutomation](docs/spec/v1/imageupdateautomations.md) | `image.toolkit.fluxcd.io/v1` |
+
+## Guides
+
+* [Get started with Flux](https://fluxcd.io/flux/get-started/)
+* [Automate image updates to Git](https://fluxcd.io/flux/guides/image-update/)
+
+## Roadmap
+
+The roadmap for the Flux family of projects can be found at <https://fluxcd.io/roadmap/>.
+
+## Contributing
+
+This project is Apache 2.0 licensed and accepts contributions via GitHub pull requests.
+To start contributing please see the [development guide](DEVELOPMENT.md).
