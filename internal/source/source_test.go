@@ -262,6 +262,17 @@ func test_sourceManager_CheckoutSource(t *testing.T, proto string) {
 			wantRef: "main",
 		},
 		{
+			name: "checkout for reference name",
+			autoGitSpec: &imagev1.GitSpec{
+				Push: &imagev1.PushSpec{Branch: "main"},
+				Checkout: &imagev1.GitCheckoutSpec{
+					Reference: sourcev1.GitRepositoryRef{Name: "refs/heads/main"},
+				},
+			},
+			wantErr: false,
+			wantRef: "main",
+		},
+		{
 			name: "checkout for different push branch",
 			autoGitSpec: &imagev1.GitSpec{
 				Push: &imagev1.PushSpec{Branch: "foo"},
