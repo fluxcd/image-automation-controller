@@ -247,6 +247,7 @@ func (sm *SourceManager) CheckoutSource(ctx context.Context, options ...Checkout
 		cloneCfg.SemVer = sm.srcCfg.checkoutRef.SemVer
 		cloneCfg.Commit = sm.srcCfg.checkoutRef.Commit
 		cloneCfg.Branch = sm.srcCfg.checkoutRef.Branch
+		cloneCfg.RefName = sm.srcCfg.checkoutRef.Name
 	}
 	// Apply checkout configurations.
 	for _, o := range options {
