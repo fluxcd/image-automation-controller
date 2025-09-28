@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.1
+
+**Release date:** 2025-09-28
+
+This patch release fixes the Git checkout reference name not
+being taken into account when checking out the Git repository.
+
+Fixes:
+- Fix checkout reference name not taken into account
+  [#973](https://github.com/fluxcd/image-automation-controller/pull/973)
+
 ## 1.0.0
 
 **Release date:** 2025-09-16
