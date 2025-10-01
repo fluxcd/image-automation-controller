@@ -92,8 +92,8 @@ github.com/coreos/go-oidc/v3 v3.15.0/go.mod h1:HaZ3szPaZ0e4r6ebqvsLWlk2Tn+aejfmr
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/creack/pty v1.1.18 h1:n56/Zwd5o6whRC5PMGretI4IdRLlmBXYNjScPaBgsbY=
 github.com/creack/pty v1.1.18/go.mod h1:MOBLtS5ELjhRRrroQr9kyvTxUAFNvYEK993ew/Vr4O4=
-github.com/cyphar/filepath-securejoin v0.4.1 h1:JyxxyPEaktOD+GAnqIqTf9A8tHyAG22rowi7HkoSU1s=
-github.com/cyphar/filepath-securejoin v0.4.1/go.mod h1:Sdj7gXlvMcPZsbhwhQ33GguGLDGQL7h7bg04C/+u9jI=
+github.com/cyphar/filepath-securejoin v0.5.0 h1:hIAhkRBMQ8nIeuVwcAoymp7MY4oherZdAxD+m0u9zaw=
+github.com/cyphar/filepath-securejoin v0.5.0/go.mod h1:Sdj7gXlvMcPZsbhwhQ33GguGLDGQL7h7bg04C/+u9jI=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
@@ -140,8 +140,8 @@ github.com/fluxcd/pkg/git/gogit v0.40.0 h1:VCsHC1440jMk1wAGWCwkgU2nDUBOPeYbCk6/O
 github.com/fluxcd/pkg/git/gogit v0.40.0/go.mod h1:nQVyfa+rYSeVQiwVH5f/C4o1sf2MtMFjMlt3VSkC+P0=
 github.com/fluxcd/pkg/gittestserver v0.20.0 h1:xhzLV89mta23ZvTK0cpDCR6ni6vp5Di+9b4v3YBziMQ=
 github.com/fluxcd/pkg/gittestserver v0.20.0/go.mod h1:vGmM9eDJk56gx+osTcSHeScefnAaL4czR+rsNsvh0nw=
-github.com/fluxcd/pkg/runtime v0.85.0 h1:oOIeK2XvvsnvB0b1l/2pDuNzhFKSqP6UM+CirRLQvF0=
-github.com/fluxcd/pkg/runtime v0.85.0/go.mod h1:Wt9mUzQgMPQMu2D/wKl5pG4zh5vu/tfF5wq9pPobxOQ=
+github.com/fluxcd/pkg/runtime v0.86.0 h1:q7aBSerJwt0N9hpurPVElG+HWpVhZcs6t96bcNQj43w=
+github.com/fluxcd/pkg/runtime v0.86.0/go.mod h1:Wt9mUzQgMPQMu2D/wKl5pG4zh5vu/tfF5wq9pPobxOQ=
 github.com/fluxcd/pkg/ssh v0.21.0 h1:ZmyF0n9je0cTTkOpvFVgIhmdx9qtswnVE60TK4IzJh0=
 github.com/fluxcd/pkg/ssh v0.21.0/go.mod h1:nX+gvJOmjf0E7lxq5mKKzDIdPEL2jOUQZbkBMS+mDtk=
 github.com/fluxcd/pkg/version v0.10.0 h1:WETlCRbfbocsDItkCCeh/4x4zQkZ5i/lUe7P7VaQBrI=
@@ -337,8 +337,8 @@ github.com/spf13/cast v1.8.0/go.mod h1:ancEpBxwJDODSW/UG4rDrAqiKolqNNh2DX3mk86cA
 github.com/spf13/cobra v1.9.1 h1:CXSaggrXdbHK9CF+8ywj8Amf7PBRmPCOJugH954Nnlo=
 github.com/spf13/cobra v1.9.1/go.mod h1:nDyEzZ8ogv936Cinf6g1RU9MRY64Ir93oCnqb9wxYW0=
 github.com/spf13/pflag v1.0.6/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
-github.com/spf13/pflag v1.0.7 h1:vN6T9TfwStFPFM5XzjsvmzZkLuaLX+HS+0SeFLRgU6M=
-github.com/spf13/pflag v1.0.7/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
+github.com/spf13/pflag v1.0.10 h1:4EBh2KAYBwaONj6b2Ye1GiHfwjqyROoF4RwYO+vPwFk=
+github.com/spf13/pflag v1.0.10/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/objx v0.5.2 h1:xuMeJ0Sdp5ZMRXx/aWO6RZxdr3beISkG5/G/aIRr3pY=
 github.com/stretchr/objx v0.5.2/go.mod h1:FRsXN1f5AsAjCGJKqEizvkpNtU+EGNCLh3NxZ/8L+MA=
