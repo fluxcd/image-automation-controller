@@ -25,7 +25,7 @@ require (
 	github.com/fluxcd/pkg/git v0.37.0
 	github.com/fluxcd/pkg/git/gogit v0.41.0
 	github.com/fluxcd/pkg/gittestserver v0.21.0
-	github.com/fluxcd/pkg/runtime v0.88.0
+	github.com/fluxcd/pkg/runtime v0.89.0
 	github.com/fluxcd/pkg/ssh v0.22.0
 	github.com/fluxcd/source-controller/api v1.7.2
 	github.com/go-git/go-billy/v5 v5.6.2
