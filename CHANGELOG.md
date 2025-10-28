@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.3
+
+**Release date:** 2025-10-28
+
+This patch release fixes support for SOCKS5 proxy in the controller APIs.
+
+Fixes:
+- Restore SOCKS5 proxy support
+  [#984](https://github.com/fluxcd/image-automation-controller/pull/984)
+
 ## 1.0.2
 
 **Release date:** 2025-10-08
