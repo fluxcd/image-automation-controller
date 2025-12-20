@@ -101,6 +101,10 @@ func (r *ScreeningLocalReader) Read() ([]*yaml.RNode, error) {
 		// assumes the file is encoded as UTF8.
 		filebytes, err := os.ReadFile(p)
 		if err != nil {
+			if (info.Mode() & os.ModeSymlink) != 0 {
+				return nil
+			}
+
 			return fmt.Errorf("reading YAML file: %w", err)
 		}
 
