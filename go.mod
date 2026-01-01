@@ -14,7 +14,7 @@ require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/ProtonMail/go-crypto v1.3.0
-	github.com/cyphar/filepath-securejoin v0.6.0
+	github.com/cyphar/filepath-securejoin v0.6.1
 	github.com/fluxcd/image-automation-controller/api v1.0.0
 	github.com/fluxcd/image-reflector-controller/api v1.0.2
 	github.com/fluxcd/pkg/apis/acl v0.9.0
@@ -25,14 +25,14 @@ require (
 	github.com/fluxcd/pkg/git v0.38.0
 	github.com/fluxcd/pkg/git/gogit v0.42.0
 	github.com/fluxcd/pkg/gittestserver v0.22.0
-	github.com/fluxcd/pkg/runtime v0.90.0
+	github.com/fluxcd/pkg/runtime v0.92.0
 	github.com/fluxcd/pkg/ssh v0.23.0
 	github.com/fluxcd/source-controller/api v1.7.2
-	github.com/go-git/go-billy/v5 v5.6.2
-	github.com/go-git/go-git/v5 v5.16.3
+	github.com/go-git/go-billy/v5 v5.7.0
+	github.com/go-git/go-git/v5 v5.16.4
 	github.com/go-logr/logr v1.4.3
-	github.com/google/go-containerregistry v0.20.6
-	github.com/onsi/gomega v1.38.2
+	github.com/google/go-containerregistry v0.20.7
+	github.com/onsi/gomega v1.38.3
 	github.com/otiai10/copy v1.14.1
 	github.com/spf13/pflag v1.0.10
 	k8s.io/api v0.34.2
@@ -83,7 +83,7 @@ require (
 	github.com/chai2010/gettext-go v1.0.3 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/docker/cli v28.3.3+incompatible // indirect
+	github.com/docker/cli v29.0.3+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.3 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
@@ -157,7 +157,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect
 	github.com/spf13/cast v1.8.0 // indirect
-	github.com/spf13/cobra v1.9.1 // indirect
+	github.com/spf13/cobra v1.10.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
