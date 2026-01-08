@@ -136,8 +136,8 @@ github.com/fluxcd/pkg/cache v0.12.0 h1:mabABT3jIfuo84VbIW+qvfqMZ7PbM5tXQgQvA2uo2
 github.com/fluxcd/pkg/cache v0.12.0/go.mod h1:HL/9cgBmwCdKIr3JH57rxrGdb7rOgX5Z1eJlHsaV1vE=
 github.com/fluxcd/pkg/git v0.38.0 h1:fFH2PkL+VCtQ1aJec/6l3Wq5fQG1w02HHKfVY+gz1S4=
 github.com/fluxcd/pkg/git v0.38.0/go.mod h1:PHilCGIM2t10CJ++yK4SFHIcBAXqMk14XcwZ/Rqw23I=
-github.com/fluxcd/pkg/git/gogit v0.42.0 h1:AaaMNbuzO0lARhI2SoqLKkQhEN6QYE0fT5VG9oyMUTc=
-github.com/fluxcd/pkg/git/gogit v0.42.0/go.mod h1:DxH7DalONwiZ29odi7TjmLlhO9xsO7svy9GPGgHsHsc=
+github.com/fluxcd/pkg/git/gogit v0.43.0 h1:rRHBPfMSnPO50n7yOIkPm09I6zW6rzyvPulvRc1pEEk=
+github.com/fluxcd/pkg/git/gogit v0.43.0/go.mod h1:DxH7DalONwiZ29odi7TjmLlhO9xsO7svy9GPGgHsHsc=
 github.com/fluxcd/pkg/gittestserver v0.22.0 h1:LkOmXAoYB/OoVDMhneeyqUIGvSCb9fJtcFIAFkNGpzc=
 github.com/fluxcd/pkg/gittestserver v0.22.0/go.mod h1:kFBmc9akpmdY5EU5d0MuSj2eHgq6ebkmEKf6MEUyTIg=
 github.com/fluxcd/pkg/runtime v0.90.0 h1:IONDsN9npJdWqbSAfsI8j10sXpgaLd6ywycKwp35Wwo=
