@@ -23,7 +23,7 @@ require (
 	github.com/fluxcd/pkg/auth v0.33.0
 	github.com/fluxcd/pkg/cache v0.12.0
 	github.com/fluxcd/pkg/git v0.38.0
-	github.com/fluxcd/pkg/git/gogit v0.42.0
+	github.com/fluxcd/pkg/git/gogit v0.43.0
 	github.com/fluxcd/pkg/gittestserver v0.22.0
 	github.com/fluxcd/pkg/runtime v0.90.0
 	github.com/fluxcd/pkg/ssh v0.23.0
