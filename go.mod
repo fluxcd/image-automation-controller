@@ -4,10 +4,10 @@ go 1.25.0
 
 replace github.com/fluxcd/image-automation-controller/api => ./api
 
-// Pin kustomize to v5.8.0
+// Pin kustomize to v5.8.1
 replace (
-	sigs.k8s.io/kustomize/api => sigs.k8s.io/kustomize/api v0.21.0
-	sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.21.0
+	sigs.k8s.io/kustomize/api => sigs.k8s.io/kustomize/api v0.21.1
+	sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.21.1
 )
 
 require (
@@ -18,20 +18,20 @@ require (
 	github.com/fluxcd/image-automation-controller/api v1.0.0
 	github.com/fluxcd/image-reflector-controller/api v1.0.2
 	github.com/fluxcd/pkg/apis/acl v0.9.0
-	github.com/fluxcd/pkg/apis/event v0.22.0
+	github.com/fluxcd/pkg/apis/event v0.24.0
 	github.com/fluxcd/pkg/apis/meta v1.25.0
-	github.com/fluxcd/pkg/auth v0.36.0
+	github.com/fluxcd/pkg/auth v0.38.0
 	github.com/fluxcd/pkg/cache v0.13.0
-	github.com/fluxcd/pkg/git v0.41.0
-	github.com/fluxcd/pkg/gittestserver v0.24.0
-	github.com/fluxcd/pkg/runtime v0.96.0
+	github.com/fluxcd/pkg/git v0.43.0
+	github.com/fluxcd/pkg/gittestserver v0.25.0
+	github.com/fluxcd/pkg/runtime v0.100.0
 	github.com/fluxcd/pkg/ssh v0.24.0
 	github.com/fluxcd/source-controller/api v1.7.2
 	github.com/go-git/go-billy/v5 v5.7.0
-	github.com/go-git/go-git/v5 v5.16.4
+	github.com/go-git/go-git/v5 v5.16.5
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-containerregistry v0.20.7
-	github.com/onsi/gomega v1.39.0
+	github.com/onsi/gomega v1.39.1
 	github.com/otiai10/copy v1.14.1
 	github.com/spf13/pflag v1.0.10
 	k8s.io/api v0.35.0
@@ -39,8 +39,8 @@ require (
 	k8s.io/client-go v0.35.0
 	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
-	sigs.k8s.io/controller-runtime v0.23.0
-	sigs.k8s.io/kustomize/kyaml v0.21.0
+	sigs.k8s.io/controller-runtime v0.23.1
+	sigs.k8s.io/kustomize/kyaml v0.21.1
 )
 
 require (
@@ -108,8 +108,8 @@ require (
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/google/go-github/v81 v81.0.0 // indirect
-	github.com/google/go-querystring v1.1.0 // indirect
+	github.com/google/go-github/v82 v82.0.0 // indirect
+	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.11 // indirect
@@ -188,8 +188,8 @@ require (
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kubectl v0.35.0 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
-	sigs.k8s.io/kustomize/api v0.21.0 // indirect
+	sigs.k8s.io/kustomize/api v0.21.1 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
-	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
+	sigs.k8s.io/structured-merge-diff/v6 v6.3.2-0.20260122202528-d9cc6641c482 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )

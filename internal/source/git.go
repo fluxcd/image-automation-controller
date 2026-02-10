@@ -33,10 +33,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/fluxcd/pkg/auth"
+	"github.com/fluxcd/pkg/auth/githubapp"
 	authutils "github.com/fluxcd/pkg/auth/utils"
 	"github.com/fluxcd/pkg/cache"
 	"github.com/fluxcd/pkg/git"
-	"github.com/fluxcd/pkg/git/github"
 	"github.com/fluxcd/pkg/git/gogit"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
@@ -247,24 +247,24 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 		}
 
 		getCreds = func() (*authutils.GitCredentials, error) {
-			var appOpts []github.OptFunc
+			var appOpts []githubapp.OptFunc
 
-			appOpts = append(appOpts, github.WithAppData(authMethods.GitHubAppData))
+			appOpts = append(appOpts, githubapp.WithAppData(authMethods.GitHubAppData))
 
 			if proxyURL != nil {
-				appOpts = append(appOpts, github.WithProxyURL(proxyURL))
+				appOpts = append(appOpts, githubapp.WithProxyURL(proxyURL))
 			}
 
 			if srcOpts.tokenCache != nil {
-				appOpts = append(appOpts, github.WithCache(srcOpts.tokenCache, imagev1.ImageUpdateAutomationKind,
+				appOpts = append(appOpts, githubapp.WithCache(srcOpts.tokenCache, imagev1.ImageUpdateAutomationKind,
 					srcOpts.objName, srcOpts.objNamespace, cache.OperationReconcile))
 			}
 
 			if authMethods.HasTLS() {
-				appOpts = append(appOpts, github.WithTLSConfig(authMethods.TLS))
+				appOpts = append(appOpts, githubapp.WithTLSConfig(authMethods.TLS))
 			}
 
-			username, password, err := github.GetCredentials(ctx, appOpts...)
+			username, password, err := githubapp.GetCredentials(ctx, appOpts...)
 			if err != nil {
 				return nil, err
 			}
@@ -275,7 +275,7 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 		}
 	default:
 		// analyze secret, if it has github app data, perhaps provider should have been github.
-		if appID := data[github.KeyAppID]; len(appID) != 0 {
+		if appID := data[githubapp.KeyAppID]; len(appID) != 0 {
 			return nil, fmt.Errorf("secretRef '%s/%s' has github app data but provider is not set to github: %w", repo.GetNamespace(), repo.Spec.SecretRef.Name, ErrInvalidSourceConfiguration)
 		}
 	}
