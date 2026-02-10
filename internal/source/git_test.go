@@ -31,8 +31,8 @@ import (
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/auth/githubapp"
 	"github.com/fluxcd/pkg/git"
-	"github.com/fluxcd/pkg/git/github"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1"
@@ -191,9 +191,9 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 					Name: "githubAppSecret",
 				},
 				Data: map[string][]byte{
-					github.KeyAppID:             []byte("123"),
-					github.KeyAppInstallationID: []byte("456"),
-					github.KeyAppPrivateKey:     []byte("abc"),
+					githubapp.KeyAppID:             []byte("123"),
+					githubapp.KeyAppInstallationID: []byte("456"),
+					githubapp.KeyAppPrivateKey:     []byte("abc"),
 				},
 			},
 			beforeFunc: func(obj *sourcev1.GitRepository) {
@@ -232,7 +232,7 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 					Name: "githubAppSecret",
 				},
 				Data: map[string][]byte{
-					github.KeyAppID: []byte("123"),
+					githubapp.KeyAppID: []byte("123"),
 				},
 			},
 			beforeFunc: func(obj *sourcev1.GitRepository) {
