@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.1.0
+
+**Release date:** 2026-02-17
+
+This minor release comes with a bug fix and various improvements.
+
+The GitHub provider now supports looking up the GitHub App installation ID
+automatically, removing the need to configure it manually.
+
+In addition, the Kubernetes dependencies have been updated to v1.35.0 and
+the controller is now built with Go 1.26.
+
+Fixes:
+- Fix failure to read dangling symlink
+  [#996](https://github.com/fluxcd/image-automation-controller/pull/996)
+
+Improvements:
+- Introduce support for looking up GH app installation ID
+  [#1001](https://github.com/fluxcd/image-automation-controller/pull/1001)
+- Various dependency updates
+  [#999](https://github.com/fluxcd/image-automation-controller/pull/999)
+  [#1003](https://github.com/fluxcd/image-automation-controller/pull/1003)
+  [#1007](https://github.com/fluxcd/image-automation-controller/pull/1007)
+  [#1008](https://github.com/fluxcd/image-automation-controller/pull/1008)
+  [#1009](https://github.com/fluxcd/image-automation-controller/pull/1009)
+  [#1010](https://github.com/fluxcd/image-automation-controller/pull/1010)
+
 ## 1.0.4
 
 **Release date:** 2025-11-19
