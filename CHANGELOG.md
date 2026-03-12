@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.1
+
+**Release date:** 2026-03-12
+
+This patch release comes with dependency updates.
+
+Improvements:
+- Remove no longer needed workaround for Flux 2.8
+  [#1014](https://github.com/fluxcd/image-automation-controller/pull/1014)
+- Update fluxcd/pkg dependencies
+  [#1017](https://github.com/fluxcd/image-automation-controller/pull/1017)
+
 ## 1.1.0
 
 **Release date:** 2026-02-17
