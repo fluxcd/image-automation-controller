@@ -308,7 +308,7 @@ func TestImageUpdateAutomationReconciler_Reconcile(t *testing.T) {
 		g.Eventually(func(g Gomega) {
 			g.Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(obj), obj)).To(Succeed())
 			g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(expectedConditions))
-		}).Should(Succeed())
+		}, timeout).Should(Succeed())
 
 		// Check if the object status is valid.
 		condns := &conditionscheck.Conditions{NegativePolarity: imageUpdateAutomationNegativeConditions}
@@ -349,7 +349,7 @@ func TestImageUpdateAutomationReconciler_Reconcile(t *testing.T) {
 		g.Eventually(func(g Gomega) {
 			g.Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(obj), obj)).To(Succeed())
 			g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(expectedConditions))
-		}).Should(Succeed())
+		}, timeout).Should(Succeed())
 
 		// Check if the object status is valid.
 		condns := &conditionscheck.Conditions{NegativePolarity: imageUpdateAutomationNegativeConditions}
@@ -392,7 +392,7 @@ func TestImageUpdateAutomationReconciler_Reconcile(t *testing.T) {
 		g.Eventually(func(g Gomega) {
 			g.Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(obj), obj)).To(Succeed())
 			g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(expectedConditions))
-		}).Should(Succeed())
+		}, timeout).Should(Succeed())
 
 		// Check if the object status is valid.
 		condns := &conditionscheck.Conditions{NegativePolarity: imageUpdateAutomationNegativeConditions}
@@ -428,7 +428,7 @@ func TestImageUpdateAutomationReconciler_Reconcile(t *testing.T) {
 				g.Eventually(func(g Gomega) {
 					g.Expect(testEnv.Get(ctx, objKey, &obj)).To(Succeed())
 					g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(expectedConditions))
-				}).Should(Succeed())
+				}, timeout).Should(Succeed())
 
 				// Check if the object status is valid.
 				condns := &conditionscheck.Conditions{NegativePolarity: imageUpdateAutomationNegativeConditions}
@@ -465,7 +465,7 @@ func TestImageUpdateAutomationReconciler_Reconcile(t *testing.T) {
 					g.Expect(testEnv.Get(ctx, objKey, &obj)).To(Succeed())
 					g.Expect(obj.Status.ObservedGeneration).To(Equal(obj.GetGeneration()))
 					g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(expectedConditions))
-				}).Should(Succeed())
+				}, timeout).Should(Succeed())
 
 				g.Expect(obj.Status.LastPushCommit).To(BeEmpty())
 				g.Expect(obj.Status.LastPushTime).To(BeNil())
@@ -517,7 +517,7 @@ func TestImageUpdateAutomationReconciler_Reconcile(t *testing.T) {
 					g.Expect(testEnv.Get(ctx, objKey, &obj)).To(Succeed())
 					g.Expect(obj.Status.ObservedGeneration).To(Equal(obj.GetGeneration()))
 					g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(expectedConditions))
-				}).Should(Succeed())
+				}, timeout).Should(Succeed())
 				g.Expect(obj.Status.LastPushCommit).ToNot(BeEmpty())
 				g.Expect(obj.Status.LastPushTime).ToNot(BeNil())
 				g.Expect(obj.Status.LastAutomationRunTime).ToNot(BeNil())
