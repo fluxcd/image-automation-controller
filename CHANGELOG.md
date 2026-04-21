@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.2
+
+**Release date:** 2026-04-21
+
+This patch release updates go-git to v5.18.0, which includes performance
+improvements for Git operations, and comes with dependency updates.
+
+Improvements:
+- Update fluxcd/pkg dependencies
+  [#1022](https://github.com/fluxcd/image-automation-controller/pull/1022)
+
 ## 1.1.1
 
 **Release date:** 2026-03-12
