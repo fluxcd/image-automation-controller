@@ -20,15 +20,15 @@ require (
 	github.com/fluxcd/pkg/apis/acl v0.9.0
 	github.com/fluxcd/pkg/apis/event v0.25.0
 	github.com/fluxcd/pkg/apis/meta v1.26.0
-	github.com/fluxcd/pkg/auth v0.40.0
+	github.com/fluxcd/pkg/auth v0.41.0
 	github.com/fluxcd/pkg/cache v0.13.0
-	github.com/fluxcd/pkg/git v0.46.0
-	github.com/fluxcd/pkg/gittestserver v0.26.0
+	github.com/fluxcd/pkg/git v0.47.0
+	github.com/fluxcd/pkg/gittestserver v0.27.0
 	github.com/fluxcd/pkg/runtime v0.103.0
 	github.com/fluxcd/pkg/ssh v0.24.0
 	github.com/fluxcd/source-controller/api v1.8.0
-	github.com/go-git/go-billy/v5 v5.7.0
-	github.com/go-git/go-git/v5 v5.16.5
+	github.com/go-git/go-billy/v5 v5.8.0
+	github.com/go-git/go-git/v5 v5.18.0
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-containerregistry v0.20.7
 	github.com/onsi/gomega v1.39.1
@@ -76,6 +76,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.13 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.41.6 // indirect
 	github.com/aws/smithy-go v1.24.0 // indirect
+	github.com/aws/smithy-go/aws-http-auth v1.1.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
