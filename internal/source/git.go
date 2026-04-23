@@ -33,6 +33,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/fluxcd/pkg/auth"
+	"github.com/fluxcd/pkg/auth/aws"
+	"github.com/fluxcd/pkg/auth/azure"
 	"github.com/fluxcd/pkg/auth/githubapp"
 	authutils "github.com/fluxcd/pkg/auth/utils"
 	"github.com/fluxcd/pkg/cache"
@@ -202,11 +204,13 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 
 	var getCreds func() (*authutils.GitCredentials, error)
 	switch provider := repo.GetProvider(); provider {
-	case sourcev1.GitProviderAzure: // If AWS or GCP are added in the future they can be added here separated by a comma.
+	// If other providers (GCP, etc.) are added in the future they can be added here separated by a comma.
+	case azure.ProviderName, aws.ProviderName:
 		getCreds = func() (*authutils.GitCredentials, error) {
 			opts := []auth.Option{
 				auth.WithClient(c),
 				auth.WithServiceAccountNamespace(srcOpts.objNamespace),
+				auth.WithGitURL(*u),
 			}
 
 			if repo.Spec.ServiceAccountName != "" {
