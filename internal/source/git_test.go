@@ -31,6 +31,8 @@ import (
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/auth/aws"
+	"github.com/fluxcd/pkg/auth/azure"
 	"github.com/fluxcd/pkg/auth/githubapp"
 	"github.com/fluxcd/pkg/git"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
@@ -151,7 +153,7 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 			name: "azure provider",
 			url:  "https://dev.azure.com/foo/bar/_git/baz",
 			beforeFunc: func(obj *sourcev1.GitRepository) {
-				obj.Spec.Provider = sourcev1.GitProviderAzure
+				obj.Spec.Provider = azure.ProviderName
 			},
 			wantErr: "ManagedIdentityCredential",
 		},
@@ -159,8 +161,25 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 			name: "azure provider with service account and feature gate for object-level identity disabled",
 			url:  "https://dev.azure.com/foo/bar/_git/baz",
 			beforeFunc: func(obj *sourcev1.GitRepository) {
-				obj.Spec.Provider = sourcev1.GitProviderAzure
+				obj.Spec.Provider = azure.ProviderName
 				obj.Spec.ServiceAccountName = "azure-sa"
+			},
+			wantErr: ErrFeatureGateNotEnabled.Error(),
+		},
+		{
+			name: "aws provider with non-CodeCommit URL",
+			url:  "https://example.com/org/repo",
+			beforeFunc: func(obj *sourcev1.GitRepository) {
+				obj.Spec.Provider = aws.ProviderName
+			},
+			wantErr: "failed to create provider access token for the controller",
+		},
+		{
+			name: "aws provider with service account and feature gate for object-level identity disabled",
+			url:  "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
+			beforeFunc: func(obj *sourcev1.GitRepository) {
+				obj.Spec.Provider = aws.ProviderName
+				obj.Spec.ServiceAccountName = "aws-sa"
 			},
 			wantErr: ErrFeatureGateNotEnabled.Error(),
 		},
