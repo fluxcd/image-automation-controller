@@ -20,11 +20,11 @@ require (
 	github.com/fluxcd/pkg/apis/acl v0.9.0
 	github.com/fluxcd/pkg/apis/event v0.25.0
 	github.com/fluxcd/pkg/apis/meta v1.26.0
-	github.com/fluxcd/pkg/auth v0.41.0
+	github.com/fluxcd/pkg/auth v0.42.0
 	github.com/fluxcd/pkg/cache v0.13.0
 	github.com/fluxcd/pkg/git v0.47.0
 	github.com/fluxcd/pkg/gittestserver v0.27.0
-	github.com/fluxcd/pkg/runtime v0.103.0
+	github.com/fluxcd/pkg/runtime v0.105.0
 	github.com/fluxcd/pkg/ssh v0.24.0
 	github.com/fluxcd/source-controller/api v1.8.0
 	github.com/go-git/go-billy/v5 v5.8.0
