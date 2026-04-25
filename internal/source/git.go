@@ -202,11 +202,11 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 		return nil, fmt.Errorf("failed to configure authentication options: %w", err)
 	}
 
-	var getCreds func() (*authutils.GitCredentials, error)
+	var getCreds func() (*auth.GitCredentials, error)
 	switch provider := repo.GetProvider(); provider {
 	// If other providers (GCP, etc.) are added in the future they can be added here separated by a comma.
 	case azure.ProviderName, aws.ProviderName:
-		getCreds = func() (*authutils.GitCredentials, error) {
+		getCreds = func() (*auth.GitCredentials, error) {
 			opts := []auth.Option{
 				auth.WithClient(c),
 				auth.WithServiceAccountNamespace(srcOpts.objNamespace),
@@ -250,7 +250,7 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 			return nil, fmt.Errorf("secretRef with github app data must be specified when provider is set to github: %w", ErrInvalidSourceConfiguration)
 		}
 
-		getCreds = func() (*authutils.GitCredentials, error) {
+		getCreds = func() (*auth.GitCredentials, error) {
 			var appOpts []githubapp.OptFunc
 
 			appOpts = append(appOpts, githubapp.WithAppData(authMethods.GitHubAppData))
@@ -272,7 +272,7 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 			if err != nil {
 				return nil, err
 			}
-			return &authutils.GitCredentials{
+			return &auth.GitCredentials{
 				Username: username,
 				Password: password,
 			}, nil
