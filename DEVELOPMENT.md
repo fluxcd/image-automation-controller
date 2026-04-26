@@ -104,3 +104,42 @@ Create a `.vscode/launch.json` file:
 
 Start debugging by either clicking `Run` > `Start Debugging` or using
 the relevant shortcut.
+
+
+## Operational debugging tips
+
+When reproducing an issue or stepping through reconciliation logic, the
+following knobs make local runs cheaper and the resulting logs easier to
+read.
+
+### Limit the watched namespace
+
+The controller watches every namespace by default. To narrow it to a single
+namespace, set the `RUNTIME_NAMESPACE` environment variable before invoking
+`make run`:
+
+```sh
+RUNTIME_NAMESPACE=flux-system make run
+```
+
+### Reduce reconcile concurrency
+
+Each `ImageUpdateAutomation` reconcile is processed concurrently (default
+`--concurrent=4`). When debugging it is almost always easier to follow a
+serial trace; pass `--concurrent=1` so reconciles run one at a time:
+
+```sh
+go run ./main.go --concurrent=1
+```
+
+### Suspend unrelated objects
+
+If the controller is sharing a cluster with other Flux objects, suspend
+anything not relevant to the test you're running so their reconciles don't
+interleave with yours:
+
+```sh
+flux suspend image update <name>
+```
+
+Resume with `flux resume image update <name>` when you're done.
