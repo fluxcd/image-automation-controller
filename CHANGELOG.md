@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.3
+
+**Release date:** 2026-05-12
+
+This patch release comes with dependency updates, including go-git v5.19.0
+which fixes [CVE-2026-45022](https://github.com/advisories/GHSA-389r-gv7p-r3rp).
+
+Improvements:
+- Update fluxcd/pkg dependencies
+  [#1029](https://github.com/fluxcd/image-automation-controller/pull/1029)
+
 ## 1.1.2
 
 **Release date:** 2026-04-21
