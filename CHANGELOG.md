@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.4
+
+**Release date:** 2026-05-20
+
+This patch release comes with dependency updates, including go-git v5.19.1
+which fixes [CVE-2026-45571](https://github.com/advisories/GHSA-crhj-59gh-8x96)
+(crafted repositories may modify the main and submodule `.git` directories) and
+[CVE-2026-45570](https://github.com/advisories/GHSA-m7cr-m3pv-hgrp) (improper
+single-quote escaping in the SSH transport).
+
+Improvements:
+- Update fluxcd/pkg dependencies
+  [#1032](https://github.com/fluxcd/image-automation-controller/pull/1032)
+
 ## 1.1.3
 
 **Release date:** 2026-05-12
