@@ -26,7 +26,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -292,7 +291,7 @@ func copyDir(src string, dest string) error {
 		return err
 	}
 
-	files, err := ioutil.ReadDir(src)
+	files, err := os.ReadDir(src)
 	if err != nil {
 		return err
 	}
@@ -309,7 +308,7 @@ func copyDir(src string, dest string) error {
 
 		if !f.IsDir() {
 			// ignore symlinks
-			if f.Mode()&os.ModeSymlink == os.ModeSymlink {
+			if f.Type()&os.ModeSymlink == os.ModeSymlink {
 				continue
 			}
 
