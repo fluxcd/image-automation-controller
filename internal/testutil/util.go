@@ -513,7 +513,7 @@ func GetSSHSigningKeyECDSAP256(g *WithT, passphrase string) ([]byte, gossh.Publi
 
 // GetSSHSigningKeySecret returns a corev1.Secret in the shape the
 // controller expects for SSH signing: 'identity' holds the PEM-encoded
-// private key, 'password' (when provided) holds the passphrase.
+// private key, 'password' holds the passphrase.
 func GetSSHSigningKeySecret(g *WithT, name, namespace string) (*corev1.Secret, gossh.PublicKey) {
 	g.THelper()
 
