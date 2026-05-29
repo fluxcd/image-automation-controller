@@ -450,17 +450,22 @@ func GetSigningKeyPair(g *WithT, passphrase string) (*openpgp.Entity, []byte) {
 	pgpEntity, err := openpgp.NewEntity("", "", "", nil)
 	g.Expect(err).ToNot(HaveOccurred())
 
+	// Encrypt the private key before serializing so the returned bytes
+	// preserve the passphrase-protected state. SerializePrivate re-signs
+	// identities with the private key, which would fail on an encrypted
+	// key; SerializePrivateWithoutSigning skips that step and is what test
+	// fixtures need.
+	if passphrase != "" {
+		g.Expect(pgpEntity.PrivateKey.Encrypt([]byte(passphrase))).To(Succeed())
+	}
+
 	// Configure OpenPGP armor encoder.
 	b := bytes.NewBuffer(nil)
 	w, err := armor.Encode(b, openpgp.PrivateKeyType, nil)
 	g.Expect(err).ToNot(HaveOccurred())
 	// Serialize private key.
-	g.Expect(pgpEntity.SerializePrivate(w, nil)).To(Succeed())
+	g.Expect(pgpEntity.SerializePrivateWithoutSigning(w, nil)).To(Succeed())
 	g.Expect(w.Close()).To(Succeed())
-
-	if passphrase != "" {
-		g.Expect(pgpEntity.PrivateKey.Encrypt([]byte(passphrase))).To(Succeed())
-	}
 
 	return pgpEntity, b.Bytes()
 }
