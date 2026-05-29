@@ -60,7 +60,8 @@ type CommitSpec struct {
 	// author of commits.
 	// +required
 	Author CommitUser `json:"author"`
-	// SigningKey provides the option to sign commits with a GPG key
+	// SigningKey provides the option to sign commits with an OpenPGP or
+	// SSH signing key, referenced from a Secret. See SigningKey.
 	// +optional
 	SigningKey *SigningKey `json:"signingKey,omitempty"`
 	// MessageTemplate provides a template for the commit message,
@@ -84,15 +85,47 @@ type CommitUser struct {
 	Email string `json:"email"`
 }
 
-// SigningKey references a Kubernetes secret that contains a GPG keypair
+// SigningKey references a Kubernetes Secret that contains an OpenPGP or SSH
+// signing key for commits produced by the controller.
 type SigningKey struct {
-	// SecretRef holds the name to a secret that contains a 'git.asc' key
-	// corresponding to the ASCII Armored file containing the GPG signing
-	// keypair as the value. It must be in the same namespace as the
+	// SecretRef references a Secret containing the signing key. For type
+	// 'gpg', the Secret must contain a 'git.asc' (ASCII-armored OpenPGP
+	// keypair) and may contain a 'passphrase'. For type 'ssh', the Secret
+	// must contain an 'identity' (an SSH private key in any format
+	// golang.org/x/crypto/ssh.ParsePrivateKey accepts; typically the
+	// OpenSSH format produced by 'ssh-keygen') and may contain a 'password'
+	// (the key's passphrase). The SSH conventions match the GitRepository
+	// SSH transport-auth Secret format, allowing a single Secret to serve
+	// both transport and signing when the ImageUpdateAutomation lives in
+	// the same namespace as the GitRepository.
+	//
+	// The Secret itself must live in the same namespace as the
 	// ImageUpdateAutomation.
+	//
+	// Supported SSH key algorithms: ed25519, ecdsa-sha2-nistp256/384/521,
+	// and rsa (>= 2048-bit).
 	// +required
-	SecretRef meta.LocalObjectReference `json:"secretRef,omitempty"`
+	SecretRef meta.LocalObjectReference `json:"secretRef"`
+
+	// Type selects the signing-key format expected in the referenced
+	// Secret. When empty, the controller defaults to 'gpg'.
+	// +optional
+	Type SigningKeyType `json:"type,omitempty"`
 }
+
+// SigningKeyType is the format of the signing key referenced by SigningKey.
+// +kubebuilder:validation:Enum=gpg;ssh
+type SigningKeyType string
+
+const (
+	// SigningKeyTypeGPG selects an OpenPGP signing key located at 'git.asc'
+	// in the referenced Secret.
+	SigningKeyTypeGPG SigningKeyType = "gpg"
+
+	// SigningKeyTypeSSH selects an SSH signing key located at 'identity' in
+	// the referenced Secret.
+	SigningKeyTypeSSH SigningKeyType = "ssh"
+)
 
 // PushSpec specifies how and where to push commits.
 type PushSpec struct {
