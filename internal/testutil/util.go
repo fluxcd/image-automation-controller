@@ -19,6 +19,11 @@ package testutil
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
+	cryptorand "crypto/rand"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -38,6 +43,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/filesystem"
 	. "github.com/onsi/gomega"
+	gossh "golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -458,6 +464,72 @@ func GetSigningKeyPair(g *WithT, passphrase string) (*openpgp.Entity, []byte) {
 	}
 
 	return pgpEntity, b.Bytes()
+}
+
+// GetSSHSigningKey generates an ed25519 SSH keypair and returns the
+// PEM-encoded private key plus the matching gossh.PublicKey for use in
+// signature verification assertions. If passphrase is non-empty, the
+// returned PEM is encrypted with it.
+func GetSSHSigningKey(g *WithT, passphrase string) ([]byte, gossh.PublicKey) {
+	g.THelper()
+
+	_, priv, err := ed25519.GenerateKey(cryptorand.Reader)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	var pemBlock *pem.Block
+	if passphrase == "" {
+		pemBlock, err = gossh.MarshalPrivateKey(priv, "test ed25519 key")
+	} else {
+		pemBlock, err = gossh.MarshalPrivateKeyWithPassphrase(priv, "test ed25519 key", []byte(passphrase))
+	}
+	g.Expect(err).ToNot(HaveOccurred())
+
+	gosshSigner, err := gossh.NewSignerFromKey(priv)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	return pem.EncodeToMemory(pemBlock), gosshSigner.PublicKey()
+}
+
+// GetSSHSigningKeyECDSAP256 mirrors GetSSHSigningKey but generates an
+// ecdsa-sha2-nistp256 key. Exercises the non-ed25519 signing path.
+func GetSSHSigningKeyECDSAP256(g *WithT, passphrase string) ([]byte, gossh.PublicKey) {
+	g.THelper()
+
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), cryptorand.Reader)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	var pemBlock *pem.Block
+	if passphrase == "" {
+		pemBlock, err = gossh.MarshalPrivateKey(priv, "test ecdsa p256 key")
+	} else {
+		pemBlock, err = gossh.MarshalPrivateKeyWithPassphrase(priv, "test ecdsa p256 key", []byte(passphrase))
+	}
+	g.Expect(err).ToNot(HaveOccurred())
+
+	gosshSigner, err := gossh.NewSignerFromKey(priv)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	return pem.EncodeToMemory(pemBlock), gosshSigner.PublicKey()
+}
+
+// GetSSHSigningKeySecret returns a corev1.Secret in the shape the
+// controller expects for SSH signing: 'identity' holds the PEM-encoded
+// private key, 'password' (when provided) holds the passphrase.
+func GetSSHSigningKeySecret(g *WithT, name, namespace string) (*corev1.Secret, gossh.PublicKey) {
+	g.THelper()
+
+	passphrase := "abcde12345"
+	pemBytes, pubKey := GetSSHSigningKey(g, passphrase)
+
+	sec := &corev1.Secret{
+		Data: map[string][]byte{
+			"identity": pemBytes,
+			"password": []byte(passphrase),
+		},
+	}
+	sec.Name = name
+	sec.Namespace = namespace
+	return sec, pubKey
 }
 
 func ImageToRef(image string) *reflectorv1.ImageRef {
