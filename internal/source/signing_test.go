@@ -17,11 +17,16 @@ limitations under the License.
 package source
 
 import (
+	"context"
 	"testing"
 
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/scheme"
+	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/fluxcd/pkg/apis/meta"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1"
 	"github.com/fluxcd/image-automation-controller/internal/testutil"
@@ -205,4 +210,68 @@ func Test_loadSSHSigner(t *testing.T) {
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("could not parse SSH signing key"))
 	})
+}
+
+func Test_resolveSigner(t *testing.T) {
+	namespace := "default"
+
+	tests := []struct {
+		name       string
+		secretName string
+		typ        imagev1.SigningKeyType
+		wantNil    bool
+		wantErr    string
+	}{
+		{name: "no signing key returns nil", secretName: "", wantNil: true},
+		{name: "missing secret errors", secretName: "missing", typ: imagev1.SigningKeyTypeGPG, wantErr: "could not find signing key secret"},
+		{name: "empty type defaults to gpg", secretName: "gpg-key", typ: ""},
+		{name: "gpg happy path", secretName: "gpg-key", typ: imagev1.SigningKeyTypeGPG},
+		{name: "ssh happy path", secretName: "ssh-key", typ: imagev1.SigningKeyTypeSSH},
+		{name: "ssh declared but secret has only git.asc errors", secretName: "gpg-key", typ: imagev1.SigningKeyTypeSSH, wantErr: "does not contain an 'identity' key"},
+		{name: "gpg declared but secret has only identity errors", secretName: "ssh-key", typ: imagev1.SigningKeyTypeGPG, wantErr: "does not contain a 'git.asc' key"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+
+			_, gpgKey := testutil.GetSigningKeyPair(g, "")
+			sshPEM, _ := testutil.GetSSHSigningKey(g, "")
+			gpgSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: "gpg-key", Namespace: namespace},
+				Data:       map[string][]byte{signingSecretKeyGPG: gpgKey},
+			}
+			sshSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: "ssh-key", Namespace: namespace},
+				Data:       map[string][]byte{signingSecretKeySSH: sshPEM},
+			}
+
+			c := fakeclient.NewClientBuilder().
+				WithScheme(scheme.Scheme).
+				WithObjects(gpgSecret, sshSecret).
+				Build()
+
+			gitSpec := &imagev1.GitSpec{}
+			if tt.secretName != "" {
+				gitSpec.Commit = imagev1.CommitSpec{
+					SigningKey: &imagev1.SigningKey{
+						SecretRef: meta.LocalObjectReference{Name: tt.secretName},
+						Type:      tt.typ,
+					},
+				}
+			}
+
+			signer, err := resolveSigner(context.TODO(), c, namespace, gitSpec)
+			if tt.wantErr != "" {
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(err.Error()).To(ContainSubstring(tt.wantErr))
+				return
+			}
+			g.Expect(err).ToNot(HaveOccurred())
+			if tt.wantNil {
+				g.Expect(signer).To(BeNil())
+			} else {
+				g.Expect(signer).ToNot(BeNil())
+			}
+		})
+	}
 }
