@@ -17,9 +17,11 @@ limitations under the License.
 package source
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
+	"github.com/ProtonMail/go-crypto/openpgp"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -86,9 +88,34 @@ func resolveSigner(ctx context.Context, c client.Client, namespace string, gitSp
 }
 
 // loadGPGSigner returns a signature.Signer that signs commits with the
-// OpenPGP key in the referenced Secret. Implementation lands in Task 6.
+// OpenPGP key in the referenced Secret.
 func loadGPGSigner(secret *corev1.Secret) (signature.Signer, error) {
-	return nil, fmt.Errorf("loadGPGSigner: not implemented")
+	data, ok := secret.Data[signingSecretKeyGPG]
+	if !ok {
+		// detectSigningType already guards this case, but a defensive
+		// check keeps the leaf usable in isolation.
+		return nil, fmt.Errorf("signing key secret '%s' does not contain a '%s' key", secret.Name, signingSecretKeyGPG)
+	}
+
+	entities, err := openpgp.ReadArmoredKeyRing(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("could not read signing key from secret '%s': %w", secret.Name, err)
+	}
+	if len(entities) > 1 {
+		return nil, fmt.Errorf("multiple entities read from secret '%s', could not determine which signing key to use", secret.Name)
+	}
+
+	entity := entities[0]
+	if entity.PrivateKey != nil && entity.PrivateKey.Encrypted {
+		passphrase, ok := secret.Data[signingSecretPassphraseGPG]
+		if !ok {
+			return nil, fmt.Errorf("can not use passphrase protected signing key without '%s' field present in secret %s", signingSecretPassphraseGPG, secret.Name)
+		}
+		if err := entity.PrivateKey.Decrypt(passphrase); err != nil {
+			return nil, fmt.Errorf("could not decrypt private key of the signing key present in secret %s: %w", secret.Name, err)
+		}
+	}
+	return signature.NewOpenPGPSigner(entity)
 }
 
 // loadSSHSigner returns a signature.Signer that signs commits with the SSH

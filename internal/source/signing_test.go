@@ -20,8 +20,11 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1"
+	"github.com/fluxcd/image-automation-controller/internal/testutil"
 )
 
 func Test_detectSigningType(t *testing.T) {
@@ -83,4 +86,56 @@ func Test_detectSigningType(t *testing.T) {
 			g.Expect(err.Error()).To(ContainSubstring(tt.wantErr))
 		})
 	}
+}
+
+func Test_loadGPGSigner(t *testing.T) {
+	t.Run("unencrypted key returns signer", func(t *testing.T) {
+		g := NewWithT(t)
+
+		_, keyBytes := testutil.GetSigningKeyPair(g, "")
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "k"},
+			Data: map[string][]byte{
+				signingSecretKeyGPG: keyBytes,
+			},
+		}
+
+		s, err := loadGPGSigner(secret)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s).ToNot(BeNil())
+	})
+
+	t.Run("encrypted key with passphrase returns signer", func(t *testing.T) {
+		g := NewWithT(t)
+
+		passphrase := "abcde12345"
+		_, keyBytes := testutil.GetSigningKeyPair(g, passphrase)
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "k"},
+			Data: map[string][]byte{
+				signingSecretKeyGPG:        keyBytes,
+				signingSecretPassphraseGPG: []byte(passphrase),
+			},
+		}
+
+		s, err := loadGPGSigner(secret)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s).ToNot(BeNil())
+	})
+
+	t.Run("encrypted key without passphrase errors", func(t *testing.T) {
+		g := NewWithT(t)
+
+		_, keyBytes := testutil.GetSigningKeyPair(g, "abcde12345")
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "k"},
+			Data: map[string][]byte{
+				signingSecretKeyGPG: keyBytes,
+			},
+		}
+
+		_, err := loadGPGSigner(secret)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("'passphrase' field present in secret"))
+	})
 }
