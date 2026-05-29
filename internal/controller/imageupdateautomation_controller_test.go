@@ -17,8 +17,10 @@ limitations under the License.
 package controller
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -31,6 +33,7 @@ import (
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/hiddeco/sshsig"
 	. "github.com/onsi/gomega"
 	"github.com/otiai10/copy"
 	corev1 "k8s.io/api/core/v1"
@@ -48,6 +51,7 @@ import (
 	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1"
 	aclapi "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/git/signature"
 	"github.com/fluxcd/pkg/gittestserver"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	conditionscheck "github.com/fluxcd/pkg/runtime/conditions/check"
@@ -1261,6 +1265,252 @@ func TestImageUpdateAutomationReconciler_signedCommit(t *testing.T) {
 
 			_, err = openpgp.CheckArmoredDetachedSignature(kr, content, signature, nil)
 			g.Expect(err).ToNot(HaveOccurred())
+		},
+	)
+}
+
+func TestImageUpdateAutomationReconciler_signedCommit_SSH_Ed25519(t *testing.T) {
+	policySpec := reflectorv1.ImagePolicySpec{
+		ImageRepositoryRef: meta.NamespacedObjectReference{
+			Name: "not-expected-to-exist",
+		},
+		Policy: reflectorv1.ImagePolicyChoice{
+			SemVer: &reflectorv1.SemVerPolicy{
+				Range: "1.x",
+			},
+		},
+	}
+	fixture := "testdata/appconfig"
+	latest := "helloworld:v1.0.0"
+
+	g := NewWithT(t)
+
+	// Create test namespace.
+	namespace, err := testEnv.CreateNamespace(ctx, "image-auto-test")
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { g.Expect(testEnv.Delete(ctx, namespace)).To(Succeed()) }()
+
+	testWithRepoAndImagePolicy(
+		ctx, g, testEnv, namespace.Name, fixture, policySpec, latest,
+		func(g *WithT, s repoAndPolicyArgs, repoURL string, localRepo *extgogit.Repository) {
+			signingKeySecretName := "signing-key-secret-" + rand.String(5)
+
+			// Update the setter marker in the repo.
+			policyKey := types.NamespacedName{
+				Name:      s.imagePolicyName,
+				Namespace: s.namespace,
+			}
+			_ = testutil.CommitInRepo(ctx, g, repoURL, s.branch, originRemote, "Install setter marker", func(tmp string) {
+				g.Expect(testutil.ReplaceMarker(filepath.Join(tmp, "deploy.yaml"), policyKey)).To(Succeed())
+			})
+
+			preChangeCommitId := testutil.CommitIdFromBranch(localRepo, s.branch)
+
+			// Pull the head commit that was just pushed, so it's not
+			// considered a new commit when checking for automation commits.
+			waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
+
+			// Generate an unencrypted ed25519 SSH signing key.
+			pemBytes, pubKey := testutil.GetSSHSigningKey(g, "")
+
+			// Create the secret containing the SSH signing key.
+			secret := &corev1.Secret{
+				Data: map[string][]byte{
+					"identity": pemBytes,
+				},
+			}
+			secret.Name = signingKeySecretName
+			secret.Namespace = s.namespace
+			g.Expect(testEnv.Create(ctx, secret)).To(Succeed())
+
+			preChangeCommitId = testutil.CommitIdFromBranch(localRepo, s.branch)
+
+			// Create the ImageUpdateAutomation inline so we can set
+			// Type: SSH explicitly (the helper defaults to gpg).
+			updateAutomation := &imagev1.ImageUpdateAutomation{
+				Spec: imagev1.ImageUpdateAutomationSpec{
+					Interval: metav1.Duration{Duration: 2 * time.Hour},
+					SourceRef: imagev1.CrossNamespaceSourceReference{
+						Kind:      "GitRepository",
+						Name:      s.gitRepoName,
+						Namespace: s.gitRepoNamespace,
+					},
+					GitSpec: &imagev1.GitSpec{
+						Checkout: &imagev1.GitCheckoutSpec{
+							Reference: sourcev1.GitRepositoryRef{Branch: s.branch},
+						},
+						Commit: imagev1.CommitSpec{
+							MessageTemplate: testCommitTemplate,
+							Author: imagev1.CommitUser{
+								Name:  testAuthorName,
+								Email: testAuthorEmail,
+							},
+							SigningKey: &imagev1.SigningKey{
+								SecretRef: meta.LocalObjectReference{Name: signingKeySecretName},
+								Type:      imagev1.SigningKeyTypeSSH,
+							},
+						},
+					},
+					Update: &imagev1.UpdateStrategy{
+						Strategy: imagev1.UpdateStrategySetters,
+					},
+				},
+			}
+			updateAutomation.Name = "update-test"
+			updateAutomation.Namespace = s.namespace
+			g.Expect(testEnv.Create(ctx, updateAutomation)).To(Succeed())
+			defer func() {
+				g.Expect(deleteImageUpdateAutomation(ctx, testEnv, "update-test", s.namespace)).To(Succeed())
+			}()
+
+			// Wait for a new commit to be pushed by the controller.
+			waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
+
+			head, _ := localRepo.Head()
+			commit, err := localRepo.CommitObject(head.Hash())
+			g.Expect(err).ToNot(HaveOccurred())
+
+			// SSH signatures are stored in the same PGPSignature field.
+			g.Expect(commit.PGPSignature).To(HavePrefix("-----BEGIN SSH SIGNATURE-----"))
+
+			// Re-encode the commit without its signature to reconstruct
+			// the exact bytes that were signed.
+			c2 := *commit
+			c2.PGPSignature = ""
+			encoded := &plumbing.MemoryObject{}
+			g.Expect(c2.Encode(encoded)).To(Succeed())
+			reader, err := encoded.Reader()
+			g.Expect(err).ToNot(HaveOccurred())
+			payload, err := io.ReadAll(reader)
+			g.Expect(err).ToNot(HaveOccurred())
+
+			// Verify the SSH signature in-process.
+			sig, err := sshsig.Unarmor([]byte(commit.PGPSignature))
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(sshsig.Verify(bytes.NewReader(payload), sig, pubKey, sig.HashAlgorithm, signature.SSHSignatureNamespace)).To(Succeed())
+		},
+	)
+}
+
+func TestImageUpdateAutomationReconciler_signedCommit_SSH_ECDSAP256(t *testing.T) {
+	policySpec := reflectorv1.ImagePolicySpec{
+		ImageRepositoryRef: meta.NamespacedObjectReference{
+			Name: "not-expected-to-exist",
+		},
+		Policy: reflectorv1.ImagePolicyChoice{
+			SemVer: &reflectorv1.SemVerPolicy{
+				Range: "1.x",
+			},
+		},
+	}
+	fixture := "testdata/appconfig"
+	latest := "helloworld:v1.0.0"
+
+	g := NewWithT(t)
+
+	// Create test namespace.
+	namespace, err := testEnv.CreateNamespace(ctx, "image-auto-test")
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { g.Expect(testEnv.Delete(ctx, namespace)).To(Succeed()) }()
+
+	testWithRepoAndImagePolicy(
+		ctx, g, testEnv, namespace.Name, fixture, policySpec, latest,
+		func(g *WithT, s repoAndPolicyArgs, repoURL string, localRepo *extgogit.Repository) {
+			signingKeySecretName := "signing-key-secret-" + rand.String(5)
+
+			// Update the setter marker in the repo.
+			policyKey := types.NamespacedName{
+				Name:      s.imagePolicyName,
+				Namespace: s.namespace,
+			}
+			_ = testutil.CommitInRepo(ctx, g, repoURL, s.branch, originRemote, "Install setter marker", func(tmp string) {
+				g.Expect(testutil.ReplaceMarker(filepath.Join(tmp, "deploy.yaml"), policyKey)).To(Succeed())
+			})
+
+			preChangeCommitId := testutil.CommitIdFromBranch(localRepo, s.branch)
+
+			// Pull the head commit that was just pushed, so it's not
+			// considered a new commit when checking for automation commits.
+			waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
+
+			// Generate an unencrypted ECDSA P-256 SSH signing key.
+			pemBytes, pubKey := testutil.GetSSHSigningKeyECDSAP256(g, "")
+
+			// Create the secret containing the SSH signing key.
+			secret := &corev1.Secret{
+				Data: map[string][]byte{
+					"identity": pemBytes,
+				},
+			}
+			secret.Name = signingKeySecretName
+			secret.Namespace = s.namespace
+			g.Expect(testEnv.Create(ctx, secret)).To(Succeed())
+
+			preChangeCommitId = testutil.CommitIdFromBranch(localRepo, s.branch)
+
+			// Create the ImageUpdateAutomation inline so we can set
+			// Type: SSH explicitly (the helper defaults to gpg).
+			updateAutomation := &imagev1.ImageUpdateAutomation{
+				Spec: imagev1.ImageUpdateAutomationSpec{
+					Interval: metav1.Duration{Duration: 2 * time.Hour},
+					SourceRef: imagev1.CrossNamespaceSourceReference{
+						Kind:      "GitRepository",
+						Name:      s.gitRepoName,
+						Namespace: s.gitRepoNamespace,
+					},
+					GitSpec: &imagev1.GitSpec{
+						Checkout: &imagev1.GitCheckoutSpec{
+							Reference: sourcev1.GitRepositoryRef{Branch: s.branch},
+						},
+						Commit: imagev1.CommitSpec{
+							MessageTemplate: testCommitTemplate,
+							Author: imagev1.CommitUser{
+								Name:  testAuthorName,
+								Email: testAuthorEmail,
+							},
+							SigningKey: &imagev1.SigningKey{
+								SecretRef: meta.LocalObjectReference{Name: signingKeySecretName},
+								Type:      imagev1.SigningKeyTypeSSH,
+							},
+						},
+					},
+					Update: &imagev1.UpdateStrategy{
+						Strategy: imagev1.UpdateStrategySetters,
+					},
+				},
+			}
+			updateAutomation.Name = "update-test"
+			updateAutomation.Namespace = s.namespace
+			g.Expect(testEnv.Create(ctx, updateAutomation)).To(Succeed())
+			defer func() {
+				g.Expect(deleteImageUpdateAutomation(ctx, testEnv, "update-test", s.namespace)).To(Succeed())
+			}()
+
+			// Wait for a new commit to be pushed by the controller.
+			waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
+
+			head, _ := localRepo.Head()
+			commit, err := localRepo.CommitObject(head.Hash())
+			g.Expect(err).ToNot(HaveOccurred())
+
+			// SSH signatures are stored in the same PGPSignature field.
+			g.Expect(commit.PGPSignature).To(HavePrefix("-----BEGIN SSH SIGNATURE-----"))
+
+			// Re-encode the commit without its signature to reconstruct
+			// the exact bytes that were signed.
+			c2 := *commit
+			c2.PGPSignature = ""
+			encoded := &plumbing.MemoryObject{}
+			g.Expect(c2.Encode(encoded)).To(Succeed())
+			reader, err := encoded.Reader()
+			g.Expect(err).ToNot(HaveOccurred())
+			payload, err := io.ReadAll(reader)
+			g.Expect(err).ToNot(HaveOccurred())
+
+			// Verify the SSH signature in-process.
+			sig, err := sshsig.Unarmor([]byte(commit.PGPSignature))
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(sshsig.Verify(bytes.NewReader(payload), sig, pubKey, sig.HashAlgorithm, signature.SSHSignatureNamespace)).To(Succeed())
 		},
 	)
 }
