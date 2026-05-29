@@ -19,6 +19,7 @@ package source
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
@@ -119,7 +120,24 @@ func loadGPGSigner(secret *corev1.Secret) (signature.Signer, error) {
 }
 
 // loadSSHSigner returns a signature.Signer that signs commits with the SSH
-// key in the referenced Secret. Implementation lands in Task 7.
+// key in the referenced Secret.
 func loadSSHSigner(secret *corev1.Secret) (signature.Signer, error) {
-	return nil, fmt.Errorf("loadSSHSigner: not implemented")
+	pem, ok := secret.Data[signingSecretKeySSH]
+	if !ok {
+		return nil, fmt.Errorf("signing key secret '%s' does not contain an '%s' key", secret.Name, signingSecretKeySSH)
+	}
+
+	passphrase := secret.Data[signingSecretPasswordSSH]
+	signer, err := signature.NewSSHSigner(pem, passphrase)
+	if err == nil {
+		return signer, nil
+	}
+
+	// Surface the encrypted-without-passphrase case with the same wording
+	// as the GPG path so operators can write one common runbook entry for
+	// "missing passphrase field" across both formats.
+	if errors.Is(err, signature.ErrSSHPassphraseRequired) {
+		return nil, fmt.Errorf("can not use passphrase protected signing key without '%s' field present in secret %s", signingSecretPasswordSSH, secret.Name)
+	}
+	return nil, fmt.Errorf("could not parse SSH signing key from secret '%s': %w", secret.Name, err)
 }

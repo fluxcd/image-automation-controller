@@ -139,3 +139,70 @@ func Test_loadGPGSigner(t *testing.T) {
 		g.Expect(err.Error()).To(ContainSubstring("'passphrase' field present in secret"))
 	})
 }
+
+func Test_loadSSHSigner(t *testing.T) {
+	t.Run("unencrypted ed25519 key returns signer", func(t *testing.T) {
+		g := NewWithT(t)
+
+		pemBytes, _ := testutil.GetSSHSigningKey(g, "")
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "k"},
+			Data: map[string][]byte{
+				signingSecretKeySSH: pemBytes,
+			},
+		}
+
+		s, err := loadSSHSigner(secret)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s).ToNot(BeNil())
+	})
+
+	t.Run("encrypted key with password returns signer", func(t *testing.T) {
+		g := NewWithT(t)
+
+		passphrase := "abcde12345"
+		pemBytes, _ := testutil.GetSSHSigningKey(g, passphrase)
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "k"},
+			Data: map[string][]byte{
+				signingSecretKeySSH:      pemBytes,
+				signingSecretPasswordSSH: []byte(passphrase),
+			},
+		}
+
+		s, err := loadSSHSigner(secret)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s).ToNot(BeNil())
+	})
+
+	t.Run("encrypted key without password errors with expected message", func(t *testing.T) {
+		g := NewWithT(t)
+
+		pemBytes, _ := testutil.GetSSHSigningKey(g, "abcde12345")
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "k"},
+			Data: map[string][]byte{
+				signingSecretKeySSH: pemBytes,
+			},
+		}
+
+		_, err := loadSSHSigner(secret)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("'password' field present in secret"))
+	})
+
+	t.Run("malformed identity errors", func(t *testing.T) {
+		g := NewWithT(t)
+
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "k"},
+			Data: map[string][]byte{
+				signingSecretKeySSH: []byte("not a real ssh key"),
+			},
+		}
+
+		_, err := loadSSHSigner(secret)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("could not parse SSH signing key"))
+	})
+}
