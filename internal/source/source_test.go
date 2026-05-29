@@ -710,6 +710,7 @@ Testing: value
 						SecretRef: meta.LocalObjectReference{
 							Name: "test-signing-key",
 						},
+						Type: imagev1.SigningKeyTypeGPG,
 					},
 				},
 			},
