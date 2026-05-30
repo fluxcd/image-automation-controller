@@ -76,6 +76,7 @@ func buildGitConfig(ctx context.Context, c client.Client, originKey, srcKey type
 		if client.IgnoreNotFound(err) == nil {
 			return nil, fmt.Errorf("referenced git repository does not exist: %w", err)
 		}
+		return nil, fmt.Errorf("failed to get referenced git repository: %w", err)
 	}
 	cfg.url = repo.Spec.URL
 
@@ -89,7 +90,6 @@ func buildGitConfig(ctx context.Context, c client.Client, originKey, srcKey type
 	// Get the checkout ref for the source, prioritizing the image automation
 	// object gitSpec checkout reference and falling back to the GitRepository
 	// reference if not provided.
-	// var checkoutRef *sourcev1.GitRepositoryRef
 	if gitSpec.Checkout != nil {
 		cfg.checkoutRef = &gitSpec.Checkout.Reference
 	} else if repo.Spec.Reference != nil {

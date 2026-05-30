@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/auth/aws"
@@ -405,7 +406,9 @@ func Test_buildGitConfig(t *testing.T) {
 		gitRepoURL       string
 		gitRepoProxyData map[string][]byte
 		srcOpts          SourceOptions
+		injectGetError   error
 		wantErr          bool
+		wantErrContains  string
 		wantCheckoutRef  *sourcev1.GitRepositoryRef
 		wantPushBranch   string
 		wantSwitchBranch bool
@@ -528,6 +531,20 @@ func Test_buildGitConfig(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "transient error fetching gitRepo",
+			gitSpec: &imagev1.GitSpec{
+				Checkout: &imagev1.GitCheckoutSpec{
+					Reference: sourcev1.GitRepositoryRef{Branch: "main"},
+				},
+				Push: &imagev1.PushSpec{Branch: "main"},
+			},
+			gitRepoName:     testGitRepoName,
+			gitRepoURL:      testGitURL,
+			injectGetError:  fmt.Errorf("transient-test-error"),
+			wantErr:         true,
+			wantErrContains: "transient-test-error",
+		},
+		{
 			name:        "use gitrepo timeout",
 			gitSpec:     &imagev1.GitSpec{},
 			gitRepoName: testGitRepoName,
@@ -616,6 +633,17 @@ func Test_buildGitConfig(t *testing.T) {
 			clientBuilder := fakeclient.NewClientBuilder().
 				WithScheme(scheme.Scheme).
 				WithObjects(testObjects...)
+			if tt.injectGetError != nil {
+				injectErr := tt.injectGetError
+				clientBuilder = clientBuilder.WithInterceptorFuncs(interceptor.Funcs{
+					Get: func(ctx context.Context, cl client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+						if _, ok := obj.(*sourcev1.GitRepository); ok {
+							return injectErr
+						}
+						return cl.Get(ctx, key, obj, opts...)
+					},
+				})
+			}
 			c := clientBuilder.Build()
 
 			gitRepoKey := types.NamespacedName{
@@ -632,6 +660,9 @@ func Test_buildGitConfig(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				g.Fail(fmt.Sprintf("unexpected error: %v", err))
 				return
+			}
+			if tt.wantErrContains != "" {
+				g.Expect(err.Error()).To(ContainSubstring(tt.wantErrContains))
 			}
 			if err == nil {
 				g.Expect(gitSrcCfg.checkoutRef).To(Equal(tt.wantCheckoutRef), "unexpected checkoutRef")
