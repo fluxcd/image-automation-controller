@@ -26,12 +26,12 @@ import (
 
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1"
 	"github.com/fluxcd/pkg/runtime/controller"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/testenv"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
@@ -87,7 +87,7 @@ func runTestsWithFeatures(m *testing.M, feats map[string]bool) int {
 	controllerName := "image-automation-controller"
 	if err := (&ImageUpdateAutomationReconciler{
 		Client:         testEnv,
-		EventRecorder:  record.NewFakeRecorder(32),
+		EventRecorder:  events.NewFakeRecorder(32, false),
 		features:       feats,
 		ControllerName: controllerName,
 	}).SetupWithManager(ctx, testEnv, ImageUpdateAutomationReconcilerOptions{
