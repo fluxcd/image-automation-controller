@@ -43,6 +43,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -51,11 +52,14 @@ import (
 
 	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1"
 	aclapi "github.com/fluxcd/pkg/apis/acl"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/git/signature"
 	"github.com/fluxcd/pkg/gittestserver"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	conditionscheck "github.com/fluxcd/pkg/runtime/conditions/check"
+	"github.com/fluxcd/pkg/runtime/events"
+	"github.com/fluxcd/pkg/runtime/events/eventstest"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/pkg/ssh"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
@@ -186,8 +190,8 @@ func TestImageUpdateAutomationReconciler_deleteBeforeFinalizer(t *testing.T) {
 	g.Expect(k8sClient.Delete(ctx, imageUpdate)).NotTo(HaveOccurred())
 
 	r := &ImageUpdateAutomationReconciler{
-		Client:        k8sClient,
-		EventRecorder: record.NewFakeRecorder(32),
+		Client:   k8sClient,
+		Recorder: events.NewFakeRecorder(32, false),
 	}
 	// NOTE: Only a real API server responds with an error in this scenario.
 	g.Eventually(func() error {
@@ -1116,7 +1120,7 @@ func TestImageUpdateAutomationReconciler_crossNamespaceRef(t *testing.T) {
 			WithScheme(testEnv.Scheme()).
 			WithStatusSubresource(&imagev1.ImageUpdateAutomation{}, &reflectorv1.ImagePolicy{}).
 			Build(),
-		EventRecorder:       testEnv.GetEventRecorderFor("image-automation-controller"),
+		Recorder:            testEnv.GetEventRecorder("image-automation-controller"),
 		NoCrossNamespaceRef: true,
 	}
 
@@ -1961,7 +1965,19 @@ func TestImageUpdateAutomationReconciler_notify(t *testing.T) {
 		syncNeeded       bool
 		oldObjBeforeFunc func(obj conditions.Setter)
 		newObjBeforeFunc func(obj conditions.Setter)
-		wantEvent        string
+		// wantEvent is the fluxcd event/v1 payload expected on the notification
+		// webhook. The real Recorder maps the Kubernetes event type to the
+		// event/v1 Severity (Normal->info, Warning->error, Trace->trace) and
+		// carries the Reason, Action and Message. Trace events are not posted to
+		// the webhook, so cases that only emit a trace leave wantEvent nil.
+		wantEvent *eventv1.Event
+		// wantKubeEvent is matched against the Kubernetes Event recorded by the
+		// core/v1 backend that main.go wires via events.WithManager, formatted
+		// by record.FakeRecorder as "<Type> <Reason> <Message>". Unlike the
+		// webhook payload, trace events are recorded here (as Normal), so every
+		// notify() branch yields exactly one Kubernetes Event. The core/v1
+		// Event has no action field, so the action does not appear here.
+		wantKubeEvent string
 	}{
 		{
 			name:       "first time reconciliation, no update",
@@ -1970,7 +1986,13 @@ func TestImageUpdateAutomationReconciler_notify(t *testing.T) {
 			newObjBeforeFunc: func(obj conditions.Setter) {
 				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "%s", readyMessage)
 			},
-			wantEvent: "Normal Succeeded repository up-to-date",
+			wantEvent: &eventv1.Event{
+				Severity: eventv1.EventSeverityInfo,
+				Reason:   meta.SucceededReason,
+				Action:   imagev1.ActionReconcile.String(),
+				Message:  "repository up-to-date",
+			},
+			wantKubeEvent: "Normal Succeeded repository up-to-date",
 		},
 		{
 			name:       "second reconciliation, syncNeeded=false, no update",
@@ -1982,7 +2004,11 @@ func TestImageUpdateAutomationReconciler_notify(t *testing.T) {
 			newObjBeforeFunc: func(obj conditions.Setter) {
 				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "%s", readyMessage)
 			},
-			wantEvent: "Trace Succeeded no change since last reconciliation",
+			// Trace event, not posted to the notification webhook.
+			wantEvent: nil,
+			// Trace is still recorded as a Normal Kubernetes Event, and
+			// syncNeeded=false yields the no-change message.
+			wantKubeEvent: "Normal Succeeded no change since last reconciliation",
 		},
 		{
 			name:       "second reconciliation, syncNeeded=true, no update",
@@ -1994,7 +2020,11 @@ func TestImageUpdateAutomationReconciler_notify(t *testing.T) {
 			newObjBeforeFunc: func(obj conditions.Setter) {
 				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "%s", readyMessage)
 			},
-			wantEvent: "Trace Succeeded repository up-to-date",
+			// Trace event, not posted to the notification webhook.
+			wantEvent: nil,
+			// Trace is still recorded as a Normal Kubernetes Event; with
+			// syncNeeded=true and no change the Ready message is used.
+			wantKubeEvent: "Normal Succeeded repository up-to-date",
 		},
 		{
 			name:       "was ready, new update, is ready",
@@ -2006,7 +2036,13 @@ func TestImageUpdateAutomationReconciler_notify(t *testing.T) {
 			newObjBeforeFunc: func(obj conditions.Setter) {
 				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "%s", readyMessage)
 			},
-			wantEvent: "Normal Succeeded pushed commit 'rev' to branch 'branch'\ntest commit message",
+			wantEvent: &eventv1.Event{
+				Severity: eventv1.EventSeverityInfo,
+				Reason:   meta.SucceededReason,
+				Action:   imagev1.ActionReconcile.String(),
+				Message:  "pushed commit 'rev' to branch 'branch'\ntest commit message",
+			},
+			wantKubeEvent: "Normal Succeeded pushed commit 'rev' to branch 'branch'\ntest commit message",
 		},
 		{
 			name:       "failure recovery, no update",
@@ -2018,7 +2054,13 @@ func TestImageUpdateAutomationReconciler_notify(t *testing.T) {
 			newObjBeforeFunc: func(obj conditions.Setter) {
 				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "%s", readyMessage)
 			},
-			wantEvent: "Normal Succeeded repository up-to-date",
+			wantEvent: &eventv1.Event{
+				Severity: eventv1.EventSeverityInfo,
+				Reason:   meta.SucceededReason,
+				Action:   imagev1.ActionReconcile.String(),
+				Message:  "repository up-to-date",
+			},
+			wantKubeEvent: "Normal Succeeded repository up-to-date",
 		},
 		{
 			name:       "failure recovery, with new update",
@@ -2030,7 +2072,13 @@ func TestImageUpdateAutomationReconciler_notify(t *testing.T) {
 			newObjBeforeFunc: func(obj conditions.Setter) {
 				conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "%s", readyMessage)
 			},
-			wantEvent: "Normal Succeeded pushed commit 'rev' to branch 'branch'\ntest commit message",
+			wantEvent: &eventv1.Event{
+				Severity: eventv1.EventSeverityInfo,
+				Reason:   meta.SucceededReason,
+				Action:   imagev1.ActionReconcile.String(),
+				Message:  "pushed commit 'rev' to branch 'branch'\ntest commit message",
+			},
+			wantKubeEvent: "Normal Succeeded pushed commit 'rev' to branch 'branch'\ntest commit message",
 		},
 		{
 			name:       "failed",
@@ -2042,15 +2090,45 @@ func TestImageUpdateAutomationReconciler_notify(t *testing.T) {
 			newObjBeforeFunc: func(obj conditions.Setter) {
 				conditions.MarkFalse(obj, meta.ReadyCondition, imagev1.GitOperationFailedReason, "failed to checkout source")
 			},
-			wantEvent: "Warning GitOperationFailed failed to checkout source",
+			wantEvent: &eventv1.Event{
+				Severity: eventv1.EventSeverityError,
+				Reason:   imagev1.GitOperationFailedReason,
+				Action:   imagev1.ActionReconcile.String(),
+				Message:  "failed to checkout source",
+			},
+			wantKubeEvent: "Warning GitOperationFailed failed to checkout source",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
-			recorder := record.NewFakeRecorder(32)
 
-			oldObj := &imagev1.ImageUpdateAutomation{}
+			// Drive the real Recorder exactly as main.go wires it: the default
+			// core/v1 Kubernetes Event backend (events.WithManager resolves to
+			// it) plus the notification webhook. The core/v1 backend is injected
+			// via WithLegacyEventRecorder so its recorded Event can be inspected
+			// without an apiserver, while the in-process sink captures the
+			// fluxcd event/v1 payload posted to notification-controller.
+			sink := eventstest.NewSink(t)
+			kubeRecorder := record.NewFakeRecorder(8)
+			recorder, err := events.NewRecorder(ctrl.Log, sink.URL(),
+				"image-automation-controller",
+				events.WithScheme(scheme.Scheme),
+				events.WithLegacyEventRecorder(kubeRecorder))
+			g.Expect(err).ToNot(HaveOccurred())
+
+			oldObj := &imagev1.ImageUpdateAutomation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "update-test",
+					Namespace: "default",
+				},
+				Spec: imagev1.ImageUpdateAutomationSpec{
+					SourceRef: imagev1.CrossNamespaceSourceReference{
+						Kind: sourcev1.GitRepositoryKind,
+						Name: "test-repo",
+					},
+				},
+			}
 			newObj := oldObj.DeepCopy()
 
 			if tt.oldObjBeforeFunc != nil {
@@ -2061,21 +2139,54 @@ func TestImageUpdateAutomationReconciler_notify(t *testing.T) {
 			}
 
 			reconciler := &ImageUpdateAutomationReconciler{
-				EventRecorder: recorder,
+				Recorder: recorder,
 			}
 			reconciler.notify(ctx, oldObj, newObj, tt.pushResult, tt.syncNeeded)
 
-			select {
-			case x, ok := <-recorder.Events:
-				g.Expect(ok).To(Equal(tt.wantEvent != ""), "unexpected event received")
-				if tt.wantEvent != "" {
-					g.Expect(x).To(ContainSubstring(tt.wantEvent))
-				}
-			default:
-				if tt.wantEvent != "" {
-					g.Fail("expected some event to be emitted")
-				}
+			// Assert the fluxcd event/v1 payload posted to the notification
+			// webhook. Trace events are not webhooked, so a nil wantEvent means
+			// the sink must have received nothing.
+			evts := sink.EventsFor(imagev1.ImageUpdateAutomationKind, "default", "update-test")
+
+			if tt.wantEvent == nil {
+				g.Expect(evts).To(BeEmpty(), "expected no event/v1 payload to be posted")
+			} else {
+				g.Expect(evts).To(HaveLen(1), "expected exactly one event/v1 payload")
+				ev := evts[0]
+
+				// Assert the event/v1 fields the recorder is responsible for.
+				g.Expect(ev.Severity).To(Equal(tt.wantEvent.Severity))
+				g.Expect(ev.Reason).To(Equal(tt.wantEvent.Reason))
+				g.Expect(ev.Action).To(Equal(tt.wantEvent.Action))
+				g.Expect(ev.Message).To(Equal(tt.wantEvent.Message))
+
+				// The payload is attributed to the ImageUpdateAutomation and
+				// relates to the GitRepository it syncs.
+				g.Expect(ev.InvolvedObject.Kind).To(Equal(imagev1.ImageUpdateAutomationKind))
+				g.Expect(ev.InvolvedObject.Name).To(Equal("update-test"))
+				g.Expect(ev.RelatedObject).ToNot(BeNil())
+				g.Expect(ev.RelatedObject.Kind).To(Equal(sourcev1.GitRepositoryKind))
+				g.Expect(ev.RelatedObject.Name).To(Equal("test-repo"))
+
+				// Dynamic content must survive formatting intact: no Go
+				// format-verb error artifacts may leak into the payload.
+				g.Expect(ev.Message).ToNot(ContainSubstring("%!"),
+					"event message contains a format-verb artifact")
 			}
+
+			// Assert the Kubernetes Event recorded by the core/v1 backend that
+			// main.go wires. Every notify() branch records exactly one Event,
+			// including trace cases (recorded as Normal). record.FakeRecorder
+			// formats it as "<Type> <Reason> <Message>"; the core/v1 Event has
+			// no action field, so no action appears.
+			var kubeEvent string
+			g.Eventually(kubeRecorder.Events).Should(Receive(&kubeEvent),
+				"expected exactly one Kubernetes Event")
+			g.Expect(kubeEvent).To(Equal(tt.wantKubeEvent))
+			g.Expect(kubeEvent).ToNot(ContainSubstring("%!"),
+				"Kubernetes Event message contains a format-verb artifact")
+			g.Consistently(kubeRecorder.Events).ShouldNot(Receive(),
+				"expected no further Kubernetes Events")
 		})
 	}
 }
