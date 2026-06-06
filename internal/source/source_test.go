@@ -35,12 +35,14 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/otiai10/copy"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/kustomize/kyaml/yaml"
 
 	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1"
 	"github.com/fluxcd/pkg/apis/meta"
@@ -52,6 +54,7 @@ import (
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1"
 	"github.com/fluxcd/image-automation-controller/internal/policy"
 	"github.com/fluxcd/image-automation-controller/internal/testutil"
+	"github.com/fluxcd/image-automation-controller/internal/update"
 )
 
 const (
@@ -141,6 +144,55 @@ func Fuzz_templateMsg(f *testing.F) {
 
 		_, _ = templateMsg(template, &values)
 	})
+}
+
+func TestTemplateMsgAggregatesObjectChangesAcrossFiles(t *testing.T) {
+	g := NewWithT(t)
+
+	objectID := update.ObjectIdentifier{ResourceIdentifier: yaml.ResourceIdentifier{
+		TypeMeta: yaml.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		NameMeta: yaml.NameMeta{
+			Namespace: "default",
+			Name:      "podinfo",
+		},
+	}}
+
+	templateValues := &TemplateData{
+		AutomationObject: types.NamespacedName{
+			Namespace: "flux-system",
+			Name:      "podinfo",
+		},
+		Changed: update.Result{
+			FileChanges: map[string]update.ObjectChanges{
+				"base/deployment.yaml": {
+					objectID: []update.Change{
+						{
+							OldValue: "podinfo:v1.0.0",
+							NewValue: "podinfo:v1.0.1",
+							Setter:   "flux-system:podinfo",
+						},
+					},
+				},
+				"overlays/prod/deployment.yaml": {
+					objectID: []update.Change{
+						{
+							OldValue: "1",
+							NewValue: "2",
+							Setter:   "flux-system:replicas",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	msg, err := templateMsg(testCommitTemplateResultV2, templateValues)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(msg).To(ContainSubstring("- podinfo:v1.0.0 -> podinfo:v1.0.1"))
+	g.Expect(msg).To(ContainSubstring("- 1 -> 2"))
 }
 
 func TestNewSourceManager(t *testing.T) {

@@ -134,3 +134,56 @@ func TestResult(t *testing.T) {
 		},
 	}))
 }
+
+func TestResultObjectsAggregatesSameObjectAcrossFiles(t *testing.T) {
+	g := NewWithT(t)
+
+	objectID := ObjectIdentifier{yaml.ResourceIdentifier{
+		TypeMeta: yaml.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		NameMeta: yaml.NameMeta{
+			Namespace: "default",
+			Name:      "podinfo",
+		},
+	}}
+
+	result := Result{
+		FileChanges: map[string]ObjectChanges{
+			"base/deployment.yaml": {
+				objectID: []Change{
+					{
+						OldValue: "podinfo:v1.0.0",
+						NewValue: "podinfo:v1.0.1",
+						Setter:   "flux-system:podinfo",
+					},
+				},
+			},
+			"overlays/prod/deployment.yaml": {
+				objectID: []Change{
+					{
+						OldValue: "1",
+						NewValue: "2",
+						Setter:   "flux-system:replicas",
+					},
+				},
+			},
+		},
+	}
+
+	objects := result.Objects()
+	g.Expect(objects).To(HaveKey(objectID))
+	g.Expect(objects[objectID]).To(ContainElements(
+		Change{
+			OldValue: "podinfo:v1.0.0",
+			NewValue: "podinfo:v1.0.1",
+			Setter:   "flux-system:podinfo",
+		},
+		Change{
+			OldValue: "1",
+			NewValue: "2",
+			Setter:   "flux-system:replicas",
+		},
+	))
+}

@@ -126,7 +126,7 @@ func (r Result) Objects() ObjectChanges {
 	result := make(ObjectChanges)
 	for _, objChanges := range r.FileChanges {
 		for obj, change := range objChanges {
-			result[obj] = change
+			result[obj] = append(result[obj], change...)
 		}
 	}
 	return result
