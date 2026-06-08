@@ -195,6 +195,82 @@ func TestTemplateMsgAggregatesObjectChangesAcrossFiles(t *testing.T) {
 	g.Expect(msg).To(ContainSubstring("- 1 -> 2"))
 }
 
+func TestTemplateMsgIsDeterministicForChangeIDTemplates(t *testing.T) {
+	g := NewWithT(t)
+
+	firstObjectID := update.ObjectIdentifier{ResourceIdentifier: yaml.ResourceIdentifier{
+		TypeMeta: yaml.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		NameMeta: yaml.NameMeta{
+			Namespace: "default",
+			Name:      "podinfo",
+		},
+	}}
+	secondObjectID := update.ObjectIdentifier{ResourceIdentifier: yaml.ResourceIdentifier{
+		TypeMeta: yaml.TypeMeta{
+			APIVersion: "batch/v1",
+			Kind:       "CronJob",
+		},
+		NameMeta: yaml.NameMeta{
+			Namespace: "default",
+			Name:      "cleanup",
+		},
+	}}
+
+	templateValues := &TemplateData{
+		AutomationObject: types.NamespacedName{
+			Namespace: "flux-system",
+			Name:      "podinfo",
+		},
+		Changed: update.Result{
+			FileChanges: update.FileChanges{
+				"overlays/prod/deployment.yaml": {
+					firstObjectID: {
+						{
+							OldValue: "1",
+							NewValue: "2",
+							Setter:   "flux-system:replicas",
+						},
+					},
+				},
+				"base/deployment.yaml": {
+					firstObjectID: {
+						{
+							OldValue: "podinfo:v1.0.0",
+							NewValue: "podinfo:v1.0.1",
+							Setter:   "flux-system:podinfo",
+						},
+					},
+					secondObjectID: {
+						{
+							OldValue: "cleanup:v1.0.0",
+							NewValue: "cleanup:v1.0.1",
+							Setter:   "flux-system:cleanup",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	const changeIDTemplate = `{{- $ChangeID := .AutomationObject -}}
+{{- $ChangeID = printf "%s%s" $ChangeID ( .Changed.FileChanges | toString ) -}}
+{{- $ChangeID = printf "%s%s" $ChangeID ( .Changed.Objects | toString ) -}}
+{{- $ChangeID = printf "%s%s" $ChangeID ( .Changed.Changes | toString ) -}}
+{{ $ChangeID }}`
+
+	rendered := map[string]struct{}{}
+	for range 50 {
+		msg, err := templateMsg(changeIDTemplate, templateValues)
+		g.Expect(err).ToNot(HaveOccurred())
+		rendered[msg] = struct{}{}
+	}
+
+	g.Expect(rendered).To(HaveLen(1))
+}
+
 func TestNewSourceManager(t *testing.T) {
 	namespace := "test-ns"
 	gitRepoName := "foo"
