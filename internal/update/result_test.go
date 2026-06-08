@@ -187,3 +187,41 @@ func TestResultObjectsAggregatesSameObjectAcrossFiles(t *testing.T) {
 		},
 	))
 }
+
+func TestResultIsDeterministic(t *testing.T) {
+	g := NewWithT(t)
+
+	deployment := ObjectIdentifier{yaml.ResourceIdentifier{
+		TypeMeta: yaml.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
+		NameMeta: yaml.NameMeta{Namespace: "default", Name: "podinfo"},
+	}}
+	cronJob := ObjectIdentifier{yaml.ResourceIdentifier{
+		TypeMeta: yaml.TypeMeta{APIVersion: "batch/v1", Kind: "CronJob"},
+		NameMeta: yaml.NameMeta{Namespace: "default", Name: "cleanup"},
+	}}
+
+	image := Change{OldValue: "podinfo:v1.0.0", NewValue: "podinfo:v1.0.1", Setter: "flux-system:podinfo"}
+	replicas := Change{OldValue: "1", NewValue: "2", Setter: "flux-system:replicas"}
+	tag := Change{OldValue: "2", NewValue: "3", Setter: "flux-system:podinfo:tag"}
+	cleanup := Change{OldValue: "cleanup:v1.0.0", NewValue: "cleanup:v1.0.1", Setter: "flux-system:cleanup"}
+
+	result := Result{
+		FileChanges: map[string]ObjectChanges{
+			"b.yaml": {
+				deployment: {tag},
+			},
+			"a.yaml": {
+				cronJob:    {cleanup},
+				deployment: {image, replicas},
+			},
+		},
+	}
+
+	for range 50 {
+		g.Expect(result.Changes()).To(Equal([]Change{image, replicas, cleanup, tag}))
+		g.Expect(result.Objects()).To(Equal(ObjectChanges{
+			deployment: {image, replicas, tag},
+			cronJob:    {cleanup},
+		}))
+	}
+}

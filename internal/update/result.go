@@ -17,6 +17,10 @@ limitations under the License.
 package update
 
 import (
+	"cmp"
+	"maps"
+	"slices"
+
 	"github.com/google/go-containerregistry/pkg/name"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -104,13 +108,15 @@ func (r *Result) AddChange(file string, objectID ObjectIdentifier, changes ...Ch
 	r.FileChanges[file][objectID] = append(r.FileChanges[file][objectID], changes...)
 }
 
-// Changes returns all the changes that were made in at least one update.
+// Changes returns all the changes that were made in at least one update,
+// ordered by file name, then object, then the order within the object.
 func (r Result) Changes() []Change {
 	seen := make(map[Change]struct{})
 	var result []Change
-	for _, objChanges := range r.FileChanges {
-		for _, changes := range objChanges {
-			for _, change := range changes {
+	for _, file := range slices.Sorted(maps.Keys(r.FileChanges)) {
+		objChanges := r.FileChanges[file]
+		for _, obj := range sortedObjects(objChanges) {
+			for _, change := range objChanges[obj] {
 				if _, ok := seen[change]; !ok {
 					seen[change] = struct{}{}
 					result = append(result, change)
@@ -122,12 +128,26 @@ func (r Result) Changes() []Change {
 }
 
 // Objects returns ObjectChanges, regardless of which file they appear in.
+// Changes of an object found in several files are ordered by file name.
 func (r Result) Objects() ObjectChanges {
 	result := make(ObjectChanges)
-	for _, objChanges := range r.FileChanges {
-		for obj, change := range objChanges {
+	for _, file := range slices.Sorted(maps.Keys(r.FileChanges)) {
+		for obj, change := range r.FileChanges[file] {
 			result[obj] = append(result[obj], change...)
 		}
 	}
 	return result
+}
+
+// sortedObjects returns the object identifiers of the given changes in
+// a stable order, so that results derived from them are deterministic.
+func sortedObjects(oc ObjectChanges) []ObjectIdentifier {
+	return slices.SortedFunc(maps.Keys(oc), func(a, b ObjectIdentifier) int {
+		return cmp.Or(
+			cmp.Compare(a.APIVersion, b.APIVersion),
+			cmp.Compare(a.Kind, b.Kind),
+			cmp.Compare(a.Namespace, b.Namespace),
+			cmp.Compare(a.Name, b.Name),
+		)
+	})
 }
