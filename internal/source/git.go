@@ -40,6 +40,7 @@ import (
 	"github.com/fluxcd/pkg/cache"
 	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/git/gogit"
+	gitsignature "github.com/fluxcd/pkg/git/signature"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1"
@@ -61,7 +62,7 @@ type gitSrcCfg struct {
 	checkoutRef   *sourcev1.GitRepositoryRef
 	authOpts      *git.AuthOptions
 	clientOpts    []gogit.ClientOption
-	signingEntity *openpgp.Entity
+	signingEntity gitsignature.Signer
 }
 
 func buildGitConfig(ctx context.Context, c client.Client, originKey, srcKey types.NamespacedName, gitSpec *imagev1.GitSpec, opts SourceOptions) (*gitSrcCfg, error) {
@@ -295,7 +296,7 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 	return opts, nil
 }
 
-func getSigningEntity(ctx context.Context, c client.Client, namespace string, gitSpec *imagev1.GitSpec) (*openpgp.Entity, error) {
+func getSigningEntity(ctx context.Context, c client.Client, namespace string, gitSpec *imagev1.GitSpec) (gitsignature.Signer, error) {
 	secretName := gitSpec.Commit.SigningKey.SecretRef.Name
 	secretData, err := getSecretData(ctx, c, secretName, namespace)
 	if err != nil {
@@ -327,7 +328,11 @@ func getSigningEntity(ctx context.Context, c client.Client, namespace string, gi
 			return nil, fmt.Errorf("could not decrypt private key of the signing key present in secret %s: %w", secretName, err)
 		}
 	}
-	return entity, nil
+	signer, err := gitsignature.NewOpenPGPSigner(entity)
+	if err != nil {
+		return nil, fmt.Errorf("could not create signer from secret %s: %w", secretName, err)
+	}
+	return signer, nil
 }
 
 func getSecretData(ctx context.Context, c client.Client, name, namespace string) (map[string][]byte, error) {
