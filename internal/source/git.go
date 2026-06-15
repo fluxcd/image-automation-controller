@@ -17,14 +17,12 @@ limitations under the License.
 package source
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"net/url"
 	"time"
 
-	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/fluxcd/pkg/runtime/secrets"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	corev1 "k8s.io/api/core/v1"
@@ -40,29 +38,24 @@ import (
 	"github.com/fluxcd/pkg/cache"
 	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/git/gogit"
-	gitsignature "github.com/fluxcd/pkg/git/signature"
+	"github.com/fluxcd/pkg/git/signature"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1"
 )
 
-const (
-	signingSecretKey     = "git.asc"
-	signingPassphraseKey = "passphrase"
-)
-
 // gitSrcCfg contains all the Git configurations related to a source derived
 // from the given configurations and the environment.
 type gitSrcCfg struct {
-	srcKey        types.NamespacedName
-	url           string
-	pushBranch    string
-	switchBranch  bool
-	timeout       *metav1.Duration
-	checkoutRef   *sourcev1.GitRepositoryRef
-	authOpts      *git.AuthOptions
-	clientOpts    []gogit.ClientOption
-	signingEntity gitsignature.Signer
+	srcKey       types.NamespacedName
+	url          string
+	pushBranch   string
+	switchBranch bool
+	timeout      *metav1.Duration
+	checkoutRef  *sourcev1.GitRepositoryRef
+	authOpts     *git.AuthOptions
+	clientOpts   []gogit.ClientOption
+	commitSigner signature.Signer
 }
 
 func buildGitConfig(ctx context.Context, c client.Client, originKey, srcKey types.NamespacedName, gitSpec *imagev1.GitSpec, opts SourceOptions) (*gitSrcCfg, error) {
@@ -141,10 +134,8 @@ func buildGitConfig(ctx context.Context, c client.Client, originKey, srcKey type
 		cfg.clientOpts = append(cfg.clientOpts, gogit.WithSingleBranch(!opts.gitAllBranchReferences))
 	}
 
-	if gitSpec.Commit.SigningKey != nil {
-		if cfg.signingEntity, err = getSigningEntity(ctx, c, originKey.Namespace, gitSpec); err != nil {
-			return nil, err
-		}
+	if cfg.commitSigner, err = resolveSigner(ctx, c, originKey.Namespace, gitSpec); err != nil {
+		return nil, err
 	}
 
 	return cfg, nil
@@ -294,53 +285,6 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 		opts.Password = creds.Password
 	}
 	return opts, nil
-}
-
-func getSigningEntity(ctx context.Context, c client.Client, namespace string, gitSpec *imagev1.GitSpec) (gitsignature.Signer, error) {
-	secretName := gitSpec.Commit.SigningKey.SecretRef.Name
-	secretData, err := getSecretData(ctx, c, secretName, namespace)
-	if err != nil {
-		return nil, fmt.Errorf("could not find signing key secret '%s': %w", secretName, err)
-	}
-
-	data, ok := secretData[signingSecretKey]
-	if !ok {
-		return nil, fmt.Errorf("signing key secret '%s' does not contain a 'git.asc' key", secretName)
-	}
-
-	// Read entity from secret value
-	entities, err := openpgp.ReadArmoredKeyRing(bytes.NewReader(data))
-	if err != nil {
-		return nil, fmt.Errorf("could not read signing key from secret '%s': %w", secretName, err)
-	}
-	if len(entities) > 1 {
-		return nil, fmt.Errorf("multiple entities read from secret '%s', could not determine which signing key to use", secretName)
-	}
-
-	entity := entities[0]
-	if entity.PrivateKey != nil && entity.PrivateKey.Encrypted {
-		passphrase, ok := secretData[signingPassphraseKey]
-		if !ok {
-			return nil, fmt.Errorf("can not use passphrase protected signing key without '%s' field present in secret %s",
-				"passphrase", secretName)
-		}
-		if err = entity.PrivateKey.Decrypt([]byte(passphrase)); err != nil {
-			return nil, fmt.Errorf("could not decrypt private key of the signing key present in secret %s: %w", secretName, err)
-		}
-	}
-	signer, err := gitsignature.NewOpenPGPSigner(entity)
-	if err != nil {
-		return nil, fmt.Errorf("could not create signer from secret %s: %w", secretName, err)
-	}
-	return signer, nil
-}
-
-func getSecretData(ctx context.Context, c client.Client, name, namespace string) (map[string][]byte, error) {
-	secret, err := getSecret(ctx, c, name, namespace)
-	if err != nil {
-		return nil, err
-	}
-	return secret.Data, nil
 }
 
 func getSecret(ctx context.Context, c client.Client, name, namespace string) (*corev1.Secret, error) {

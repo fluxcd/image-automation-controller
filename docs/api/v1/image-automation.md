@@ -54,7 +54,8 @@ SigningKey
 </td>
 <td>
 <em>(Optional)</em>
-<p>SigningKey provides the option to sign commits with a GPG key</p>
+<p>SigningKey provides the option to sign commits with an OpenPGP or
+SSH signing key, referenced from a Secret. See SigningKey.</p>
 </td>
 </tr>
 <tr>
@@ -814,7 +815,8 @@ server when performing a push operation. For details, see:
 (<em>Appears on:</em>
 <a href="#image.toolkit.fluxcd.io/v1.CommitSpec">CommitSpec</a>)
 </p>
-<p>SigningKey references a Kubernetes secret that contains a GPG keypair</p>
+<p>SigningKey references a Kubernetes Secret that contains an OpenPGP or SSH
+signing key for commits produced by the controller.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -835,16 +837,48 @@ github.com/fluxcd/pkg/apis/meta.LocalObjectReference
 </em>
 </td>
 <td>
-<p>SecretRef holds the name to a secret that contains a &lsquo;git.asc&rsquo; key
-corresponding to the ASCII Armored file containing the GPG signing
-keypair as the value. It must be in the same namespace as the
+<p>SecretRef references a Secret containing the signing key. For type
+&lsquo;gpg&rsquo;, the Secret must contain a &lsquo;git.asc&rsquo; (ASCII-armored OpenPGP
+keypair) and may contain a &lsquo;passphrase&rsquo;. For type &lsquo;ssh&rsquo;, the Secret
+must contain an &lsquo;identity&rsquo; (an SSH private key in any format
+golang.org/x/crypto/ssh.ParsePrivateKey accepts; typically the
+OpenSSH format produced by &lsquo;ssh-keygen&rsquo;) and may contain a &lsquo;password&rsquo;
+(the key&rsquo;s passphrase). The SSH conventions match the GitRepository
+SSH transport-auth Secret format, allowing a single Secret to serve
+both transport and signing when the ImageUpdateAutomation lives in
+the same namespace as the GitRepository.</p>
+<p>The Secret itself must live in the same namespace as the
 ImageUpdateAutomation.</p>
+<p>Supported SSH key algorithms: ed25519, ecdsa-sha2-nistp256/384/521,
+and rsa (&gt;= 2048-bit).</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>type</code><br>
+<em>
+<a href="#image.toolkit.fluxcd.io/v1.SigningKeyType">
+SigningKeyType
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Type selects the signing-key format expected in the referenced
+Secret. When empty, the controller defaults to &lsquo;gpg&rsquo;.</p>
 </td>
 </tr>
 </tbody>
 </table>
 </div>
 </div>
+<h3 id="image.toolkit.fluxcd.io/v1.SigningKeyType">SigningKeyType
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#image.toolkit.fluxcd.io/v1.SigningKey">SigningKey</a>)
+</p>
+<p>SigningKeyType is the format of the signing key referenced by SigningKey.</p>
 <h3 id="image.toolkit.fluxcd.io/v1.UpdateStrategy">UpdateStrategy
 </h3>
 <p>

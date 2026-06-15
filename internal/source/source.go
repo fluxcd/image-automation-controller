@@ -318,6 +318,11 @@ func (sm SourceManager) CommitAndPush(ctx context.Context, obj *imagev1.ImageUpd
 		When:  time.Now(),
 	}
 
+	commitOpts := []repository.CommitOption{}
+	if sm.srcCfg.commitSigner != nil {
+		commitOpts = append(commitOpts, repository.WithSigner(sm.srcCfg.commitSigner))
+	}
+
 	var rev string
 	var commitErr error
 	rev, commitErr = sm.gitClient.Commit(
@@ -325,7 +330,7 @@ func (sm SourceManager) CommitAndPush(ctx context.Context, obj *imagev1.ImageUpd
 			Author:  signature,
 			Message: commitMsg,
 		},
-		repository.WithSigner(sm.srcCfg.signingEntity),
+		commitOpts...,
 	)
 
 	if commitErr != nil {

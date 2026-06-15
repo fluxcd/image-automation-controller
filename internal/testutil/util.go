@@ -19,9 +19,13 @@ package testutil
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
+	cryptorand "crypto/rand"
+	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,6 +42,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/filesystem"
 	. "github.com/onsi/gomega"
+	gossh "golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -286,7 +291,7 @@ func copyDir(src string, dest string) error {
 		return err
 	}
 
-	files, err := ioutil.ReadDir(src)
+	files, err := os.ReadDir(src)
 	if err != nil {
 		return err
 	}
@@ -303,7 +308,7 @@ func copyDir(src string, dest string) error {
 
 		if !f.IsDir() {
 			// ignore symlinks
-			if f.Mode()&os.ModeSymlink == os.ModeSymlink {
+			if f.Type()&os.ModeSymlink == os.ModeSymlink {
 				continue
 			}
 
@@ -445,19 +450,90 @@ func GetSigningKeyPair(g *WithT, passphrase string) (*openpgp.Entity, []byte) {
 	pgpEntity, err := openpgp.NewEntity("", "", "", nil)
 	g.Expect(err).ToNot(HaveOccurred())
 
+	// Encrypt the private key before serializing so the returned bytes
+	// preserve the passphrase-protected state. SerializePrivate re-signs
+	// identities with the private key, which would fail on an encrypted
+	// key; SerializePrivateWithoutSigning skips that step and is what test
+	// fixtures need.
+	if passphrase != "" {
+		g.Expect(pgpEntity.PrivateKey.Encrypt([]byte(passphrase))).To(Succeed())
+	}
+
 	// Configure OpenPGP armor encoder.
 	b := bytes.NewBuffer(nil)
 	w, err := armor.Encode(b, openpgp.PrivateKeyType, nil)
 	g.Expect(err).ToNot(HaveOccurred())
 	// Serialize private key.
-	g.Expect(pgpEntity.SerializePrivate(w, nil)).To(Succeed())
+	g.Expect(pgpEntity.SerializePrivateWithoutSigning(w, nil)).To(Succeed())
 	g.Expect(w.Close()).To(Succeed())
 
-	if passphrase != "" {
-		g.Expect(pgpEntity.PrivateKey.Encrypt([]byte(passphrase))).To(Succeed())
-	}
-
 	return pgpEntity, b.Bytes()
+}
+
+// GetSSHSigningKey generates an ed25519 SSH keypair and returns the
+// PEM-encoded private key plus the matching gossh.PublicKey for use in
+// signature verification assertions. If passphrase is non-empty, the
+// returned PEM is encrypted with it.
+func GetSSHSigningKey(g *WithT, passphrase string) ([]byte, gossh.PublicKey) {
+	g.THelper()
+
+	_, priv, err := ed25519.GenerateKey(cryptorand.Reader)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	var pemBlock *pem.Block
+	if passphrase == "" {
+		pemBlock, err = gossh.MarshalPrivateKey(priv, "test ed25519 key")
+	} else {
+		pemBlock, err = gossh.MarshalPrivateKeyWithPassphrase(priv, "test ed25519 key", []byte(passphrase))
+	}
+	g.Expect(err).ToNot(HaveOccurred())
+
+	gosshSigner, err := gossh.NewSignerFromKey(priv)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	return pem.EncodeToMemory(pemBlock), gosshSigner.PublicKey()
+}
+
+// GetSSHSigningKeyECDSAP256 mirrors GetSSHSigningKey but generates an
+// ecdsa-sha2-nistp256 key. Exercises the non-ed25519 signing path.
+func GetSSHSigningKeyECDSAP256(g *WithT, passphrase string) ([]byte, gossh.PublicKey) {
+	g.THelper()
+
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), cryptorand.Reader)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	var pemBlock *pem.Block
+	if passphrase == "" {
+		pemBlock, err = gossh.MarshalPrivateKey(priv, "test ecdsa p256 key")
+	} else {
+		pemBlock, err = gossh.MarshalPrivateKeyWithPassphrase(priv, "test ecdsa p256 key", []byte(passphrase))
+	}
+	g.Expect(err).ToNot(HaveOccurred())
+
+	gosshSigner, err := gossh.NewSignerFromKey(priv)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	return pem.EncodeToMemory(pemBlock), gosshSigner.PublicKey()
+}
+
+// GetSSHSigningKeySecret returns a corev1.Secret in the shape the
+// controller expects for SSH signing: 'identity' holds the PEM-encoded
+// private key, 'password' holds the passphrase.
+func GetSSHSigningKeySecret(g *WithT, name, namespace string) (*corev1.Secret, gossh.PublicKey) {
+	g.THelper()
+
+	passphrase := "abcde12345"
+	pemBytes, pubKey := GetSSHSigningKey(g, passphrase)
+
+	sec := &corev1.Secret{
+		Data: map[string][]byte{
+			"identity": pemBytes,
+			"password": []byte(passphrase),
+		},
+	}
+	sec.Name = name
+	sec.Namespace = namespace
+	return sec, pubKey
 }
 
 func ImageToRef(image string) *reflectorv1.ImageRef {

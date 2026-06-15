@@ -326,11 +326,19 @@ spec:
 
 ##### Signing Key
 
-`.spec.git.commit.signingKey` is an optional field to specify the signing PGP
-key to sign the commits with. `.secretRef.name` refers to a Secret in the same
-namespace as the ImageUpdateAutomation, containing an ASCII-armored PGP key, in
-a field named `git.asc`. If the private key is protected by a passphrase, the
-passphrase can be specified in the same Secret in a field named `passphrase`.
+`.spec.git.commit.signingKey` is an optional field to specify a signing key to
+sign the commits with. The signing-key Secret must live in the same namespace
+as the ImageUpdateAutomation.
+
+The `.spec.git.commit.signingKey.type` field selects the signing-key format:
+`gpg` (default) for OpenPGP keys, or `ssh` for SSH keys.
+
+###### OpenPGP
+
+With `type: gpg` (the default), `.secretRef.name` refers to a Secret containing
+an ASCII-armored OpenPGP key in a field named `git.asc`. If the private key is
+protected by a passphrase, the passphrase can be specified in the same Secret
+in a field named `passphrase`.
 
 ```yaml
 ---
@@ -352,9 +360,49 @@ metadata:
   name: signing-key
 stringData:
   git.asc: |
-    <ARMOR ENCODED PGP KEY>
+    <ARMOR ENCODED OPENPGP KEY>
   passphrase: <private-key-passphrase>
 ```
+
+###### SSH
+
+With `type: ssh`, `.secretRef.name` refers to a Secret containing the SSH
+private key in a field named `identity`, optionally with the key's passphrase
+in a field named `password`. These conventions match the SSH transport-auth
+Secret format used by `GitRepository`, so when the ImageUpdateAutomation and
+the GitRepository share a namespace, a single Secret can serve both transport
+and signing.
+
+```yaml
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageUpdateAutomation
+metadata:
+  name: <automation-name>
+spec:
+  git:
+    commit:
+      signingKey:
+        type: ssh
+        secretRef:
+          name: signing-key
+...
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: signing-key
+stringData:
+  identity: |
+    <OPENSSH PRIVATE KEY>
+  password: <private-key-passphrase>
+```
+
+Supported SSH key algorithms: `ssh-ed25519`, `ecdsa-sha2-nistp256`,
+`ecdsa-sha2-nistp384`, `ecdsa-sha2-nistp521`, and `ssh-rsa` (key size
+≥ 2048-bit). Only OpenSSH-format private keys (`-----BEGIN OPENSSH PRIVATE
+KEY-----`) are accepted; convert PKCS#1 or PKCS#8 keys with `ssh-keygen -p`
+before placing them in the Secret.
 
 ##### Message Template
 

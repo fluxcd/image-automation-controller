@@ -39,7 +39,6 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1"
-	"github.com/fluxcd/image-automation-controller/internal/testutil"
 )
 
 func Test_getAuthOpts(t *testing.T) {
@@ -309,83 +308,6 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 				g.Expect(opts.BearerToken).To(BeEmpty())
 				g.Expect(opts.Username).To(BeEmpty())
 				g.Expect(opts.Password).To(BeEmpty())
-			}
-		})
-	}
-}
-
-func Test_getSigningEntity(t *testing.T) {
-	g := NewWithT(t)
-
-	namespace := "default"
-
-	passphrase := "abcde12345"
-	_, keyEncrypted := testutil.GetSigningKeyPair(g, passphrase)
-	encryptedKeySecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "encrypted-key",
-			Namespace: namespace,
-		},
-		Data: map[string][]byte{
-			signingSecretKey:     keyEncrypted,
-			signingPassphraseKey: []byte(passphrase),
-		},
-	}
-
-	_, keyUnencrypted := testutil.GetSigningKeyPair(g, "")
-	unencryptedKeySecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "unencrypted-key",
-			Namespace: namespace,
-		},
-		Data: map[string][]byte{
-			signingSecretKey: keyUnencrypted,
-		},
-	}
-
-	tests := []struct {
-		name       string
-		secretName string
-		wantErr    bool
-	}{
-		{
-			name:       "non-existing secret",
-			secretName: "non-existing",
-			wantErr:    true,
-		},
-		{
-			name:       "unencrypted key",
-			secretName: "unencrypted-key",
-			wantErr:    false,
-		},
-		{
-			name:       "encrypted key",
-			secretName: "encrypted-key",
-			wantErr:    false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g := NewWithT(t)
-
-			clientBuilder := fakeclient.NewClientBuilder().
-				WithScheme(scheme.Scheme).
-				WithObjects(encryptedKeySecret, unencryptedKeySecret)
-			c := clientBuilder.Build()
-
-			gitSpec := &imagev1.GitSpec{}
-			if tt.secretName != "" {
-				gitSpec.Commit = imagev1.CommitSpec{
-					SigningKey: &imagev1.SigningKey{
-						SecretRef: meta.LocalObjectReference{Name: tt.secretName},
-					},
-				}
-			}
-
-			_, err := getSigningEntity(context.TODO(), c, namespace, gitSpec)
-			if (err != nil) != tt.wantErr {
-				g.Fail(fmt.Sprintf("unexpected error: %v", err))
-				return
 			}
 		})
 	}
