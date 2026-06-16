@@ -129,14 +129,9 @@ type ImageUpdateAutomationStatus struct {
 // ImageRef.
 type ObservedPolicies map[string]ImageRef
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+kubebuilder:resource:shortName=iua;imgupd;imgauto
-// +kubebuilder:deprecatedversion:warning="v1beta2 ImageUpdateAutomation is deprecated, upgrade to v1"
-//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
-//+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
-//+kubebuilder:printcolumn:name="Last run",type="string",JSONPath=".status.lastAutomationRunTime",priority=1
-//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
+// +kubebuilder:object:root=true
+// +kubebuilder:resource:shortName=iua;imgupd;imgauto
+// +kubebuilder:skipversion
 
 // ImageUpdateAutomation is the Schema for the imageupdateautomations API
 type ImageUpdateAutomation struct {
