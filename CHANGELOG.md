@@ -1,5 +1,59 @@
 # Changelog
 
+## 1.2.0
+
+**Release date:** 2026-06-17
+
+This minor release adds support for signing Git commits with SSH keys and for
+authenticating to AWS CodeCommit repositories using IAM roles, and removes the
+deprecated `image.toolkit.fluxcd.io/v1beta2` API version.
+
+In addition, the Kubernetes dependencies have been updated to v1.36 and the
+controller is now built with Go 1.26.
+
+⚠️ The `image.toolkit.fluxcd.io/v1beta2` APIs were removed. Before upgrading the
+CRDs, Flux users must follow the
+[upgrade procedure](https://github.com/fluxcd/flux2/discussions/5572) to migrate
+the cluster storage off `v1beta2`. After the upgrade, all manifests in Git which
+contain `ImageUpdateAutomation` definitions must be updated to:
+
+```yaml
+apiVersion: image.toolkit.fluxcd.io/v1
+```
+
+### ImageUpdateAutomation
+
+The controller can now sign automation commits with an SSH key, in addition to
+the existing OpenPGP signing support. A new optional `.spec.git.commit.signingKey.type`
+field selects the key format (`gpg` or `ssh`); it defaults to `gpg` so existing
+manifests are unaffected. Passphrase-protected keys are supported.
+[#1035](https://github.com/fluxcd/image-automation-controller/pull/1035)
+
+Git repositories hosted on AWS CodeCommit can now be authenticated using IAM
+role authentication.
+[#1026](https://github.com/fluxcd/image-automation-controller/pull/1026)
+
+Fixes:
+- Preserve all object changes when the same object appears in multiple files
+  [#1042](https://github.com/fluxcd/image-automation-controller/pull/1042)
+- Propagate non-not-found errors when fetching the GitRepository
+  [#1036](https://github.com/fluxcd/image-automation-controller/pull/1036)
+
+Improvements:
+- Update to Kubernetes 1.36 and Go 1.26
+  [#1039](https://github.com/fluxcd/image-automation-controller/pull/1039)
+- Build for the host architecture in local builds and envtest
+  [#1044](https://github.com/fluxcd/image-automation-controller/pull/1044)
+- Various dependency updates
+  [#1027](https://github.com/fluxcd/image-automation-controller/pull/1027)
+  [#1040](https://github.com/fluxcd/image-automation-controller/pull/1040)
+  [#1045](https://github.com/fluxcd/image-automation-controller/pull/1045)
+  [#1046](https://github.com/fluxcd/image-automation-controller/pull/1046)
+  [#1047](https://github.com/fluxcd/image-automation-controller/pull/1047)
+  [#1048](https://github.com/fluxcd/image-automation-controller/pull/1048)
+  [#1050](https://github.com/fluxcd/image-automation-controller/pull/1050)
+  [#1051](https://github.com/fluxcd/image-automation-controller/pull/1051)
+
 ## 1.1.4
 
 **Release date:** 2026-05-20
