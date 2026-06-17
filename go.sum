@@ -124,8 +124,8 @@ github.com/fluxcd/cli-utils v1.2.1 h1:ug9CicKW7H9QXnvNDapTSKuryZvWcu4Nw7pRvQa6jD
 github.com/fluxcd/cli-utils v1.2.1/go.mod h1:cky6M6eHvTQkoPtsuFYLIgAMYdpTCSLoor4IA6vueSw=
 github.com/fluxcd/gitkit v0.6.0 h1:iNg5LTx6ePo+Pl0ZwqHTAkhbUHxGVSY3YCxCdw7VIFg=
 github.com/fluxcd/gitkit v0.6.0/go.mod h1:svOHuKi0fO9HoawdK4HfHAJJseZDHHjk7I3ihnCIqNo=
-github.com/fluxcd/image-reflector-controller/api v1.1.2 h1:VPwUgA8WyPVVs16uSkwvjOAY6pvTYgAb0fL90t0RKLE=
-github.com/fluxcd/image-reflector-controller/api v1.1.2/go.mod h1:j4JSIocL42HQ77Veg1t60sApOy+lng8/cbXHXGSnfi0=
+github.com/fluxcd/image-reflector-controller/api v1.2.0 h1:QayHAgOGx5Z2tkuGM9OKa88dhCKxYfReQu+YZXhq6fE=
+github.com/fluxcd/image-reflector-controller/api v1.2.0/go.mod h1:5oqi79I6uwr1KSKSjkH2tr4UH8iIsuzISByMJChb8tU=
 github.com/fluxcd/pkg/apis/acl v0.10.0 h1:KPfAmELNvtvaz8wixnm/MYXqa+MJf7ntVVMUU93Aenk=
 github.com/fluxcd/pkg/apis/acl v0.10.0/go.mod h1:a87i2A7AlFO5N2J8CxtzaUCCDmuLLWOHwkKu3eJF5fY=
 github.com/fluxcd/pkg/apis/event v0.27.0 h1:fUJRyWU3sEKjV6SzBnoJT6aDP5cJdMAbspZyRfhde6I=
