@@ -8,6 +8,10 @@ metadata:
 spec:
   group: image.toolkit.fluxcd.io
   names:
+    categories:
+    - all
+    - fluxcd
+    - fluxcd-image-automation
     kind: ImageUpdateAutomation
     listKind: ImageUpdateAutomationList
     plural: imageupdateautomations
