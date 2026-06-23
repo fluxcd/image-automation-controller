@@ -130,7 +130,6 @@ type ImageUpdateAutomationStatus struct {
 type ObservedPolicies map[string]ImageRef
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:shortName=iua;imgupd;imgauto
 // +kubebuilder:skipversion
 
 // ImageUpdateAutomation is the Schema for the imageupdateautomations API
