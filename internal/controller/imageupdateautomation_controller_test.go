@@ -42,7 +42,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/validation"
-	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -55,6 +54,7 @@ import (
 	"github.com/fluxcd/pkg/gittestserver"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	conditionscheck "github.com/fluxcd/pkg/runtime/conditions/check"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/pkg/ssh"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
@@ -132,7 +132,7 @@ func TestImageUpdateAutomationReconciler_deleteBeforeFinalizer(t *testing.T) {
 
 	r := &ImageUpdateAutomationReconciler{
 		Client:        k8sClient,
-		EventRecorder: record.NewFakeRecorder(32),
+		EventRecorder: events.NewFakeRecorder(32, false),
 	}
 	// NOTE: Only a real API server responds with an error in this scenario.
 	g.Eventually(func() error {
@@ -1061,7 +1061,7 @@ func TestImageUpdateAutomationReconciler_crossNamespaceRef(t *testing.T) {
 			WithScheme(testEnv.Scheme()).
 			WithStatusSubresource(&imagev1.ImageUpdateAutomation{}, &reflectorv1.ImagePolicy{}).
 			Build(),
-		EventRecorder:       testEnv.GetEventRecorderFor("image-automation-controller"),
+		EventRecorder:       testEnv.GetEventRecorder("image-automation-controller"),
 		NoCrossNamespaceRef: true,
 	}
 
@@ -1993,7 +1993,7 @@ func TestImageUpdateAutomationReconciler_notify(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
-			recorder := record.NewFakeRecorder(32)
+			recorder := events.NewFakeRecorder(32, false)
 
 			oldObj := &imagev1.ImageUpdateAutomation{}
 			newObj := oldObj.DeepCopy()
@@ -2011,10 +2011,11 @@ func TestImageUpdateAutomationReconciler_notify(t *testing.T) {
 			reconciler.notify(ctx, oldObj, newObj, tt.pushResult, tt.syncNeeded)
 
 			select {
-			case x, ok := <-recorder.Events:
+			case ev, ok := <-recorder.Events:
 				g.Expect(ok).To(Equal(tt.wantEvent != ""), "unexpected event received")
 				if tt.wantEvent != "" {
-					g.Expect(x).To(ContainSubstring(tt.wantEvent))
+					got := fmt.Sprintf("%s %s %s", ev.Type, ev.Reason, ev.Note)
+					g.Expect(got).To(ContainSubstring(tt.wantEvent))
 				}
 			default:
 				if tt.wantEvent != "" {
