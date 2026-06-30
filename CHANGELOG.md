@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.2.1
+
+**Release date:** 2026-06-30
+
+This patch release updates Kubernetes to 1.36.2, the source-controller API to
+v1.9 and the fluxcd/pkg dependencies. It also adds kubectl categories to the
+ImageUpdateAutomation CRD and documents the controller's command-line options.
+
+Improvements:
+- Add categories to ImageUpdateAutomation CRD
+  [#1057](https://github.com/fluxcd/image-automation-controller/pull/1057)
+- Upgrade source-controller API to v1.9
+  [#1061](https://github.com/fluxcd/image-automation-controller/pull/1061)
+- Document controller options
+  [#1062](https://github.com/fluxcd/image-automation-controller/pull/1062)
+- Update fluxcd/pkg dependencies
+  [#1058](https://github.com/fluxcd/image-automation-controller/pull/1058)
+
 ## 1.2.0
 
 **Release date:** 2026-06-17
