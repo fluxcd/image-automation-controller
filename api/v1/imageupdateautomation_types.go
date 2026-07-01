@@ -137,6 +137,7 @@ type ObservedPolicies map[string]ImageRef
 //+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
 //+kubebuilder:printcolumn:name="Last run",type="string",JSONPath=".status.lastAutomationRunTime",priority=1
 //+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
+//+kubebuilder:metadata:annotations="kustomize.toolkit.fluxcd.io/substitute=disabled"
 
 // ImageUpdateAutomation is the Schema for the imageupdateautomations API
 type ImageUpdateAutomation struct {
