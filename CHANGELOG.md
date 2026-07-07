@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.2.2
+
+**Release date:** 2026-07-07
+
+This patch release disables Flux variable substitution on the
+ImageUpdateAutomation CRD. The CRD is now annotated with
+`kustomize.toolkit.fluxcd.io/substitute: disabled` so that Kustomizations with
+post-build substitution enabled no longer corrupt the CRD schema when it
+contains `${...}` sequences.
+
+Fixes:
+- Disable variable substitution in CRDs
+  [#1067](https://github.com/fluxcd/image-automation-controller/pull/1067)
+
 ## 1.2.1
 
 **Release date:** 2026-06-30
