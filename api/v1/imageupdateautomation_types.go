@@ -116,7 +116,6 @@ type ImageUpdateAutomationStatus struct {
 	// considered by the ImageUpdateAutomation update process.
 	// +optional
 	ObservedPolicies ObservedPolicies `json:"observedPolicies,omitempty"`
-	// ObservedPolicies []ObservedPolicy `json:"observedPolicies,omitempty"`
 	// ObservedSourceRevision is the last observed source revision. This can be
 	// used to determine if the source has been updated since last observation.
 	// +optional
