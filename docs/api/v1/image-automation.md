@@ -712,8 +712,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>ObservedPolicies []ObservedPolicy <code>json:&quot;observedPolicies,omitempty&quot;</code>
-ObservedSourceRevision is the last observed source revision. This can be
+<p>ObservedSourceRevision is the last observed source revision. This can be
 used to determine if the source has been updated since last observation.</p>
 </td>
 </tr>
