@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.3
+
+**Release date:** 2026-07-13
+
+This patch release fixes the `ImageUpdateAutomation` CRD description for
+`.status.observedSourceRevision`, which had a stray Go struct declaration
+leaking into it.
+
+Improvements:
+- Remove stray Go declaration from doc-comment
+  [#1073](https://github.com/fluxcd/image-automation-controller/pull/1073)
+
 ## 1.2.2
 
 **Release date:** 2026-07-07
