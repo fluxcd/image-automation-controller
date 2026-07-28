@@ -3,10 +3,9 @@ module github.com/fluxcd/image-automation-controller/api
 go 1.26.0
 
 require (
-	github.com/fluxcd/pkg/apis/meta v1.30.0
-	github.com/fluxcd/source-controller/api v1.9.0
-	k8s.io/apimachinery v0.36.1
-	sigs.k8s.io/controller-runtime v0.24.1
+	github.com/fluxcd/pkg/apis/meta v1.30.1
+	github.com/fluxcd/source-controller/api v1.9.1-0.20260728080107-065d6efd74c2
+	k8s.io/apimachinery v0.36.2
 )
 
 require (
@@ -20,7 +19,6 @@ require (
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
-	golang.org/x/tools v0.45.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260603220949-865597e52e25 // indirect
