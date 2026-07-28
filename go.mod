@@ -19,14 +19,14 @@ require (
 	github.com/fluxcd/image-reflector-controller/api v1.2.0
 	github.com/fluxcd/pkg/apis/acl v0.10.0
 	github.com/fluxcd/pkg/apis/event v0.27.0
-	github.com/fluxcd/pkg/apis/meta v1.30.0
+	github.com/fluxcd/pkg/apis/meta v1.30.1
 	github.com/fluxcd/pkg/auth v0.54.0
 	github.com/fluxcd/pkg/cache v0.14.0
 	github.com/fluxcd/pkg/git v0.52.0
 	github.com/fluxcd/pkg/gittestserver v0.29.0
 	github.com/fluxcd/pkg/runtime v0.110.0
 	github.com/fluxcd/pkg/ssh v0.25.0
-	github.com/fluxcd/source-controller/api v1.9.0
+	github.com/fluxcd/source-controller/api v1.9.1-0.20260728080107-065d6efd74c2
 	github.com/go-git/go-billy/v5 v5.9.0
 	github.com/go-git/go-git/v5 v5.19.1
 	github.com/go-logr/logr v1.4.3
@@ -37,7 +37,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	golang.org/x/crypto v0.52.0
 	k8s.io/api v0.36.1
-	k8s.io/apimachinery v0.36.1
+	k8s.io/apimachinery v0.36.2
 	k8s.io/client-go v0.36.1
 	k8s.io/kube-openapi v0.0.0-20260603220949-865597e52e25
 	k8s.io/utils v0.0.0-20260507154919-ff6756f316d2
