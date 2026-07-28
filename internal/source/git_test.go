@@ -18,6 +18,7 @@ package source
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -320,21 +321,23 @@ func Test_buildGitConfig(t *testing.T) {
 	testGitURL := "https://example.com"
 
 	tests := []struct {
-		name             string
-		gitSpec          *imagev1.GitSpec
-		gitRepoName      string
-		gitRepoRef       *sourcev1.GitRepositoryRef
-		gitRepoTimeout   *metav1.Duration
-		gitRepoURL       string
-		gitRepoProxyData map[string][]byte
-		srcOpts          SourceOptions
-		injectGetError   error
-		wantErr          bool
-		wantErrContains  string
-		wantCheckoutRef  *sourcev1.GitRepositoryRef
-		wantPushBranch   string
-		wantSwitchBranch bool
-		wantTimeout      *metav1.Duration
+		name                    string
+		gitSpec                 *imagev1.GitSpec
+		gitRepoName             string
+		gitRepoRef              *sourcev1.GitRepositoryRef
+		gitRepoTimeout          *metav1.Duration
+		gitRepoURL              string
+		gitRepoProxyData        map[string][]byte
+		srcOpts                 SourceOptions
+		injectGetError          error
+		wantErr                 bool
+		wantErrContains         string
+		wantCheckoutRef         *sourcev1.GitRepositoryRef
+		wantPushBranch          string
+		wantPushRefspec         string
+		wantSwitchBranch        bool
+		wantTimeout             *metav1.Duration
+		wantInvalidSourceConfig bool
 	}{
 		{
 			name: "same branch, gitSpec checkoutRef",
@@ -446,6 +449,56 @@ func Test_buildGitConfig(t *testing.T) {
 			wantPushBranch:   "bbb",
 			wantSwitchBranch: true,
 			wantTimeout:      testTimeout,
+		},
+		{
+			name: "valid explicit refspec",
+			gitSpec: &imagev1.GitSpec{
+				Checkout: &imagev1.GitCheckoutSpec{
+					Reference: sourcev1.GitRepositoryRef{Branch: "main"},
+				},
+				Push: &imagev1.PushSpec{
+					Refspec: "HEAD:refs/for/main",
+				},
+			},
+			gitRepoName:      testGitRepoName,
+			gitRepoURL:       testGitURL,
+			wantCheckoutRef:  &sourcev1.GitRepositoryRef{Branch: "main"},
+			wantPushBranch:   "main",
+			wantPushRefspec:  "HEAD:refs/for/main",
+			wantSwitchBranch: false,
+			wantTimeout:      testTimeout,
+		},
+		{
+			name: "deletion refspec",
+			gitSpec: &imagev1.GitSpec{
+				Checkout: &imagev1.GitCheckoutSpec{
+					Reference: sourcev1.GitRepositoryRef{Branch: "main"},
+				},
+				Push: &imagev1.PushSpec{
+					Refspec: ":refs/heads/main",
+				},
+			},
+			gitRepoName:             testGitRepoName,
+			gitRepoURL:              testGitURL,
+			wantErr:                 true,
+			wantErrContains:         "push refspec must not specify a deletion",
+			wantInvalidSourceConfig: true,
+		},
+		{
+			name: "force-update refspec",
+			gitSpec: &imagev1.GitSpec{
+				Checkout: &imagev1.GitCheckoutSpec{
+					Reference: sourcev1.GitRepositoryRef{Branch: "main"},
+				},
+				Push: &imagev1.PushSpec{
+					Refspec: "+refs/heads/main:refs/heads/auto",
+				},
+			},
+			gitRepoName:             testGitRepoName,
+			gitRepoURL:              testGitURL,
+			wantErr:                 true,
+			wantErrContains:         "push refspec must not specify a force update",
+			wantInvalidSourceConfig: true,
 		},
 		{
 			name:    "non-existing gitRepo",
@@ -586,9 +639,13 @@ func Test_buildGitConfig(t *testing.T) {
 			if tt.wantErrContains != "" {
 				g.Expect(err.Error()).To(ContainSubstring(tt.wantErrContains))
 			}
+			if tt.wantInvalidSourceConfig {
+				g.Expect(errors.Is(err, ErrInvalidSourceConfiguration)).To(BeTrue())
+			}
 			if err == nil {
 				g.Expect(gitSrcCfg.checkoutRef).To(Equal(tt.wantCheckoutRef), "unexpected checkoutRef")
 				g.Expect(gitSrcCfg.pushBranch).To(Equal(tt.wantPushBranch), "unexpected push branch")
+				g.Expect(gitSrcCfg.pushRefspec).To(Equal(tt.wantPushRefspec), "unexpected push refspec")
 				g.Expect(gitSrcCfg.switchBranch).To(Equal(tt.wantSwitchBranch), "unexpected switch branch")
 				g.Expect(gitSrcCfg.timeout).To(Equal(tt.wantTimeout), "unexpected git operation timeout")
 			}
