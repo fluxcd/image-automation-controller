@@ -37,6 +37,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/otiai10/copy"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -106,6 +107,60 @@ Images:
 - helloworld:v1.0.0 (%s:%s)
 `
 )
+
+func TestImageUpdateAutomationRefspecValidation(t *testing.T) {
+	g := NewWithT(t)
+
+	namespace, err := testEnv.CreateNamespace(ctx, "refspec-validation")
+	g.Expect(err).NotTo(HaveOccurred())
+	defer func() { g.Expect(testEnv.Delete(ctx, namespace)).To(Succeed()) }()
+
+	tests := []struct {
+		name    string
+		refspec string
+		valid   bool
+	}{
+		{name: "branch destination", refspec: "refs/heads/main:refs/heads/auto", valid: true},
+		{name: "Gerrit destination", refspec: "HEAD:refs/for/main", valid: true},
+		{name: "Gitea and Forgejo destination", refspec: "refs/heads/auto:refs/for/main", valid: true},
+		{name: "deletion", refspec: ":refs/heads/main"},
+		{name: "force update", refspec: "+refs/heads/main:refs/heads/auto"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+			obj := &imagev1.ImageUpdateAutomation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "refspec-" + rand.String(5),
+					Namespace: namespace.Name,
+				},
+				Spec: imagev1.ImageUpdateAutomationSpec{
+					Interval: metav1.Duration{Duration: time.Hour},
+					SourceRef: imagev1.CrossNamespaceSourceReference{
+						Kind: sourcev1.GitRepositoryKind,
+						Name: "unused",
+					},
+					GitSpec: &imagev1.GitSpec{
+						Commit: imagev1.CommitSpec{
+							Author: imagev1.CommitUser{Email: "flux@example.com"},
+						},
+						Push: &imagev1.PushSpec{Refspec: tt.refspec},
+					},
+					Suspend: true,
+				},
+			}
+
+			err := k8sClient.Create(ctx, obj)
+			if tt.valid {
+				g.Expect(err).NotTo(HaveOccurred())
+				return
+			}
+			g.Expect(apierrors.IsInvalid(err)).To(BeTrue(), "expected invalid object error, got %v", err)
+			g.Expect(err.Error()).To(ContainSubstring("spec.git.push.refspec"))
+		})
+	}
+}
 
 func TestImageUpdateAutomationReconciler_deleteBeforeFinalizer(t *testing.T) {
 	g := NewWithT(t)

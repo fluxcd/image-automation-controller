@@ -603,6 +603,11 @@ spec:
 destination reference. An example of a valid refspec is
 `refs/heads/branch:refs/heads/branch`.
 
+Deletion refspecs with an empty source (for example,
+`:refs/heads/branch`) and force-update refspecs prefixed with `+` are not
+supported. Force pushing is limited to the configured push branch and is
+controlled by the [`GitForcePushBranch` feature gate](#branch).
+
 If both `.push.refspec` and `.push.branch` are specified, then the reconciler
 will push to both the destinations. This is particularly useful for working with
 Gerrit servers. For more information about this, please refer to the

@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/fluxcd/pkg/runtime/secrets"
@@ -50,6 +51,7 @@ type gitSrcCfg struct {
 	srcKey       types.NamespacedName
 	url          string
 	pushBranch   string
+	pushRefspec  string
 	switchBranch bool
 	timeout      *metav1.Duration
 	checkoutRef  *sourcev1.GitRepositoryRef
@@ -142,6 +144,17 @@ func buildGitConfig(ctx context.Context, c client.Client, originKey, srcKey type
 }
 
 func configurePush(cfg *gitSrcCfg, gitSpec *imagev1.GitSpec, checkoutRef *sourcev1.GitRepositoryRef) error {
+	if gitSpec.Push != nil {
+		refspec := gitSpec.Push.Refspec
+		switch {
+		case strings.HasPrefix(refspec, ":"):
+			return fmt.Errorf("push refspec must not specify a deletion: %w", ErrInvalidSourceConfiguration)
+		case strings.HasPrefix(refspec, "+"):
+			return fmt.Errorf("push refspec must not specify a force update: %w", ErrInvalidSourceConfiguration)
+		}
+		cfg.pushRefspec = refspec
+	}
+
 	if gitSpec.Push != nil && gitSpec.Push.Branch != "" {
 		cfg.pushBranch = gitSpec.Push.Branch
 

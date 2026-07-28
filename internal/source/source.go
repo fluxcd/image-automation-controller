@@ -284,6 +284,16 @@ func WithPushConfigForce() PushConfig {
 	}
 }
 
+// buildRefspecPushConfig returns a push configuration for an explicit refspec.
+// Force is deliberately not inherited because it is authorized only for the
+// configured push branch.
+func buildRefspecPushConfig(branchConfig repository.PushConfig, refspec string) repository.PushConfig {
+	return repository.PushConfig{
+		Refspecs: []string{refspec},
+		Options:  branchConfig.Options,
+	}
+}
+
 // WithPushConfigOptions configures the PushConfig Options that are used in
 // push.
 func WithPushConfigOptions(opts map[string]string) PushConfig {
@@ -353,17 +363,20 @@ func (sm SourceManager) CommitAndPush(ctx context.Context, obj *imagev1.ImageUpd
 	}
 	tracelog.Info("pushed commit to push branch", "revision", rev, "branch", sm.srcCfg.pushBranch)
 
-	// Push to any provided refspec.
-	if obj.Spec.GitSpec.HasRefspec() {
-		pushConfig.Refspecs = append(pushConfig.Refspecs, obj.Spec.GitSpec.Push.Refspec)
-		if err := sm.gitClient.Push(gitOpCtx, pushConfig); err != nil {
+	// Push to any provided refspec without inheriting force from the branch
+	// push, as force is only authorized for the configured push branch.
+	var pushedRefspecs []string
+	if sm.srcCfg.pushRefspec != "" {
+		refspecPushConfig := buildRefspecPushConfig(pushConfig, sm.srcCfg.pushRefspec)
+		if err := sm.gitClient.Push(gitOpCtx, refspecPushConfig); err != nil {
 			return nil, err
 		}
-		tracelog.Info("pushed commit to refspec", "revision", rev, "refspecs", pushConfig.Refspecs)
+		pushedRefspecs = refspecPushConfig.Refspecs
+		tracelog.Info("pushed commit to refspec", "revision", rev, "refspecs", pushedRefspecs)
 	}
 
 	// Construct the result of the push operation and return.
-	prOpts := []PushResultOption{WithPushResultRefspec(pushConfig.Refspecs)}
+	prOpts := []PushResultOption{WithPushResultRefspec(pushedRefspecs)}
 	if sm.srcCfg.switchBranch {
 		prOpts = append(prOpts, WithPushResultSwitchBranch())
 	}
