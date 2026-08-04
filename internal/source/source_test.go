@@ -1170,19 +1170,31 @@ func test_pushBranchUpdateScenarios(t *testing.T, proto string, srcOpts []Source
 }
 
 func Test_buildRefspecPushConfig(t *testing.T) {
-	g := NewWithT(t)
-	options := map[string]string{"topic": "flux-updates"}
-	branchConfig := repository.PushConfig{
-		Refspecs: []string{"refs/heads/main:refs/heads/auto"},
-		Force:    true,
-		Options:  options,
+	tests := []struct {
+		name  string
+		force bool
+	}{
+		{name: "force disabled"},
+		{name: "force enabled", force: true},
 	}
 
-	refspecConfig := buildRefspecPushConfig(branchConfig, "HEAD:refs/for/main")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+			options := map[string]string{"topic": "flux-updates"}
+			branchConfig := repository.PushConfig{
+				Refspecs: []string{"refs/heads/main:refs/heads/auto"},
+				Force:    tt.force,
+				Options:  options,
+			}
 
-	g.Expect(refspecConfig.Refspecs).To(Equal([]string{"HEAD:refs/for/main"}))
-	g.Expect(refspecConfig.Force).To(BeFalse())
-	g.Expect(refspecConfig.Options).To(Equal(options))
+			refspecConfig := buildRefspecPushConfig(branchConfig, "HEAD:refs/for/main")
+
+			g.Expect(refspecConfig.Refspecs).To(Equal([]string{"HEAD:refs/for/main"}))
+			g.Expect(refspecConfig.Force).To(Equal(tt.force))
+			g.Expect(refspecConfig.Options).To(Equal(options))
+		})
+	}
 }
 
 func TestPushResult_Summary(t *testing.T) {

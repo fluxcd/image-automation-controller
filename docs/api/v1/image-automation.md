@@ -786,7 +786,7 @@ string
 <p>Refspec specifies the Git Refspec to use for a push operation.
 If both Branch and Refspec are provided, then the commit is pushed
 to the branch and also using the specified refspec.
-Refspecs that delete or force-update references are not supported.
+Deletion refspecs and refspecs prefixed with &lsquo;+&rsquo; are not supported.
 For more details about Git Refspecs, see:
 <a href="https://git-scm.com/book/en/v2/Git-Internals-The-Refspec">https://git-scm.com/book/en/v2/Git-Internals-The-Refspec</a></p>
 </td>

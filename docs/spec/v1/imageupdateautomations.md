@@ -605,8 +605,8 @@ destination reference. An example of a valid refspec is
 
 Deletion refspecs with an empty source (for example,
 `:refs/heads/branch`) and force-update refspecs prefixed with `+` are not
-supported. Force pushing is limited to the configured push branch and is
-controlled by the [`GitForcePushBranch` feature gate](#branch).
+supported. Force pushing is controlled by the
+[`GitForcePushBranch` feature gate](#branch).
 
 If both `.push.refspec` and `.push.branch` are specified, then the reconciler
 will push to both the destinations. This is particularly useful for working with

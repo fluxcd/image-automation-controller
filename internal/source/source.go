@@ -285,13 +285,9 @@ func WithPushConfigForce() PushConfig {
 }
 
 // buildRefspecPushConfig returns a push configuration for an explicit refspec.
-// Force is deliberately not inherited because it is authorized only for the
-// configured push branch.
-func buildRefspecPushConfig(branchConfig repository.PushConfig, refspec string) repository.PushConfig {
-	return repository.PushConfig{
-		Refspecs: []string{refspec},
-		Options:  branchConfig.Options,
-	}
+func buildRefspecPushConfig(pushConfig repository.PushConfig, refspec string) repository.PushConfig {
+	pushConfig.Refspecs = []string{refspec}
+	return pushConfig
 }
 
 // WithPushConfigOptions configures the PushConfig Options that are used in
@@ -363,8 +359,7 @@ func (sm SourceManager) CommitAndPush(ctx context.Context, obj *imagev1.ImageUpd
 	}
 	tracelog.Info("pushed commit to push branch", "revision", rev, "branch", sm.srcCfg.pushBranch)
 
-	// Push to any provided refspec without inheriting force from the branch
-	// push, as force is only authorized for the configured push branch.
+	// Push to any provided refspec.
 	var pushedRefspecs []string
 	if sm.srcCfg.pushRefspec != "" {
 		refspecPushConfig := buildRefspecPushConfig(pushConfig, sm.srcCfg.pushRefspec)
