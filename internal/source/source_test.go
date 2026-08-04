@@ -47,6 +47,7 @@ import (
 	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/git"
+	"github.com/fluxcd/pkg/git/repository"
 	"github.com/fluxcd/pkg/gittestserver"
 	"github.com/fluxcd/pkg/ssh"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
@@ -1166,6 +1167,34 @@ func test_pushBranchUpdateScenarios(t *testing.T, proto string, srcOpts []Source
 	oldCommit, err = localRepo.CommitObject(checkoutBranchHead.Hash)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(oldCommit).ToNot(BeNil())
+}
+
+func Test_buildRefspecPushConfig(t *testing.T) {
+	tests := []struct {
+		name  string
+		force bool
+	}{
+		{name: "force disabled"},
+		{name: "force enabled", force: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+			options := map[string]string{"topic": "flux-updates"}
+			branchConfig := repository.PushConfig{
+				Refspecs: []string{"refs/heads/main:refs/heads/auto"},
+				Force:    tt.force,
+				Options:  options,
+			}
+
+			refspecConfig := buildRefspecPushConfig(branchConfig, "HEAD:refs/for/main")
+
+			g.Expect(refspecConfig.Refspecs).To(Equal([]string{"HEAD:refs/for/main"}))
+			g.Expect(refspecConfig.Force).To(Equal(tt.force))
+			g.Expect(refspecConfig.Options).To(Equal(options))
+		})
+	}
 }
 
 func TestPushResult_Summary(t *testing.T) {
