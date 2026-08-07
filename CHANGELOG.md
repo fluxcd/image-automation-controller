@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.2.4
+
+**Release date:** 2026-08-07
+
+This patch release restricts the refspecs accepted by the `ImageUpdateAutomation`
+API. The `.spec.git.push.refspec` field now carries a validation pattern that
+rejects deletion refspecs with an empty source, such as `:refs/heads/branch`,
+and force-update refspecs prefixed with `+`. The refspec push no longer inherits
+the force flag from the push branch configuration, so force pushing stays
+governed by the `GitForcePushBranch` feature gate.
+
+Note that this release contains a CRD schema change, the
+`ImageUpdateAutomation` CRD must be updated along with the controller.
+
+Fixes:
+- Disallow force-update and deletion via refspecs
+  [#1082](https://github.com/fluxcd/image-automation-controller/pull/1082)
+
 ## 1.2.3
 
 **Release date:** 2026-07-13
