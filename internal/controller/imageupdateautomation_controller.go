@@ -26,9 +26,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
-	kuberecorder "k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -41,7 +39,7 @@ import (
 
 	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1"
 	aclapi "github.com/fluxcd/pkg/apis/acl"
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/auth"
 	"github.com/fluxcd/pkg/cache"
@@ -49,6 +47,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/acl"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	helper "github.com/fluxcd/pkg/runtime/controller"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	runtimereconcile "github.com/fluxcd/pkg/runtime/reconcile"
@@ -102,7 +101,7 @@ func getPatchOptions(ownedConditions []string, controllerName string) []patch.Op
 // ImageUpdateAutomationReconciler reconciles a ImageUpdateAutomation object
 type ImageUpdateAutomationReconciler struct {
 	client.Client
-	kuberecorder.EventRecorder
+	events.EventRecorder
 	helper.Metrics
 
 	ControllerName      string
@@ -608,6 +607,7 @@ func observedPoliciesChanged(previous, current imagev1.ObservedPolicies) bool {
 // case of any failure, the failure message is read from the Ready condition and
 // included in the event.
 func (r *ImageUpdateAutomationReconciler) notify(ctx context.Context, oldObj, newObj conditions.Setter, result *source.PushResult, syncNeeded bool) {
+	related := sourceRefObject(newObj)
 	// Use the Ready message as the notification message by default.
 	ready := conditions.Get(newObj, meta.ReadyCondition)
 	msg := ready.Message
@@ -619,7 +619,7 @@ func (r *ImageUpdateAutomationReconciler) notify(ctx context.Context, oldObj, ne
 
 	// Was ready before and is ready now, with new push result,
 	if conditions.IsReady(oldObj) && conditions.IsReady(newObj) && result != nil {
-		eventLogf(ctx, r.EventRecorder, newObj, corev1.EventTypeNormal, ready.Reason, "%s", msg)
+		r.Eventf(newObj, related, corev1.EventTypeNormal, ready.Reason, "", "%s", msg)
 		return
 	}
 
@@ -627,12 +627,12 @@ func (r *ImageUpdateAutomationReconciler) notify(ctx context.Context, oldObj, ne
 
 	// Became ready from not ready.
 	if !conditions.IsReady(oldObj) && conditions.IsReady(newObj) {
-		eventLogf(ctx, r.EventRecorder, newObj, corev1.EventTypeNormal, ready.Reason, "%s", msg)
+		r.Eventf(newObj, related, corev1.EventTypeNormal, ready.Reason, "", "%s", msg)
 		return
 	}
 	// Not ready, failed. Use the failure message from ready condition.
 	if !conditions.IsReady(newObj) {
-		eventLogf(ctx, r.EventRecorder, newObj, corev1.EventTypeWarning, ready.Reason, "%s", ready.Message)
+		r.Eventf(newObj, related, corev1.EventTypeWarning, ready.Reason, "", "%s", ready.Message)
 		return
 	}
 
@@ -642,21 +642,30 @@ func (r *ImageUpdateAutomationReconciler) notify(ctx context.Context, oldObj, ne
 		// Full reconciliation skipped.
 		msg = "no change since last reconciliation"
 	}
-	eventLogf(ctx, r.EventRecorder, newObj, eventv1.EventTypeTrace, meta.SucceededReason, "%s", msg)
+	r.Eventf(newObj, related, eventv1.EventTypeTrace, meta.SucceededReason, "", "%s", msg)
 }
 
-// eventLogf records events, and logs at the same time.
-//
-// This log is different from the debug log in the EventRecorder, in the sense
-// that this is a simple log. While the debug log contains complete details
-// about the event.
-func eventLogf(ctx context.Context, r kuberecorder.EventRecorder, obj runtime.Object, eventType string, reason string, messageFmt string, args ...interface{}) {
-	msg := fmt.Sprintf(messageFmt, args...)
-	// Log and emit event.
-	if eventType == corev1.EventTypeWarning {
-		ctrl.LoggerFrom(ctx).Error(errors.New(reason), msg)
-	} else {
-		ctrl.LoggerFrom(ctx).Info(msg)
+// sourceRefObject returns a minimal GitRepository object for use as the
+// related object in events. It extracts the source reference from the
+// ImageUpdateAutomation spec.
+func sourceRefObject(obj conditions.Setter) *sourcev1.GitRepository {
+	auto, ok := obj.(*imagev1.ImageUpdateAutomation)
+	if !ok {
+		return nil
 	}
-	r.Eventf(obj, eventType, reason, "%s", msg)
+	ref := auto.Spec.SourceRef
+	ns := ref.Namespace
+	if ns == "" {
+		ns = auto.Namespace
+	}
+	return &sourcev1.GitRepository{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       sourcev1.GitRepositoryKind,
+			APIVersion: sourcev1.GroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ref.Name,
+			Namespace: ns,
+		},
+	}
 }

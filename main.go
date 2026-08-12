@@ -26,7 +26,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,6 +36,7 @@ import (
 	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1"
 	"github.com/fluxcd/pkg/auth"
 	cache "github.com/fluxcd/pkg/cache"
+	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/runtime/acl"
 	"github.com/fluxcd/pkg/runtime/client"
 	helper "github.com/fluxcd/pkg/runtime/controller"
@@ -48,8 +48,6 @@ import (
 	"github.com/fluxcd/pkg/runtime/pprof"
 	"github.com/fluxcd/pkg/runtime/probes"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
-
-	"github.com/fluxcd/pkg/git"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1"
 	"github.com/fluxcd/image-automation-controller/internal/features"
@@ -196,7 +194,7 @@ func main() {
 			ExtraHandlers: pprof.GetHandlers(),
 		},
 		Controller: ctrlcfg.Controller{
-			RecoverPanic:            pointer.Bool(true),
+			RecoverPanic:            new(true),
 			MaxConcurrentReconciles: concurrent,
 		},
 	}
@@ -215,8 +213,8 @@ func main() {
 
 	probes.SetupChecks(mgr, setupLog)
 
-	var eventRecorder *events.Recorder
-	if eventRecorder, err = events.NewRecorder(mgr, ctrl.Log, eventsAddr, controllerName); err != nil {
+	eventRecorder, err := events.NewRecorder(mgr, ctrl.Log, eventsAddr, controllerName)
+	if err != nil {
 		setupLog.Error(err, "unable to create event recorder")
 		os.Exit(1)
 	}
