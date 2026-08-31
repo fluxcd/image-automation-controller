@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+This release adds automatic retry for `ImageUpdateAutomation` pushes rejected
+because another writer already advanced the same push branch (a lost
+non-fast-forward race). On a rejected push, the controller now fetches and
+hard-resets to the new remote tip, re-applies policies, and retries the
+commit and push, up to 5 attempts with exponential backoff (2s/4s/8s/16s),
+instead of waiting for the next scheduled reconciliation. This is controlled
+by the new `GitPushRetryOnConflict` feature gate, disabled by default.
+
+Improvements:
+- Retry pushes rejected due to a lost push race instead of waiting for the
+  next reconciliation, behind the opt-in `GitPushRetryOnConflict` feature gate
+
 ## 1.2.4
 
 **Release date:** 2026-08-07

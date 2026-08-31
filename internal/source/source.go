@@ -378,6 +378,26 @@ func (sm SourceManager) CommitAndPush(ctx context.Context, obj *imagev1.ImageUpd
 	return NewPushResult(sm.srcCfg.pushBranch, rev, commitMsg, prOpts...)
 }
 
+// IsPushConflict reports whether err indicates that CommitAndPush's push was
+// rejected because another writer already advanced the remote branch past
+// what the local working directory knows about. This is recoverable by
+// calling RefreshToRemote, re-applying policies against the refreshed
+// working tree, and retrying, rather than failing the reconciliation.
+func IsPushConflict(err error) bool {
+	return errors.Is(err, git.ErrPushRejected)
+}
+
+// RefreshToRemote fetches the current state of the push branch from the
+// remote and hard-resets the local working directory onto it, discarding
+// any local commits or changes made since the last successful push. It is
+// used to recover from a push rejected due to a conflict (see
+// IsPushConflict) without a full re-clone via CheckoutSource.
+func (sm SourceManager) RefreshToRemote(ctx context.Context) error {
+	gitOpCtx, cancel := context.WithTimeout(ctx, sm.srcCfg.timeout.Duration)
+	defer cancel()
+	return sm.gitClient.FetchAndReset(gitOpCtx, sm.srcCfg.pushBranch)
+}
+
 // templateMsg renders a msg template, returning the message or an error.
 func templateMsg(messageTemplate string, templateValues *TemplateData) (string, error) {
 	if messageTemplate == "" {

@@ -491,7 +491,7 @@ func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *pat
 		pushCfg = append(pushCfg, source.WithPushConfigOptions(obj.Spec.GitSpec.Push.Options))
 	}
 
-	pushResult, err = sm.CommitAndPush(ctx, obj, policyResult, pushCfg...)
+	pushResult, err = r.commitAndPushWithRetry(ctx, sm, obj, policies, policyResult, pushCfg)
 	if err != nil {
 		// Check if error is due to removed template field usage.
 		// Set Stalled condition and return nil error to prevent requeue, allowing user to fix template.
