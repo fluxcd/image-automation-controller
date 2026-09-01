@@ -914,6 +914,126 @@ Testing: value
 	}
 }
 
+// TestSourceManager_RefreshToRemote_RecoversFromPushConflict simulates a lost
+// push race: another writer pushes to the same branch between CheckoutSource
+// and CommitAndPush, so the first CommitAndPush is rejected. It verifies
+// IsPushConflict identifies the error, RefreshToRemote (fetch + hard reset)
+// catches the working directory up to the new remote tip without a full
+// re-clone, and a recomputed CommitAndPush then succeeds, landing on top of
+// the competing commit rather than overwriting it.
+func TestSourceManager_RefreshToRemote_RecoversFromPushConflict(t *testing.T) {
+	g := NewWithT(t)
+	ctx := context.TODO()
+
+	gitServer := testutil.SetUpGitTestServer(g)
+	t.Cleanup(func() {
+		g.Expect(os.RemoveAll(gitServer.Root())).ToNot(HaveOccurred())
+		gitServer.StopHTTP()
+	})
+
+	testNS := "test-ns"
+	workDir := t.TempDir()
+
+	imgPolicy := &reflectorv1.ImagePolicy{}
+	imgPolicy.Name = "policy1"
+	imgPolicy.Namespace = testNS
+	imgPolicy.Status = reflectorv1.ImagePolicyStatus{
+		LatestRef: testutil.ImageToRef("helloworld:1.0.1"),
+	}
+	policyKey := client.ObjectKeyFromObject(imgPolicy)
+
+	fixture := "testdata/appconfig"
+	g.Expect(copy.Copy(fixture, workDir)).ToNot(HaveOccurred())
+	g.Expect(testutil.ReplaceMarker(filepath.Join(workDir, "deploy.yaml"), policyKey))
+
+	branch := "main"
+	repoPath := "/config-" + rand.String(5) + ".git"
+	testutil.InitGitRepo(g, gitServer, workDir, branch, repoPath)
+	cloneLocalRepoURL := gitServer.HTTPAddressWithCredentials() + repoPath
+
+	gitRepo := &sourcev1.GitRepository{}
+	gitRepo.Name = "test-repo"
+	gitRepo.Namespace = testNS
+	gitRepo.Spec = sourcev1.GitRepositorySpec{
+		URL:       cloneLocalRepoURL,
+		Reference: &sourcev1.GitRepositoryRef{Branch: branch},
+	}
+
+	updateAuto := &imagev1.ImageUpdateAutomation{}
+	updateAuto.Name = "test-update"
+	updateAuto.Namespace = testNS
+	updateAuto.Spec = imagev1.ImageUpdateAutomationSpec{
+		SourceRef: imagev1.CrossNamespaceSourceReference{
+			Kind: sourcev1.GitRepositoryKind,
+			Name: gitRepo.Name,
+		},
+		Update: &imagev1.UpdateStrategy{
+			Strategy: imagev1.UpdateStrategySetters,
+		},
+		GitSpec: &imagev1.GitSpec{
+			Push: &imagev1.PushSpec{Branch: branch},
+		},
+	}
+
+	kClient := fakeclient.NewClientBuilder().WithScheme(scheme.Scheme).
+		WithObjects(imgPolicy, gitRepo, updateAuto).Build()
+
+	sm, err := NewSourceManager(ctx, kClient, updateAuto)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() {
+		g.Expect(sm.Cleanup()).ToNot(HaveOccurred())
+	}()
+
+	_, err = sm.CheckoutSource(ctx)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	policies := []reflectorv1.ImagePolicy{*imgPolicy}
+	result, err := policy.ApplyPolicies(ctx, sm.workingDir, updateAuto, policies)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.FileChanges).ToNot(BeEmpty())
+
+	// A competing writer pushes directly to the remote, out-of-band, after
+	// our checkout but before our push - the same race window IUAs hit
+	// against a shared branch.
+	competitorRepo, competitorDir, err := testutil.Clone(ctx, cloneLocalRepoURL, branch, originRemote)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer os.RemoveAll(competitorDir)
+	g.Expect(os.WriteFile(filepath.Join(competitorDir, "competitor.txt"), []byte("competing change"), 0o644)).To(Succeed())
+	competitorCommit := testutil.CommitWorkDir(g, competitorRepo, branch, "competing change")
+	remote, err := competitorRepo.Remote(originRemote)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(remote.PushContext(ctx, &extgogit.PushOptions{RemoteName: originRemote})).To(Succeed())
+
+	// Our push loses the race.
+	_, err = sm.CommitAndPush(ctx, updateAuto, result)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(IsPushConflict(err)).To(BeTrue())
+
+	// Recover: fetch + hard reset onto the new remote tip, without a full
+	// re-clone, then recompute the change against the refreshed tree.
+	g.Expect(sm.RefreshToRemote(ctx)).To(Succeed())
+	result, err = policy.ApplyPolicies(ctx, sm.workingDir, updateAuto, policies)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.FileChanges).ToNot(BeEmpty())
+
+	pushResult, err := sm.CommitAndPush(ctx, updateAuto, result)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(pushResult).ToNot(BeNil())
+
+	// The recovered commit must land on top of the competing commit, proving
+	// the reset+reapply rebased onto the new tip rather than overwriting it.
+	localRepo, cloneDir, err := testutil.Clone(ctx, cloneLocalRepoURL, branch, originRemote)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer os.RemoveAll(cloneDir)
+	head, err := localRepo.Head()
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(head.Hash().String()).To(Equal(pushResult.Commit().Hash.String()))
+	recoveredCommit, err := localRepo.CommitObject(head.Hash())
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(recoveredCommit.NumParents()).To(Equal(1))
+	g.Expect(recoveredCommit.ParentHashes[0].String()).To(Equal(competitorCommit.String()))
+}
+
 // Test_pushBranchUpdateScenarios tests the push operation for different states
 // of the remote repository.
 func Test_pushBranchUpdateScenarios(t *testing.T) {
