@@ -17,6 +17,10 @@ limitations under the License.
 package update
 
 import (
+	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/google/go-containerregistry/pkg/name"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -75,11 +79,18 @@ type ObjectIdentifier struct {
 // details about the exact changes made to the files and the objects in them.
 // It has a nested structure file->objects->changes.
 type Result struct {
-	FileChanges map[string]ObjectChanges
+	FileChanges FileChanges
 }
 
+// FileChanges contains all the object changes grouped by file.
+type FileChanges map[string]ObjectChanges
+
 // ObjectChanges contains all the changes made to objects.
-type ObjectChanges map[ObjectIdentifier][]Change
+type ObjectChanges map[ObjectIdentifier]Changes
+
+// Changes contains the changes made to a single object or aggregated across
+// multiple objects.
+type Changes []Change
 
 // Change contains the setter that resulted in a Change, the old and the new
 // value after the Change.
@@ -93,7 +104,7 @@ type Change struct {
 // associated with it.
 func (r *Result) AddChange(file string, objectID ObjectIdentifier, changes ...Change) {
 	if r.FileChanges == nil {
-		r.FileChanges = map[string]ObjectChanges{}
+		r.FileChanges = FileChanges{}
 	}
 	// Create an entry for the file if not present.
 	_, ok := r.FileChanges[file]
@@ -105,9 +116,9 @@ func (r *Result) AddChange(file string, objectID ObjectIdentifier, changes ...Ch
 }
 
 // Changes returns all the changes that were made in at least one update.
-func (r Result) Changes() []Change {
+func (r Result) Changes() Changes {
 	seen := make(map[Change]struct{})
-	var result []Change
+	var result Changes
 	for _, objChanges := range r.FileChanges {
 		for _, changes := range objChanges {
 			for _, change := range changes {
@@ -118,6 +129,7 @@ func (r Result) Changes() []Change {
 			}
 		}
 	}
+	sortChanges(result)
 	return result
 }
 
@@ -129,5 +141,95 @@ func (r Result) Objects() ObjectChanges {
 			result[obj] = append(result[obj], change...)
 		}
 	}
+	for obj := range result {
+		sortChanges(result[obj])
+	}
 	return result
+}
+
+// String returns a deterministic string representation of file changes.
+func (fc FileChanges) String() string {
+	files := make([]string, 0, len(fc))
+	for file := range fc {
+		files = append(files, file)
+	}
+	sort.Strings(files)
+
+	var b strings.Builder
+	b.WriteString("{")
+	for i, file := range files {
+		if i > 0 {
+			b.WriteString(" ")
+		}
+		fmt.Fprintf(&b, "%q:%s", file, fc[file])
+	}
+	b.WriteString("}")
+	return b.String()
+}
+
+// String returns a deterministic string representation of object changes.
+func (oc ObjectChanges) String() string {
+	objectIDs := make([]ObjectIdentifier, 0, len(oc))
+	for objectID := range oc {
+		objectIDs = append(objectIDs, objectID)
+	}
+	sort.Slice(objectIDs, func(i, j int) bool {
+		return lessObjectIdentifier(objectIDs[i], objectIDs[j])
+	})
+
+	var b strings.Builder
+	b.WriteString("{")
+	for i, objectID := range objectIDs {
+		if i > 0 {
+			b.WriteString(" ")
+		}
+		fmt.Fprintf(&b, "%s:%s", objectID, sortedChanges(oc[objectID]))
+	}
+	b.WriteString("}")
+	return b.String()
+}
+
+// String returns a deterministic string representation of changes.
+func (c Changes) String() string {
+	changes := sortedChanges(c)
+
+	var b strings.Builder
+	b.WriteString("[")
+	for i, change := range changes {
+		if i > 0 {
+			b.WriteString(" ")
+		}
+		fmt.Fprintf(&b, "{OldValue:%q NewValue:%q Setter:%q}", change.OldValue, change.NewValue, change.Setter)
+	}
+	b.WriteString("]")
+	return b.String()
+}
+
+func sortedChanges(changes Changes) Changes {
+	sorted := append(Changes(nil), changes...)
+	sortChanges(sorted)
+	return sorted
+}
+
+func sortChanges(changes Changes) {
+	sort.Slice(changes, func(i, j int) bool {
+		if changes[i].Setter != changes[j].Setter {
+			return changes[i].Setter < changes[j].Setter
+		}
+		if changes[i].OldValue != changes[j].OldValue {
+			return changes[i].OldValue < changes[j].OldValue
+		}
+		return changes[i].NewValue < changes[j].NewValue
+	})
+}
+
+func lessObjectIdentifier(a, b ObjectIdentifier) bool {
+	aParts := []string{a.APIVersion, a.Kind, a.Namespace, a.Name}
+	bParts := []string{b.APIVersion, b.Kind, b.Namespace, b.Name}
+	for i := range aParts {
+		if aParts[i] != bParts[i] {
+			return aParts[i] < bParts[i]
+		}
+	}
+	return false
 }
