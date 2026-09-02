@@ -118,7 +118,8 @@ func buildGitConfig(ctx context.Context, c client.Client, originKey, srcKey type
 	if err != nil {
 		return nil, err
 	}
-	cfg.clientOpts = []gogit.ClientOption{gogit.WithDiskStorage()}
+	// The storage options are configured at checkout time, once the
+	// working directory is known. See SourceManager.CheckoutSource.
 	if cfg.authOpts.Transport == git.HTTP {
 		cfg.clientOpts = append(cfg.clientOpts, gogit.WithInsecureCredentialsOverHTTP())
 	}
