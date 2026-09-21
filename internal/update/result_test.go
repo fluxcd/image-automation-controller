@@ -187,3 +187,55 @@ func TestResultObjectsAggregatesSameObjectAcrossFiles(t *testing.T) {
 		},
 	))
 }
+
+func TestResultChangesIsDeterministic(t *testing.T) {
+	g := NewWithT(t)
+
+	objectID := ObjectIdentifier{yaml.ResourceIdentifier{
+		TypeMeta: yaml.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		NameMeta: yaml.NameMeta{
+			Namespace: "default",
+			Name:      "podinfo",
+		},
+	}}
+
+	result := Result{
+		FileChanges: FileChanges{
+			"b.yaml": {
+				objectID: {
+					{
+						OldValue: "2",
+						NewValue: "3",
+						Setter:   "flux-system:podinfo:tag",
+					},
+				},
+			},
+			"a.yaml": {
+				objectID: {
+					{
+						OldValue: "podinfo:v1.0.0",
+						NewValue: "podinfo:v1.0.1",
+						Setter:   "flux-system:podinfo",
+					},
+					{
+						OldValue: "1",
+						NewValue: "2",
+						Setter:   "flux-system:replicas",
+					},
+				},
+			},
+		},
+	}
+
+	var got []string
+	for range 50 {
+		got = append(got, result.Changes().String())
+	}
+
+	g.Expect(got).To(HaveLen(50))
+	g.Expect(got).To(HaveEach(Equal(got[0])))
+	g.Expect(got[0]).To(Equal(`[{OldValue:"podinfo:v1.0.0" NewValue:"podinfo:v1.0.1" Setter:"flux-system:podinfo"} {OldValue:"2" NewValue:"3" Setter:"flux-system:podinfo:tag"} {OldValue:"1" NewValue:"2" Setter:"flux-system:replicas"}]`))
+}
