@@ -254,8 +254,16 @@ func (sm *SourceManager) CheckoutSource(ctx context.Context, options ...Checkout
 		o(&cloneCfg)
 	}
 
-	var err error
-	sm.gitClient, err = gogit.NewClient(sm.workingDir, sm.srcCfg.authOpts, sm.srcCfg.clientOpts...)
+	// Configure the client to store the repository on disk, using a
+	// worktree filesystem that keeps branch switching involving symlinks
+	// safe. See the documentation of worktreeFS.
+	clientOpts, err := diskStorageClientOptions(sm.workingDir)
+	if err != nil {
+		return nil, err
+	}
+	clientOpts = append(clientOpts, sm.srcCfg.clientOpts...)
+
+	sm.gitClient, err = gogit.NewClient(sm.workingDir, sm.srcCfg.authOpts, clientOpts...)
 	if err != nil {
 		return nil, err
 	}

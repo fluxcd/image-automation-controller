@@ -535,6 +535,128 @@ func test_sourceManager_CheckoutSource(t *testing.T, proto string) {
 	}
 }
 
+// TestSourceManager_CheckoutSource_symlinkSwitchBranch tests that
+// switching to a push branch that has fallen behind the checkout ref
+// succeeds when the changes between both branches involve symlinks, and
+// that the switch operates on the symlinks themselves, never on their
+// targets. Regression test for
+// https://github.com/fluxcd/image-automation-controller/issues/1037.
+func TestSourceManager_CheckoutSource_symlinkSwitchBranch(t *testing.T) {
+	g := NewWithT(t)
+	ctx := context.TODO()
+	testNS := "test-ns"
+
+	// Run git server.
+	gitServer := testutil.SetUpGitTestServer(g)
+	t.Cleanup(func() {
+		g.Expect(os.RemoveAll(gitServer.Root())).ToNot(HaveOccurred())
+		gitServer.StopHTTP()
+	})
+
+	// Create a git repo on the server.
+	branch := "main"
+	repoPath := "/config-" + rand.String(5) + ".git"
+	initRepo := testutil.InitGitRepo(g, gitServer, "testdata/appconfig", branch, repoPath)
+	repoURL := gitServer.HTTPAddressWithCredentials() + repoPath
+
+	// Add regular files, shared by both branches.
+	headMain := testutil.CommitInRepo(ctx, g, repoURL, branch, originRemote, "Add app config", func(tmp string) {
+		g.Expect(os.MkdirAll(filepath.Join(tmp, "deploy", "app1"), 0o755)).To(Succeed())
+		g.Expect(os.WriteFile(filepath.Join(tmp, "deploy", "app1", "config.yaml"), []byte("cfg: v1\n"), 0o644)).To(Succeed())
+		g.Expect(os.WriteFile(filepath.Join(tmp, "shared.yaml"), []byte("shared: v1\n"), 0o644)).To(Succeed())
+	})
+
+	// Create the push branch at the current head. It stays behind the
+	// checkout branch for the rest of the test.
+	pushBranch := "auto-" + rand.String(5)
+	g.Expect(initRepo.Storer.SetReference(
+		plumbing.NewHashReference(plumbing.NewBranchReferenceName(pushBranch), headMain))).To(Succeed())
+
+	// Restructure the checkout branch: replace deploy/app1/config.yaml
+	// with a symlink to the new deploy/_stacks/config.yaml, and add a
+	// symlink to the retained shared.yaml. The push branch predates the
+	// symlinks and their new target, so switching to it must delete them
+	// again.
+	testutil.CommitInRepo(ctx, g, repoURL, branch, originRemote, "Move config behind symlinks", func(tmp string) {
+		g.Expect(os.MkdirAll(filepath.Join(tmp, "deploy", "_stacks"), 0o755)).To(Succeed())
+		g.Expect(os.WriteFile(filepath.Join(tmp, "deploy", "_stacks", "config.yaml"), []byte("cfg: v2\n"), 0o644)).To(Succeed())
+		g.Expect(os.Remove(filepath.Join(tmp, "deploy", "app1", "config.yaml"))).To(Succeed())
+		g.Expect(os.Symlink("../_stacks/config.yaml", filepath.Join(tmp, "deploy", "app1", "config.yaml"))).To(Succeed())
+		g.Expect(os.Symlink("shared.yaml", filepath.Join(tmp, "link.yaml"))).To(Succeed())
+	})
+
+	// Create GitRepository and ImageUpdateAutomation checking out the
+	// main branch and pushing to the stale push branch.
+	gitRepo := &sourcev1.GitRepository{}
+	gitRepo.Name = "test-repo"
+	gitRepo.Namespace = testNS
+	gitRepo.Spec = sourcev1.GitRepositorySpec{
+		URL:       repoURL,
+		Reference: &sourcev1.GitRepositoryRef{Branch: branch},
+	}
+
+	updateAuto := &imagev1.ImageUpdateAutomation{}
+	updateAuto.Name = "test-update"
+	updateAuto.Namespace = testNS
+	updateAuto.Spec = imagev1.ImageUpdateAutomationSpec{
+		SourceRef: imagev1.CrossNamespaceSourceReference{
+			Kind: sourcev1.GitRepositoryKind,
+			Name: gitRepo.Name,
+		},
+		GitSpec: &imagev1.GitSpec{
+			Push: &imagev1.PushSpec{Branch: pushBranch},
+		},
+	}
+
+	kClient := fakeclient.NewClientBuilder().
+		WithScheme(scheme.Scheme).
+		WithObjects(gitRepo, updateAuto).
+		Build()
+
+	sm, err := NewSourceManager(ctx, kClient, updateAuto, WithSourceOptionGitAllBranchReferences())
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() {
+		g.Expect(sm.Cleanup()).ToNot(HaveOccurred())
+	}()
+
+	_, err = sm.CheckoutSource(ctx)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// The worktree must be on the push branch.
+	r, err := extgogit.PlainOpen(sm.WorkDirectory())
+	g.Expect(err).ToNot(HaveOccurred())
+	head, err := r.Head()
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(head.Name().Short()).To(Equal(pushBranch))
+
+	// The worktree must match the push branch state: the config is a
+	// regular file again, the symlinks and their new target are gone,
+	// and the retained symlink target is untouched.
+	fi, err := os.Lstat(filepath.Join(sm.WorkDirectory(), "deploy", "app1", "config.yaml"))
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(fi.Mode() & os.ModeSymlink).To(BeZero())
+	content, err := os.ReadFile(filepath.Join(sm.WorkDirectory(), "deploy", "app1", "config.yaml"))
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(content)).To(Equal("cfg: v1\n"))
+
+	_, err = os.Lstat(filepath.Join(sm.WorkDirectory(), "deploy", "_stacks", "config.yaml"))
+	g.Expect(os.IsNotExist(err)).To(BeTrue())
+	_, err = os.Lstat(filepath.Join(sm.WorkDirectory(), "link.yaml"))
+	g.Expect(os.IsNotExist(err)).To(BeTrue())
+
+	content, err = os.ReadFile(filepath.Join(sm.WorkDirectory(), "shared.yaml"))
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(content)).To(Equal("shared: v1\n"))
+
+	// Nothing must be left to commit, so no stale files can end up on
+	// the push branch.
+	wt, err := r.Worktree()
+	g.Expect(err).ToNot(HaveOccurred())
+	status, err := wt.Status()
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(status.IsClean()).To(BeTrue(), "worktree not clean after branch switch: %v", status)
+}
+
 func TestSourceManager_CommitAndPush(t *testing.T) {
 	test_sourceManager_CommitAndPush(t, "http")
 	test_sourceManager_CommitAndPush(t, "ssh")
