@@ -125,6 +125,7 @@ func (r *ScreeningLocalReader) Read() ([]*yaml.RNode, error) {
 			Reader:            bytes.NewBuffer(filebytes),
 			SetAnnotations:    annotations,
 			PreserveSeqIndent: true,
+			PreserveDocStart:  true,
 		}
 
 		nodes, err := rdr.Read()
