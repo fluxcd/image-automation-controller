@@ -264,6 +264,25 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 			wantErr: "secretRef '/githubAppSecret' has github app data but provider is not set to github: invalid source configuration",
 		},
 		{
+			name: "generic provider with github app client id in secret",
+			url:  "https://example.com/org/repo",
+			secret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "githubAppSecret",
+				},
+				Data: map[string][]byte{
+					githubapp.KeyAppClientID: []byte("Iv23liXXXXXXX"),
+				},
+			},
+			beforeFunc: func(obj *sourcev1.GitRepository) {
+				obj.Spec.Provider = sourcev1.GitProviderGeneric
+				obj.Spec.SecretRef = &meta.LocalObjectReference{
+					Name: "githubAppSecret",
+				}
+			},
+			wantErr: "secretRef '/githubAppSecret' has github app data but provider is not set to github: invalid source configuration",
+		},
+		{
 			name: "generic provider",
 			url:  "https://example.com/org/repo",
 			beforeFunc: func(obj *sourcev1.GitRepository) {
