@@ -12,6 +12,11 @@ git, based on metadata from OCI image registries gathered by the
 image-reflector-controller.</p>
 Resource Types:
 <ul class="simple"></ul>
+<h3 id="image.toolkit.fluxcd.io/v1.Action">Action
+(<code>string</code> alias)</h3>
+<p>Action describes an observable stage of the reconcile loop, from listing
+image policies through configuring the source, applying setter updates and
+pushing the resulting commit.</p>
 <h3 id="image.toolkit.fluxcd.io/v1.CommitSpec">CommitSpec
 </h3>
 <p>
