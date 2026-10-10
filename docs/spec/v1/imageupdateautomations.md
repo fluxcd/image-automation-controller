@@ -655,6 +655,30 @@ spec:
         merge_request.target: release
 ```
 
+##### Push retries
+
+When several automations or other writers push to the same branch, a push can
+be rejected because the branch moved on the remote after the controller cloned
+it. By default, the push is only attempted again at the next reconciliation.
+
+When the controller is started with the flag
+`--feature-gates=GitPushRetryOnFailure=true`, it retries a failed push to the
+push branch. Before each retry, it waits, discards its commit, catches up with
+the remote push branch, and applies the policies and commits the changes
+again. If the remote already has the changes, nothing is pushed. The wait
+starts at 2 seconds and doubles for each retry, plus a random jitter of up to
+50%. The controller makes up to 5 attempts, and does not start a retry later
+than half of `.spec.interval` or 2 minutes, whichever is shorter, after the
+first attempt failed. Failed pushes to `.spec.git.push.refspec` are not
+retried.
+
+To catch up with the remote, the controller fetches the push branch into its
+clone, and clones the repository again if that fails, which can happen with
+Git servers such as Azure DevOps and AWS CodeCommit. It also clones again when
+the `GitAllBranchReferences` feature gate is disabled and the push branch
+differs from the checkout branch, as the push branch is then created from the
+checkout branch at every reconciliation.
+
 ### Interval
 
 `.spec.interval` is a required field that specifies the interval at which the
