@@ -914,6 +914,252 @@ Testing: value
 	}
 }
 
+func TestSourceManager_RefreshToRemote(t *testing.T) {
+	tests := []struct {
+		name string
+		// pushBranch is the push branch. The checkout branch is main.
+		pushBranch string
+		srcOpts    []SourceOption
+		shallow    bool
+		// sparse checks out only the directory of the manifests, leaving
+		// out the files of the other writer.
+		sparse bool
+		// remotePushBranch creates the push branch on the remote before the
+		// checkout, one commit ahead of main.
+		remotePushBranch bool
+		// breakFetch removes the remote from the clone, so that fetching
+		// into it fails.
+		breakFetch bool
+		// winnerBranch is the remote branch that another writer pushes to
+		// after the checkout, and that the refreshed push branch must be
+		// based on.
+		winnerBranch string
+		// wantCloneAgain expects the source to be cloned again into a new
+		// working directory, instead of fetching into the existing one.
+		wantCloneAgain bool
+	}{
+		{
+			name:         "fetches the checkout branch",
+			pushBranch:   "main",
+			winnerBranch: "main",
+		},
+		{
+			name:         "fetches into a shallow clone",
+			pushBranch:   "main",
+			shallow:      true,
+			winnerBranch: "main",
+		},
+		{
+			name:         "fetches into a shallow sparse clone",
+			pushBranch:   "main",
+			shallow:      true,
+			sparse:       true,
+			winnerBranch: "main",
+		},
+		{
+			name:           "clones again when fetching fails",
+			pushBranch:     "main",
+			shallow:        true,
+			sparse:         true,
+			breakFetch:     true,
+			winnerBranch:   "main",
+			wantCloneAgain: true,
+		},
+		{
+			name:             "fetches a separate push branch",
+			pushBranch:       "auto",
+			srcOpts:          []SourceOption{WithSourceOptionGitAllBranchReferences()},
+			remotePushBranch: true,
+			winnerBranch:     "auto",
+		},
+		{
+			name:           "clones again when the push branch is missing on the remote",
+			pushBranch:     "auto",
+			srcOpts:        []SourceOption{WithSourceOptionGitAllBranchReferences()},
+			winnerBranch:   "main",
+			wantCloneAgain: true,
+		},
+		{
+			name:             "clones again when the push branch ignores its remote state",
+			pushBranch:       "auto",
+			remotePushBranch: true,
+			winnerBranch:     "main",
+			wantCloneAgain:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+			ctx := context.TODO()
+
+			gitServer := testutil.SetUpGitTestServer(g)
+			t.Cleanup(func() {
+				// Stopping the server waits for its Git processes, which can
+				// still be writing to the repository after a push returned.
+				gitServer.StopHTTP()
+				g.Expect(os.RemoveAll(gitServer.Root())).To(Succeed())
+			})
+
+			testNS := "test-ns"
+			imgPolicy := &reflectorv1.ImagePolicy{}
+			imgPolicy.Name = "policy1"
+			imgPolicy.Namespace = testNS
+			imgPolicy.Status = reflectorv1.ImagePolicyStatus{
+				LatestRef: testutil.ImageToRef("helloworld:1.0.1"),
+			}
+
+			// The manifests are in a directory, so that a sparse checkout can
+			// leave out the files the other writers add at the root.
+			updatePath := "apps"
+			workDir := t.TempDir()
+			g.Expect(copy.Copy("testdata/appconfig", filepath.Join(workDir, updatePath))).To(Succeed())
+			g.Expect(testutil.ReplaceMarker(filepath.Join(workDir, updatePath, "deploy.yaml"), client.ObjectKeyFromObject(imgPolicy))).To(Succeed())
+			repoPath := "/config-" + rand.String(5) + ".git"
+			testutil.InitGitRepo(g, gitServer, workDir, "main", repoPath)
+			repoURL := gitServer.HTTPAddressWithCredentials() + repoPath
+
+			if tt.remotePushBranch {
+				pushCommit(ctx, g, repoURL, "main", tt.pushBranch, "diverged.txt")
+			}
+
+			gitRepo := &sourcev1.GitRepository{}
+			gitRepo.Name = "test-repo"
+			gitRepo.Namespace = testNS
+			gitRepo.Spec = sourcev1.GitRepositorySpec{
+				URL:       repoURL,
+				Reference: &sourcev1.GitRepositoryRef{Branch: "main"},
+			}
+
+			updateAuto := &imagev1.ImageUpdateAutomation{}
+			updateAuto.Name = "test-update"
+			updateAuto.Namespace = testNS
+			updateAuto.Spec = imagev1.ImageUpdateAutomationSpec{
+				SourceRef: imagev1.CrossNamespaceSourceReference{
+					Kind: sourcev1.GitRepositoryKind,
+					Name: gitRepo.Name,
+				},
+				Update: &imagev1.UpdateStrategy{
+					Strategy: imagev1.UpdateStrategySetters,
+					Path:     updatePath,
+				},
+				GitSpec: &imagev1.GitSpec{
+					Push: &imagev1.PushSpec{Branch: tt.pushBranch},
+				},
+			}
+
+			kClient := fakeclient.NewClientBuilder().WithScheme(scheme.Scheme).
+				WithObjects(imgPolicy, gitRepo, updateAuto).Build()
+
+			sm, err := NewSourceManager(ctx, kClient, updateAuto, tt.srcOpts...)
+			g.Expect(err).ToNot(HaveOccurred())
+			t.Cleanup(func() {
+				g.Expect(sm.Cleanup()).To(Succeed())
+			})
+
+			var checkoutOpts []CheckoutOption
+			if tt.shallow {
+				checkoutOpts = append(checkoutOpts, WithCheckoutOptionShallowClone())
+			}
+			if tt.sparse {
+				checkoutOpts = append(checkoutOpts, WithCheckoutOptionSparseCheckoutDirectories(updatePath))
+			}
+			_, err = sm.CheckoutSource(ctx, checkoutOpts...)
+			g.Expect(err).ToNot(HaveOccurred())
+
+			// Leave changes and an untracked file behind, as a failed push
+			// would, for the refresh to discard.
+			policies := []reflectorv1.ImagePolicy{*imgPolicy}
+			result, err := policy.ApplyPolicies(ctx, sm.WorkDirectory(), updateAuto, policies)
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(result.FileChanges).ToNot(BeEmpty())
+			untracked := filepath.Join(updatePath, "untracked.txt")
+			g.Expect(os.WriteFile(filepath.Join(sm.WorkDirectory(), untracked), nil, 0o600)).To(Succeed())
+
+			if tt.breakFetch {
+				repo, err := extgogit.PlainOpen(sm.WorkDirectory())
+				g.Expect(err).ToNot(HaveOccurred())
+				g.Expect(repo.DeleteRemote(originRemote)).To(Succeed())
+			}
+
+			winner := pushCommit(ctx, g, repoURL, tt.winnerBranch, tt.winnerBranch, "winner.txt")
+
+			oldWorkDir := sm.WorkDirectory()
+			g.Expect(sm.RefreshToRemote(ctx)).To(Succeed())
+			if tt.wantCloneAgain {
+				g.Expect(sm.WorkDirectory()).ToNot(Equal(oldWorkDir))
+				g.Expect(oldWorkDir).ToNot(BeAnExistingFile())
+			} else {
+				g.Expect(sm.WorkDirectory()).To(Equal(oldWorkDir))
+			}
+
+			repo, err := extgogit.PlainOpen(sm.WorkDirectory())
+			g.Expect(err).ToNot(HaveOccurred())
+			head, err := repo.Head()
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(head.Name()).To(Equal(plumbing.NewBranchReferenceName(tt.pushBranch)))
+			g.Expect(head.Hash()).To(Equal(winner))
+			wt, err := repo.Worktree()
+			g.Expect(err).ToNot(HaveOccurred())
+			status, err := wt.Status()
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(status.IsClean()).To(BeTrue(), status.String())
+			g.Expect(filepath.Join(sm.WorkDirectory(), untracked)).ToNot(BeAnExistingFile())
+			if tt.sparse {
+				g.Expect(filepath.Join(sm.WorkDirectory(), "winner.txt")).ToNot(BeAnExistingFile())
+			} else {
+				g.Expect(filepath.Join(sm.WorkDirectory(), "winner.txt")).To(BeARegularFile())
+			}
+			shallows, err := repo.Storer.Shallow()
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(len(shallows) > 0).To(Equal(tt.shallow))
+
+			// The changes recomputed on the refreshed source are pushed on
+			// top of the winner.
+			result, err = policy.ApplyPolicies(ctx, sm.WorkDirectory(), updateAuto, policies)
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(result.FileChanges).ToNot(BeEmpty())
+			var pushCfg []PushConfig
+			if sm.SwitchBranch() {
+				pushCfg = append(pushCfg, WithPushConfigForce())
+			}
+			pushResult, err := sm.CommitAndPush(ctx, updateAuto, result, pushCfg...)
+			g.Expect(err).ToNot(HaveOccurred())
+
+			remoteRepo, cloneDir, err := testutil.Clone(ctx, repoURL, tt.pushBranch, originRemote)
+			g.Expect(err).ToNot(HaveOccurred())
+			defer os.RemoveAll(cloneDir)
+			remoteHead, err := remoteRepo.Head()
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(remoteHead.Hash().String()).To(Equal(pushResult.Commit().Hash.String()))
+			pushed, err := remoteRepo.CommitObject(remoteHead.Hash())
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(pushed.ParentHashes).To(Equal([]plumbing.Hash{winner}))
+			_, err = pushed.File("winner.txt")
+			g.Expect(err).ToNot(HaveOccurred())
+		})
+	}
+}
+
+// pushCommit commits a new file on top of the remote branch from in a
+// separate clone, and pushes it to the remote branch to, as another writer
+// would. It returns the hash of the commit.
+func pushCommit(ctx context.Context, g *WithT, repoURL, from, to, filename string) plumbing.Hash {
+	g.THelper()
+
+	repo, dir, err := testutil.Clone(ctx, repoURL, from, originRemote)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer os.RemoveAll(dir)
+
+	g.Expect(os.WriteFile(filepath.Join(dir, filename), []byte(filename), 0o600)).To(Succeed())
+	commit := testutil.CommitWorkDir(g, repo, from, "Add "+filename)
+	g.Expect(repo.PushContext(ctx, &extgogit.PushOptions{
+		RemoteName: originRemote,
+		RefSpecs:   []config.RefSpec{config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", from, to))},
+	})).To(Succeed())
+	return commit
+}
+
 // Test_pushBranchUpdateScenarios tests the push operation for different states
 // of the remote repository.
 func Test_pushBranchUpdateScenarios(t *testing.T) {

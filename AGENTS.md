@@ -61,7 +61,7 @@ It works alongside source-controller (for `GitRepository` artifacts) and image-r
 - `docs/api/` — generated API reference (`make api-docs`).
 - `hack/` — `boilerplate.go.txt` license header, `api-docs/` template/config.
 - `internal/` — controller implementation.
-  - `internal/controller` — `ImageUpdateAutomationReconciler`, watch predicates, envtest suite (`suite_test.go`), and test CRDs pulled in via `make test_deps`.
+  - `internal/controller` — `ImageUpdateAutomationReconciler`, watch predicates, envtest suite (`suite_test.go`), and test CRDs pulled in via `make test_deps`. `push_retry.go` implements `commitAndPushWithRetry`, the opt-in (`GitPushRetryOnFailure`) retry-with-backoff loop for failed pushes.
   - `internal/source` — Git source handling: builds `gitSrcCfg` from the `GitRepository` and `GitSpec`, resolves auth via `fluxcd/pkg/runtime/secrets` and `fluxcd/pkg/auth` (including workload identity and GitHub App), performs clone/commit/push via `fluxcd/pkg/git/gogit`, and renders the commit message template (Go `text/template` + `sprig.HermeticTxtFuncMap`).
   - `internal/policy` — `ApplyPolicies` entrypoint: resolves the manifest path with `filepath-securejoin`, enforces the `Setters` strategy, and calls into `internal/update`.
   - `internal/update` — the setter engine: `filereader.go` (screening reader that only loads YAML files containing the shorthand token), `setters.go` (builds kyaml setter schemas and runs the kio pipeline), `filter.go` (`SetAllCallback`), `result.go` (change tracking used by the commit message template).
@@ -135,7 +135,8 @@ Bump `fluxcd/pkg/*` modules as a set. Run `make tidy` after any bump.
   - `branch` → push to a (new or existing) branch based on the checkout branch.
   - `refspec` → push with an explicit refspec; combinable with `branch`.
   - `options` → Git push options forwarded to the server.
-  Force-push of push-branches is governed by the `GitForcePushBranch` feature gate (default on). `GitAllBranchReferences` and `GitShallowClone` are on by default; `GitSparseCheckout` and `CacheSecretsAndConfigMaps` are opt-in. Be deliberate before changing these defaults.
+  Force-push of push-branches is governed by the `GitForcePushBranch` feature gate (default on). `GitAllBranchReferences` and `GitShallowClone` are on by default; `GitSparseCheckout`, `CacheSecretsAndConfigMaps`, and `GitPushRetryOnFailure` are opt-in. Be deliberate before changing these defaults.
+  With `GitPushRetryOnFailure` enabled, `commitAndPushWithRetry` (`internal/controller/push_retry.go`) retries any failed push to the push branch (`source.PushBranchError`), since Git servers word a lost push race too many ways to classify. Errors before the push and failed refspec pushes are not retried. Before each retry, `SourceManager.RefreshToRemote` fetches the push branch and hard-resets onto it, and clones again into a new working directory if that fails, because go-git fetches into an existing clone don't work with every server (see the `init` comment in `fluxcd/pkg/git/gogit`). Re-read `SourceManager.WorkDirectory()` after a refresh.
 - **PR creation.** This controller does not open pull requests itself — users push to a side branch and wire a notification/external bot. Do not add PR-opening logic here.
 
 ## Testing
