@@ -491,7 +491,7 @@ func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *pat
 		pushCfg = append(pushCfg, source.WithPushConfigOptions(obj.Spec.GitSpec.Push.Options))
 	}
 
-	pushResult, err = sm.CommitAndPush(ctx, obj, policyResult, pushCfg...)
+	pushResult, err = r.commitAndPushWithRetry(ctx, sm, obj, policies, policyResult, pushCfg)
 	if err != nil {
 		// Check if error is due to removed template field usage.
 		// Set Stalled condition and return nil error to prevent requeue, allowing user to fix template.
@@ -512,9 +512,10 @@ func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *pat
 	}
 
 	if pushResult == nil {
-		// NOTE: This should not happen. This exists as a legacy behavior from
-		// the old implementation where no commit is made due to no stagged
-		// files. If nothing is pushed, the repository is up-to-date. Persist
+		// NOTE: This happens when a retried push finds that the remote already
+		// has the changes. It also exists as a legacy behavior from the old
+		// implementation where no commit is made due to no stagged files. If
+		// nothing is pushed, the repository is up-to-date. Persist
 		// observations and return with successful result.
 		conditions.Delete(obj, meta.ReadyCondition)
 		obj.Status.ObservedSourceRevision = commit.String()
