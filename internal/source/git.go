@@ -59,6 +59,10 @@ type gitSrcCfg struct {
 	authOpts     *git.AuthOptions
 	clientOpts   []gogit.ClientOption
 	commitSigner signature.Signer
+
+	// ignoreRemotePushBranch is set when the push branch is created from the
+	// checkout reference at every checkout, ignoring its state on the remote.
+	ignoreRemotePushBranch bool
 }
 
 func buildGitConfig(ctx context.Context, c client.Client, originKey, srcKey types.NamespacedName,
@@ -137,6 +141,7 @@ func buildGitConfig(ctx context.Context, c client.Client, originKey, srcKey type
 	// the SwitchBranch operation to ignore the remote branch state.
 	if cfg.switchBranch {
 		cfg.clientOpts = append(cfg.clientOpts, gogit.WithSingleBranch(!opts.gitAllBranchReferences))
+		cfg.ignoreRemotePushBranch = !opts.gitAllBranchReferences
 	}
 
 	if cfg.commitSigner, err = resolveSigner(ctx, c, originKey.Namespace, obj.Spec.GitSpec); err != nil {
