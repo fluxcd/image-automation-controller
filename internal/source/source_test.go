@@ -18,6 +18,7 @@ package source
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -35,6 +36,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/otiai10/copy"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -1226,6 +1228,138 @@ func pushCommit(ctx context.Context, g *WithT, repoURL, from, to, filename strin
 		RefSpecs:   []config.RefSpec{config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", from, to))},
 	})).To(Succeed())
 	return commit
+}
+
+func TestSourceManager_CompletePush(t *testing.T) {
+	tests := []struct {
+		name string
+		// hookName and hook are the Git hook that makes the push fail.
+		hookName string
+		hook     string
+		// wantPushed expects the failed push to have reached the remote.
+		wantPushed bool
+	}{
+		{
+			name: "completes a push that timed out after the remote accepted it",
+			// The reference-transaction hook runs after the remote updated
+			// the push branch and before it reports back, and outlasts the
+			// timeout of the push. It only waits for the first push, so that
+			// the refspec push succeeds.
+			hookName:   "reference-transaction",
+			hook:       "if [ \"$1\" = committed ] && [ ! -e waited ]; then touch waited; sleep 3; fi\n",
+			wantPushed: true,
+		},
+		{
+			name:     "does not complete a push that the remote rejected",
+			hookName: "update",
+			hook:     "[ \"$1\" != refs/heads/main ]\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+			ctx := context.TODO()
+
+			gitServer := testutil.SetUpGitTestServer(g)
+			t.Cleanup(func() {
+				// Stopping the server waits for its Git processes, which can
+				// still be running hooks after a push returned.
+				gitServer.StopHTTP()
+				g.Expect(os.RemoveAll(gitServer.Root())).To(Succeed())
+			})
+
+			testNS := "test-ns"
+			imgPolicy := &reflectorv1.ImagePolicy{}
+			imgPolicy.Name = "policy1"
+			imgPolicy.Namespace = testNS
+			imgPolicy.Status = reflectorv1.ImagePolicyStatus{
+				LatestRef: testutil.ImageToRef("helloworld:1.0.1"),
+			}
+
+			workDir := t.TempDir()
+			g.Expect(copy.Copy("testdata/appconfig", workDir)).To(Succeed())
+			g.Expect(testutil.ReplaceMarker(filepath.Join(workDir, "deploy.yaml"), client.ObjectKeyFromObject(imgPolicy))).To(Succeed())
+			repoPath := "/config-" + rand.String(5) + ".git"
+			testutil.InitGitRepo(g, gitServer, workDir, "main", repoPath)
+			repoURL := gitServer.HTTPAddressWithCredentials() + repoPath
+
+			gitRepo := &sourcev1.GitRepository{}
+			gitRepo.Name = "test-repo"
+			gitRepo.Namespace = testNS
+			gitRepo.Spec = sourcev1.GitRepositorySpec{
+				URL:       repoURL,
+				Reference: &sourcev1.GitRepositoryRef{Branch: "main"},
+				Timeout:   &metav1.Duration{Duration: time.Second},
+			}
+
+			updateAuto := &imagev1.ImageUpdateAutomation{}
+			updateAuto.Name = "test-update"
+			updateAuto.Namespace = testNS
+			updateAuto.Spec = imagev1.ImageUpdateAutomationSpec{
+				SourceRef: imagev1.CrossNamespaceSourceReference{
+					Kind: sourcev1.GitRepositoryKind,
+					Name: gitRepo.Name,
+				},
+				Update: &imagev1.UpdateStrategy{
+					Strategy: imagev1.UpdateStrategySetters,
+				},
+				GitSpec: &imagev1.GitSpec{
+					Push: &imagev1.PushSpec{
+						Branch:  "main",
+						Refspec: "refs/heads/main:refs/heads/release",
+					},
+				},
+			}
+
+			kClient := fakeclient.NewClientBuilder().WithScheme(scheme.Scheme).
+				WithObjects(imgPolicy, gitRepo, updateAuto).Build()
+
+			sm, err := NewSourceManager(ctx, kClient, updateAuto)
+			g.Expect(err).ToNot(HaveOccurred())
+			t.Cleanup(func() {
+				g.Expect(sm.Cleanup()).To(Succeed())
+			})
+			_, err = sm.CheckoutSource(ctx)
+			g.Expect(err).ToNot(HaveOccurred())
+
+			policies := []reflectorv1.ImagePolicy{*imgPolicy}
+			result, err := policy.ApplyPolicies(ctx, sm.WorkDirectory(), updateAuto, policies)
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(result.FileChanges).ToNot(BeEmpty())
+
+			testutil.WriteGitHook(g, gitServer, repoPath, tt.hookName, tt.hook)
+			_, err = sm.CommitAndPush(ctx, updateAuto, result)
+			var pushErr *PushBranchError
+			g.Expect(errors.As(err, &pushErr)).To(BeTrue(), fmt.Sprint(err))
+			g.Expect(pushErr.Revision).ToNot(BeEmpty())
+			g.Expect(pushErr.Message).ToNot(BeEmpty())
+
+			g.Expect(sm.RefreshToRemote(ctx)).To(Succeed())
+			pushResult, pushed, err := sm.CompletePush(ctx, pushErr)
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(pushed).To(Equal(tt.wantPushed))
+
+			remoteRepo, cloneDir, err := testutil.Clone(ctx, repoURL, "main", originRemote)
+			g.Expect(err).ToNot(HaveOccurred())
+			defer os.RemoveAll(cloneDir)
+			mainHead, err := remoteRepo.Head()
+			g.Expect(err).ToNot(HaveOccurred())
+			releaseRef, releaseErr := testutil.GetRemoteHead(remoteRepo, "release", originRemote)
+			if !tt.wantPushed {
+				g.Expect(pushResult).To(BeNil())
+				g.Expect(mainHead.Hash().String()).ToNot(Equal(pushErr.Revision))
+				g.Expect(releaseErr).To(HaveOccurred())
+				return
+			}
+			g.Expect(mainHead.Hash().String()).To(Equal(pushErr.Revision))
+			g.Expect(pushResult.Commit().Hash.String()).To(Equal(pushErr.Revision))
+			g.Expect(pushResult.Commit().Message).To(Equal(pushErr.Message))
+			g.Expect(pushResult.Summary()).To(ContainSubstring("refspecs 'refs/heads/main:refs/heads/release'"))
+			g.Expect(releaseErr).ToNot(HaveOccurred())
+			g.Expect(releaseRef.String()).To(Equal(pushErr.Revision))
+		})
+	}
 }
 
 // Test_pushBranchUpdateScenarios tests the push operation for different states

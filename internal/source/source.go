@@ -74,9 +74,14 @@ func (e *RemovedTemplateFieldError) Is(target error) bool {
 var ErrRemovedTemplateField = &RemovedTemplateFieldError{}
 
 // PushBranchError is returned by CommitAndPush when pushing the commit to the
-// push branch fails.
+// push branch fails. The push may still have reached the remote, for example
+// when it timed out after the remote accepted it.
 type PushBranchError struct {
-	Err error
+	// Revision is the revision of the commit that failed to be pushed.
+	Revision string
+	// Message is the message of the commit that failed to be pushed.
+	Message string
+	Err     error
 }
 
 func (e *PushBranchError) Error() string {
@@ -327,6 +332,15 @@ func WithPushConfigForce() PushConfig {
 	}
 }
 
+// buildPushConfig returns the push configuration set by the given options.
+func buildPushConfig(pushOptions []PushConfig) repository.PushConfig {
+	pushConfig := repository.PushConfig{}
+	for _, po := range pushOptions {
+		po(&pushConfig)
+	}
+	return pushConfig
+}
+
 // buildRefspecPushConfig returns a push configuration for an explicit refspec.
 func buildRefspecPushConfig(pushConfig repository.PushConfig, refspec string) repository.PushConfig {
 	pushConfig.Refspecs = []string{refspec}
@@ -393,24 +407,47 @@ func (sm SourceManager) CommitAndPush(ctx context.Context, obj *imagev1.ImageUpd
 	// Push the commit to push branch.
 	gitOpCtx, cancel := context.WithTimeout(ctx, sm.srcCfg.timeout.Duration)
 	defer cancel()
-	pushConfig := repository.PushConfig{}
-	for _, po := range pushOptions {
-		po(&pushConfig)
-	}
+	pushConfig := buildPushConfig(pushOptions)
 	if err := sm.gitClient.Push(gitOpCtx, pushConfig); err != nil {
-		return nil, &PushBranchError{Err: err}
+		return nil, &PushBranchError{Revision: rev, Message: commitMsg, Err: err}
 	}
 	tracelog.Info("pushed commit to push branch", "revision", rev, "branch", sm.srcCfg.pushBranch)
 
-	// Push to any provided refspec.
+	return sm.pushToRefspec(gitOpCtx, rev, commitMsg, pushConfig)
+}
+
+// CompletePush completes a push that failed with pushErr, but reached the
+// remote nonetheless, for example because it timed out after the remote
+// accepted it. Call it after RefreshToRemote. If the push branch is at the
+// commit of the failed push, it pushes the commit to the push refspec, if
+// any, and returns the result and true. Otherwise, it returns false, and the
+// changes have to be applied and pushed again.
+func (sm SourceManager) CompletePush(ctx context.Context, pushErr *PushBranchError, pushOptions ...PushConfig) (*PushResult, bool, error) {
+	head, err := sm.gitClient.Head()
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to resolve HEAD: %w", err)
+	}
+	if head != pushErr.Revision {
+		return nil, false, nil
+	}
+
+	gitOpCtx, cancel := context.WithTimeout(ctx, sm.srcCfg.timeout.Duration)
+	defer cancel()
+	pushResult, err := sm.pushToRefspec(gitOpCtx, pushErr.Revision, pushErr.Message, buildPushConfig(pushOptions))
+	return pushResult, true, err
+}
+
+// pushToRefspec pushes the commit rev, which is on the push branch, to the
+// push refspec, if any, and returns the result of pushing the commit.
+func (sm SourceManager) pushToRefspec(ctx context.Context, rev, commitMsg string, pushConfig repository.PushConfig) (*PushResult, error) {
 	var pushedRefspecs []string
 	if sm.srcCfg.pushRefspec != "" {
 		refspecPushConfig := buildRefspecPushConfig(pushConfig, sm.srcCfg.pushRefspec)
-		if err := sm.gitClient.Push(gitOpCtx, refspecPushConfig); err != nil {
+		if err := sm.gitClient.Push(ctx, refspecPushConfig); err != nil {
 			return nil, err
 		}
 		pushedRefspecs = refspecPushConfig.Refspecs
-		tracelog.Info("pushed commit to refspec", "revision", rev, "refspecs", pushedRefspecs)
+		log.FromContext(ctx).V(logger.TraceLevel).Info("pushed commit to refspec", "revision", rev, "refspecs", pushedRefspecs)
 	}
 
 	// Construct the result of the push operation and return.
