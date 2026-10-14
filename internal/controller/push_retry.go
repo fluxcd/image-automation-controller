@@ -61,6 +61,12 @@ var pushRetryBaseDelay = 2 * time.Second
 // apart reliably. Other errors, such as failing to render the commit message
 // or to push to the push refspec, are returned without retrying.
 //
+// A failed push can still have reached the remote, for example when it timed
+// out after the remote accepted it. If the push branch is at the commit of
+// the failed push after catching up, the commit is pushed to the push
+// refspec, if any, and its result is returned without recomputing the
+// changes.
+//
 // Retrying stops when the working directory can't be caught up with the
 // remote, after pushRetryMaxAttempts attempts, or when the next attempt would
 // start later than min(interval/2, pushRetryMaxBudget) after the first one
@@ -100,6 +106,15 @@ func (r *ImageUpdateAutomationReconciler) commitAndPushWithRetry(ctx context.Con
 
 		if err := sm.RefreshToRemote(ctx); err != nil {
 			return nil, fmt.Errorf("failed to refresh the source to retry the push: %w", err)
+		}
+		var pushed bool
+		pushResult, pushed, err = sm.CompletePush(ctx, pushErr, pushCfg...)
+		if err != nil {
+			return nil, err
+		}
+		if pushed {
+			log.Info("the failed push reached the remote", "attempts", attempt)
+			return pushResult, nil
 		}
 		policyResult, err = policy.ApplyPolicies(ctx, sm.WorkDirectory(), obj, policies)
 		if err != nil {

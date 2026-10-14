@@ -59,7 +59,7 @@ type pushRetryFixture struct {
 	result    update.Result
 }
 
-func newPushRetryFixture(t *testing.T, push imagev1.PushSpec) *pushRetryFixture {
+func newPushRetryFixture(t *testing.T, push imagev1.PushSpec, gitRepoOpts ...func(*sourcev1.GitRepository)) *pushRetryFixture {
 	g := NewWithT(t)
 	ctx := context.TODO()
 
@@ -92,6 +92,9 @@ func newPushRetryFixture(t *testing.T, push imagev1.PushSpec) *pushRetryFixture 
 	gitRepo.Spec = sourcev1.GitRepositorySpec{
 		URL:       repoURL,
 		Reference: &sourcev1.GitRepositoryRef{Branch: "main"},
+	}
+	for _, o := range gitRepoOpts {
+		o(gitRepo)
 	}
 
 	obj := &imagev1.ImageUpdateAutomation{}
@@ -147,10 +150,8 @@ func (f *pushRetryFixture) installUpdateHook(t *testing.T, accept string) func()
 	g := NewWithT(t)
 
 	countFile := filepath.Join(t.TempDir(), "count")
-	hook := fmt.Sprintf("#!/bin/sh\necho \"$1\" >> '%[1]s'\ncount=$(wc -l < '%[1]s')\n%[2]s\n", countFile, accept)
-	hooksDir := filepath.Join(f.gitServer.Root(), f.repoPath, ".git", "hooks")
-	g.Expect(os.MkdirAll(hooksDir, 0o700)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(hooksDir, "update"), []byte(hook), 0o700)).To(Succeed())
+	hook := fmt.Sprintf("echo \"$1\" >> '%[1]s'\ncount=$(wc -l < '%[1]s')\n%[2]s\n", countFile, accept)
+	testutil.WriteGitHook(g, f.gitServer, f.repoPath, "update", hook)
 
 	return func() int {
 		b, err := os.ReadFile(countFile)
@@ -209,6 +210,43 @@ func TestCommitAndPushWithRetry_RecoversFromLostRace(t *testing.T) {
 	pushed, err := repo.CommitObject(head.Hash())
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(pushed.ParentHashes).To(Equal([]plumbing.Hash{winner}))
+}
+
+func TestCommitAndPushWithRetry_PushReachedRemote(t *testing.T) {
+	g := NewWithT(t)
+	ctx := context.TODO()
+	shortenPushRetryDelay(t)
+	f := newPushRetryFixture(t, imagev1.PushSpec{
+		Branch:  "main",
+		Refspec: "refs/heads/main:refs/heads/release",
+	}, func(repo *sourcev1.GitRepository) {
+		repo.Spec.Timeout = &metav1.Duration{Duration: time.Second}
+	})
+	pushes := f.installUpdateHook(t, "true")
+	// The first push times out after the remote updated main, as the
+	// reference-transaction hook outlasts the timeout before the remote
+	// reports back. It only waits for the first push.
+	testutil.WriteGitHook(g, f.gitServer, f.repoPath, "reference-transaction",
+		"if [ \"$1\" = committed ] && [ ! -e waited ]; then touch waited; sleep 3; fi\n")
+
+	r := &ImageUpdateAutomationReconciler{features: map[string]bool{features.GitPushRetryOnFailure: true}}
+	pushResult, err := r.commitAndPushWithRetry(ctx, f.sm, f.obj, f.policies, f.result, nil)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(pushResult).ToNot(BeNil())
+	g.Expect(pushResult.Summary()).To(ContainSubstring("refspecs 'refs/heads/main:refs/heads/release'"))
+	// The commit of the first push is pushed to the refspec, but not
+	// recomputed and pushed to main again.
+	g.Expect(pushes()).To(Equal(2))
+
+	repo, dir, err := testutil.Clone(ctx, f.repoURL, "main", originRemote)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer os.RemoveAll(dir)
+	head, err := repo.Head()
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(head.Hash().String()).To(Equal(pushResult.Commit().Hash.String()))
+	release, err := testutil.GetRemoteHead(repo, "release", originRemote)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(release.String()).To(Equal(pushResult.Commit().Hash.String()))
 }
 
 func TestCommitAndPushWithRetry_RejectedPushes(t *testing.T) {

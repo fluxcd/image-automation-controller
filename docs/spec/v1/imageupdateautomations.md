@@ -665,12 +665,14 @@ When the controller is started with the flag
 `--feature-gates=GitPushRetryOnFailure=true`, it retries a failed push to the
 push branch. Before each retry, it waits, discards its commit, catches up with
 the remote push branch, and applies the policies and commits the changes
-again. If the remote already has the changes, nothing is pushed. The wait
-starts at 2 seconds and doubles for each retry, plus a random jitter of up to
-50%. The controller makes up to 5 attempts, and does not start a retry later
-than half of `.spec.interval` or 2 minutes, whichever is shorter, after the
-first attempt failed. Failed pushes to `.spec.git.push.refspec` are not
-retried.
+again. If the remote already has the changes, nothing is pushed. If the remote
+push branch is at the commit of the failed push, for example because the push
+timed out after the remote accepted it, the push counts as successful, and the
+commit is pushed to `.spec.git.push.refspec`, if set. The wait starts at 2
+seconds and doubles for each retry, plus a random jitter of up to 50%. The
+controller makes up to 5 attempts, and does not start a retry later than half
+of `.spec.interval` or 2 minutes, whichever is shorter, after the first
+attempt failed. Failed pushes to `.spec.git.push.refspec` are not retried.
 
 To catch up with the remote, the controller clones the repository again, with
 the same shallow clone and sparse checkout settings. When the push branch

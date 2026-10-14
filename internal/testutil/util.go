@@ -407,6 +407,16 @@ func GetRemoteHead(repo *extgogit.Repository, branchName, remote string) (plumbi
 	return remoteHeadRef.Hash, nil
 }
 
+// WriteGitHook writes the Git hook name with the given shell script to the
+// repository at repoPath on the Git server.
+func WriteGitHook(g *WithT, gitServer *gittestserver.GitServer, repoPath, name, script string) {
+	g.THelper()
+
+	hooksDir := filepath.Join(gitServer.Root(), repoPath, ".git", "hooks")
+	g.Expect(os.MkdirAll(hooksDir, 0o700)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(hooksDir, name), []byte("#!/bin/sh\n"+script), 0o700)).To(Succeed())
+}
+
 // SetUpGitTestServer creates and returns a git test server. The caller must
 // ensure it's stopped and cleaned up.
 func SetUpGitTestServer(g *WithT) *gittestserver.GitServer {
