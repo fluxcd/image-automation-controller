@@ -135,7 +135,7 @@ Bump `fluxcd/pkg/*` modules as a set. Run `make tidy` after any bump.
   - `branch` → push to a (new or existing) branch based on the checkout branch.
   - `refspec` → push with an explicit refspec; combinable with `branch`.
   - `options` → Git push options forwarded to the server.
-  Force-push of push-branches is governed by the `GitForcePushBranch` feature gate (default on). `GitAllBranchReferences` and `GitShallowClone` are on by default; `GitSparseCheckout` and `CacheSecretsAndConfigMaps` are opt-in. Be deliberate before changing these defaults.
+  Force-push of push-branches is governed by the `GitForcePushBranch` feature gate (default on). `GitAllBranchReferences` and `GitShallowClone` are on by default; `GitSparseCheckout`, `CacheSecretsAndConfigMaps`, and `GitPushRetryOnFailure` are opt-in. Be deliberate before changing these defaults.
 - **PR creation.** This controller does not open pull requests itself — users push to a side branch and wire a notification/external bot. Do not add PR-opening logic here.
 
 ## Testing
