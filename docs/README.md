@@ -4,6 +4,7 @@
 
 | Name                                  | Type          | Description                                                                                                                        |
 |---------------------------------------|---------------|------------------------------------------------------------------------------------------------------------------------------------|
+| `--authorized-event-server-spiffe-id` | strings       | SPIFFE ID of an event server authorized to receive events from image-automation-controller. Can be repeated. When set, the event recorder uses SPIFFE mTLS. |
 | `--concurrent`                        | int           | The number of concurrent kustomize reconciles. (default 4)                                                                         |
 | `--default-service-account`           | string        | Default service account to use for workload identity when not specified in resources.                                              |
 | `--enable-leader-election`            | boolean       | Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.              |
@@ -26,6 +27,31 @@
 | `--watch-all-namespaces`              | boolean       | Watch for custom resources in all namespaces, if set to false it will only watch the runtime namespace. (default true)             |
 | `--watch-label-selector`              | string        | Watch for resources with matching labels e.g. 'sharding.fluxcd.io/key=shard1'.                                                     |
 | `--feature-gates`                     | mapStringBool | A comma separated list of key=value pairs defining the state of experimental features.                                             |
+
+### SPIFFE mTLS
+
+When the repeatable flag `--authorized-event-server-spiffe-id` is set,
+image-automation-controller acquires an X.509-SVID from the SPIFFE Workload API.
+The `SPIFFE_ENDPOINT_SOCKET` environment variable must point to the Workload API
+socket.
+
+`--authorized-event-server-spiffe-id` authorizes the given SPIFFE IDs of event
+servers to which image-automation-controller sends events. When set, the event
+recorder uses mTLS.
+
+Each flag value is interpreted as follows:
+
+- `spiffe://<trust domain>/<path>` authorizes exactly that SPIFFE ID.
+- `spiffe://<trust domain>/<path>/` (with a trailing slash) authorizes any
+  SPIFFE ID with that path prefix.
+- `spiffe://<trust domain>` (without a path) authorizes any SPIFFE ID in that
+  trust domain.
+
+Whenever `<trust domain>` equals the special value `self`,
+image-automation-controller understands it as the trust domain of the
+controller's own X509-SVID.
+
+Invalid values cause image-automation-controller to fail at startup.
 
 ### Feature Gates
 
