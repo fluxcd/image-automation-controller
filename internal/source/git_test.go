@@ -132,7 +132,7 @@ func Test_getAuthOpts(t *testing.T) {
 				gitRepo.Spec.SecretRef = &meta.LocalObjectReference{Name: tt.secretName}
 			}
 
-			got, err := getAuthOpts(context.TODO(), c, gitRepo, SourceOptions{}, nil)
+			got, err := getAuthOpts(context.TODO(), c, &imagev1.ImageUpdateAutomation{}, gitRepo, SourceOptions{}, nil)
 			if (err != nil) != tt.wantErr {
 				g.Fail(fmt.Sprintf("unexpected error: %v", err))
 				return
@@ -148,6 +148,7 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 		url        string
 		secret     *corev1.Secret
 		beforeFunc func(obj *sourcev1.GitRepository)
+		srcOpts    SourceOptions
 		wantErr    string
 	}{
 		{
@@ -183,6 +184,25 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 				obj.Spec.ServiceAccountName = "aws-sa"
 			},
 			wantErr: ErrFeatureGateNotEnabled.Error(),
+		},
+		{
+			name: "aws provider with default service account and feature gate disabled",
+			url:  "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
+			beforeFunc: func(obj *sourcev1.GitRepository) {
+				obj.Spec.Provider = aws.ProviderName
+			},
+			srcOpts: SourceOptions{defaultServiceAccount: "default-sa"},
+			wantErr: ErrFeatureGateNotEnabled.Error(),
+		},
+		{
+			name: "aws provider with missing service account and feature gate enabled",
+			url:  "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
+			beforeFunc: func(obj *sourcev1.GitRepository) {
+				obj.Spec.Provider = aws.ProviderName
+				obj.Spec.ServiceAccountName = "aws-sa"
+			},
+			srcOpts: SourceOptions{objectLevelWorkloadIdentity: true},
+			wantErr: "failed to get service account",
 		},
 		{
 			name: "github provider with no secret ref",
@@ -306,18 +326,18 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 				clientBuilder.WithObjects(tt.secret)
 			}
 			c := clientBuilder.Build()
-			obj := &sourcev1.GitRepository{
+			repo := &sourcev1.GitRepository{
 				Spec: sourcev1.GitRepositorySpec{
 					URL: tt.url,
 				},
 			}
 
 			if tt.beforeFunc != nil {
-				tt.beforeFunc(obj)
+				tt.beforeFunc(repo)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
-			opts, err := getAuthOpts(ctx, c, obj, SourceOptions{}, nil)
+			opts, err := getAuthOpts(ctx, c, &imagev1.ImageUpdateAutomation{}, repo, tt.srcOpts, nil)
 
 			if tt.wantErr != "" {
 				g.Expect(err).To(HaveOccurred())
@@ -650,7 +670,13 @@ func Test_buildGitConfig(t *testing.T) {
 				Name:      "test-update",
 			}
 
-			gitSrcCfg, err := buildGitConfig(context.TODO(), c, updateAutoKey, gitRepoKey, tt.gitSpec, tt.srcOpts)
+			obj := &imagev1.ImageUpdateAutomation{
+				Spec: imagev1.ImageUpdateAutomationSpec{
+					GitSpec: tt.gitSpec,
+				},
+			}
+
+			gitSrcCfg, err := buildGitConfig(context.TODO(), c, updateAutoKey, gitRepoKey, obj, tt.srcOpts)
 			if (err != nil) != tt.wantErr {
 				g.Fail(fmt.Sprintf("unexpected error: %v", err))
 				return

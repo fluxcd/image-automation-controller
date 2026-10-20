@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	cryptov1 "github.com/fluxcd/pkg/apis/crypto/v1"
 	"github.com/fluxcd/pkg/auth"
 	"github.com/fluxcd/pkg/auth/aws"
 	"github.com/fluxcd/pkg/auth/azure"
@@ -60,7 +61,9 @@ type gitSrcCfg struct {
 	commitSigner signature.Signer
 }
 
-func buildGitConfig(ctx context.Context, c client.Client, originKey, srcKey types.NamespacedName, gitSpec *imagev1.GitSpec, opts SourceOptions) (*gitSrcCfg, error) {
+func buildGitConfig(ctx context.Context, c client.Client, originKey, srcKey types.NamespacedName,
+	obj *imagev1.ImageUpdateAutomation, opts SourceOptions) (*gitSrcCfg, error) {
+
 	var err error
 	cfg := &gitSrcCfg{
 		srcKey: srcKey,
@@ -86,15 +89,15 @@ func buildGitConfig(ctx context.Context, c client.Client, originKey, srcKey type
 	// Get the checkout ref for the source, prioritizing the image automation
 	// object gitSpec checkout reference and falling back to the GitRepository
 	// reference if not provided.
-	if gitSpec.Checkout != nil {
-		cfg.checkoutRef = &gitSpec.Checkout.Reference
+	if obj.Spec.GitSpec.Checkout != nil {
+		cfg.checkoutRef = &obj.Spec.GitSpec.Checkout.Reference
 	} else if repo.Spec.Reference != nil {
 		cfg.checkoutRef = repo.Spec.Reference
 	} // else remain as `nil` and git.DefaultBranch will be used.
 
 	// Configure push first as the client options below depend on the push
 	// configuration.
-	if err = configurePush(cfg, gitSpec, cfg.checkoutRef); err != nil {
+	if err = configurePush(cfg, obj.Spec.GitSpec, cfg.checkoutRef); err != nil {
 		return nil, err
 	}
 
@@ -114,7 +117,7 @@ func buildGitConfig(ctx context.Context, c client.Client, originKey, srcKey type
 		proxyOpts = &transport.ProxyOptions{URL: proxyURL.String()}
 	}
 
-	cfg.authOpts, err = getAuthOpts(ctx, c, repo, opts, proxyURL)
+	cfg.authOpts, err = getAuthOpts(ctx, c, obj, repo, opts, proxyURL)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +139,7 @@ func buildGitConfig(ctx context.Context, c client.Client, originKey, srcKey type
 		cfg.clientOpts = append(cfg.clientOpts, gogit.WithSingleBranch(!opts.gitAllBranchReferences))
 	}
 
-	if cfg.commitSigner, err = resolveSigner(ctx, c, originKey.Namespace, gitSpec); err != nil {
+	if cfg.commitSigner, err = resolveSigner(ctx, c, originKey.Namespace, obj.Spec.GitSpec); err != nil {
 		return nil, err
 	}
 
@@ -184,8 +187,9 @@ func configurePush(cfg *gitSrcCfg, gitSpec *imagev1.GitSpec, checkoutRef *source
 	return nil
 }
 
-func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitRepository,
-	srcOpts SourceOptions, proxyURL *url.URL) (*git.AuthOptions, error) {
+func getAuthOpts(ctx context.Context, c client.Client, obj *imagev1.ImageUpdateAutomation,
+	repo *sourcev1.GitRepository, srcOpts SourceOptions, proxyURL *url.URL) (*git.AuthOptions, error) {
+
 	var secret *corev1.Secret
 	var data map[string][]byte
 	var err error
@@ -206,41 +210,85 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure authentication options: %w", err)
 	}
+	withCerts := len(opts.ClientCert) > 0 || len(opts.ClientKey) > 0 || len(opts.CAFile) > 0
+
+	// Configure provider authentication if specified.
+	provider := repo.GetProvider()
+
+	// Resolve the ServiceAccount once, applying the default ServiceAccount when
+	// the object does not specify one.
+	saName := repo.Spec.ServiceAccountName
+	if saName == "" {
+		saName = srcOpts.defaultServiceAccount
+	}
+
+	// Check the object-level workload identity feature gate for the providers
+	// that use the ServiceAccount for authentication.
+	if (provider == azure.ProviderName || provider == aws.ProviderName) &&
+		saName != "" && !srcOpts.objectLevelWorkloadIdentity {
+		return nil, ErrFeatureGateNotEnabled
+	}
+
+	var sa *corev1.ServiceAccount
+	if saName != "" {
+		sa = &corev1.ServiceAccount{}
+		saRef := types.NamespacedName{Namespace: repo.GetNamespace(), Name: saName}
+		if err := c.Get(ctx, saRef, sa); err != nil {
+			return nil, fmt.Errorf("failed to get service account '%s': %w", saRef, err)
+		}
+	}
+
+	// Build the authentication spec. This is done even when no
+	// ServiceAccount is specified, as some inputs are validated regardless.
+	var cryptoSpec *cryptov1.Spec
+	if sa != nil || (provider != "" && provider != sourcev1.GitProviderGeneric) {
+		buildOpts := []cryptov1.Option{
+			cryptov1.WithServiceProvider(provider),
+		}
+		if sa != nil {
+			buildOpts = append(buildOpts, cryptov1.WithAnnotations(sa.Annotations))
+		}
+		if withCerts {
+			buildOpts = append(buildOpts, cryptov1.WithSecretRefCerts())
+		}
+		if provider == sourcev1.GitProviderGitHub && len(data[githubapp.KeyAppBaseURL]) > 0 {
+			buildOpts = append(buildOpts, cryptov1.WithGitHubEnterpriseServer())
+		}
+		var err error
+		cryptoSpec, err = cryptov1.BuildSpec(buildOpts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to validate configuration: %w", err)
+		}
+	}
 
 	var getCreds func() (*auth.GitCredentials, error)
-	switch provider := repo.GetProvider(); provider {
+	switch provider {
 	// If other providers (GCP, etc.) are added in the future they can be added here separated by a comma.
 	case azure.ProviderName, aws.ProviderName:
 		getCreds = func() (*auth.GitCredentials, error) {
-			opts := []auth.Option{
+			authOpts := auth.OptionsFromSpec(cryptoSpec.Auth)
+			authOpts = append(authOpts,
 				auth.WithClient(c),
-				auth.WithServiceAccountNamespace(srcOpts.objNamespace),
+				auth.WithObject(sourcev1.GroupVersion.Group, sourcev1.GitRepositoryKind, repo),
 				auth.WithGitURL(*u),
-			}
+			)
 
-			if repo.Spec.ServiceAccountName != "" {
-				// Check object-level workload identity feature gate.
-				if !auth.IsObjectLevelWorkloadIdentityEnabled() {
-					return nil, ErrFeatureGateNotEnabled
-				}
-				opts = append(opts, auth.WithServiceAccountName(repo.Spec.ServiceAccountName))
+			if sa != nil {
+				authOpts = append(authOpts, auth.WithServiceAccountName(sa.Name))
 			}
 
 			if srcOpts.tokenCache != nil {
-				involvedObject := cache.InvolvedObject{
-					Kind:      imagev1.ImageUpdateAutomationKind,
-					Name:      srcOpts.objName,
-					Namespace: srcOpts.objNamespace,
-					Operation: cache.OperationReconcile,
-				}
-				opts = append(opts, auth.WithCache(*srcOpts.tokenCache, involvedObject))
+				authOpts = append(authOpts,
+					auth.WithCache(*srcOpts.tokenCache),
+					auth.WithCacheOperation(cache.OperationReconcile),
+					auth.WithInvolvedObject(imagev1.GroupVersion.Group, imagev1.ImageUpdateAutomationKind, obj))
 			}
 
 			if proxyURL != nil {
-				opts = append(opts, auth.WithProxyURL(*proxyURL))
+				authOpts = append(authOpts, auth.WithProxyURL(*proxyURL))
 			}
 
-			return authutils.GetGitCredentials(ctx, provider, opts...)
+			return authutils.GetGitCredentials(ctx, provider, authOpts...)
 		}
 	case sourcev1.GitProviderGitHub:
 		// if provider is github, but secret ref is not specified
@@ -265,8 +313,12 @@ func getAuthOpts(ctx context.Context, c client.Client, repo *sourcev1.GitReposit
 			}
 
 			if srcOpts.tokenCache != nil {
-				appOpts = append(appOpts, githubapp.WithCache(srcOpts.tokenCache, imagev1.ImageUpdateAutomationKind,
-					srcOpts.objName, srcOpts.objNamespace, cache.OperationReconcile))
+				appOpts = append(appOpts, githubapp.WithCache(srcOpts.tokenCache, cache.InvolvedObject{
+					Kind:      imagev1.ImageUpdateAutomationKind,
+					Name:      srcOpts.objName,
+					Namespace: srcOpts.objNamespace,
+					Operation: cache.OperationReconcile,
+				}))
 			}
 
 			if authMethods.HasTLS() {

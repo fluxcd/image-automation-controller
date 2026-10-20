@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -125,20 +126,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	switch enabled, err := features.Enabled(auth.FeatureGateObjectLevelWorkloadIdentity); {
-	case err != nil:
+	objectLevelWorkloadIdentity, err := features.Enabled(auth.FeatureGateObjectLevelWorkloadIdentity)
+	if err != nil {
 		setupLog.Error(err, "unable to check feature gate "+auth.FeatureGateObjectLevelWorkloadIdentity)
 		os.Exit(1)
-	case enabled:
-		auth.EnableObjectLevelWorkloadIdentity()
 	}
 
-	if defaultServiceAccount != "" {
-		auth.SetDefaultServiceAccount(defaultServiceAccount)
-	}
-
-	if auth.InconsistentObjectLevelConfiguration() {
-		setupLog.Error(auth.ErrInconsistentObjectLevelConfiguration, "invalid configuration")
+	if defaultServiceAccount != "" && !objectLevelWorkloadIdentity {
+		setupLog.Error(errors.New("cannot set the default service account when the "+
+			auth.FeatureGateObjectLevelWorkloadIdentity+" feature gate is not enabled"), "invalid configuration")
 		os.Exit(1)
 	}
 
@@ -237,11 +233,13 @@ func main() {
 	ctx := ctrl.SetupSignalHandler()
 
 	if err := (&controller.ImageUpdateAutomationReconciler{
-		Client:              mgr.GetClient(),
-		Recorder:            eventRecorder,
-		Metrics:             metricsH,
-		NoCrossNamespaceRef: aclOptions.NoCrossNamespaceRefs,
-		ControllerName:      controllerName,
+		Client:                      mgr.GetClient(),
+		Recorder:                    eventRecorder,
+		Metrics:                     metricsH,
+		NoCrossNamespaceRef:         aclOptions.NoCrossNamespaceRefs,
+		ControllerName:              controllerName,
+		ObjectLevelWorkloadIdentity: objectLevelWorkloadIdentity,
+		DefaultServiceAccount:       defaultServiceAccount,
 	}).SetupWithManager(ctx, mgr, controller.ImageUpdateAutomationReconcilerOptions{
 		RateLimiter: helper.GetRateLimiter(rateLimiterOptions),
 		TokenCache:  tokenCache,

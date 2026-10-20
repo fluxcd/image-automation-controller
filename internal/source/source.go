@@ -94,11 +94,13 @@ type SourceManager struct {
 
 // SourceOptions contains the optional attributes of SourceManager.
 type SourceOptions struct {
-	noCrossNamespaceRef    bool
-	gitAllBranchReferences bool
-	tokenCache             *cache.TokenCache
-	objName                string
-	objNamespace           string
+	noCrossNamespaceRef         bool
+	gitAllBranchReferences      bool
+	tokenCache                  *cache.TokenCache
+	objName                     string
+	objNamespace                string
+	objectLevelWorkloadIdentity bool
+	defaultServiceAccount       string
 }
 
 // SourceOption configures the SourceManager options.
@@ -137,6 +139,22 @@ func WithSourceOptionInvolvedObject(name, namespace string) SourceOption {
 	}
 }
 
+// WithSourceOptionObjectLevelWorkloadIdentity configures the SourceManager to
+// use object-level workload identity for provider authentication.
+func WithSourceOptionObjectLevelWorkloadIdentity() SourceOption {
+	return func(so *SourceOptions) {
+		so.objectLevelWorkloadIdentity = true
+	}
+}
+
+// WithSourceOptionDefaultServiceAccount configures the default ServiceAccount
+// used for provider authentication when the GitRepository does not specify one.
+func WithSourceOptionDefaultServiceAccount(name string) SourceOption {
+	return func(so *SourceOptions) {
+		so.defaultServiceAccount = name
+	}
+}
+
 // NewSourceManager takes all the provided inputs, validates them and returns a
 // SourceManager which can be used to operate on the configured source.
 func NewSourceManager(ctx context.Context, c client.Client, obj *imagev1.ImageUpdateAutomation, options ...SourceOption) (*SourceManager, error) {
@@ -170,7 +188,7 @@ func NewSourceManager(ctx context.Context, c client.Client, obj *imagev1.ImageUp
 		return nil, acl.AccessDeniedError(fmt.Sprintf("can't access '%s/%s', cross-namespace references have been blocked", sourcev1.GitRepositoryKind, srcKey))
 	}
 
-	gitSrcCfg, err := buildGitConfig(ctx, c, originKey, srcKey, obj.Spec.GitSpec, *opts)
+	gitSrcCfg, err := buildGitConfig(ctx, c, originKey, srcKey, obj, *opts)
 	if err != nil {
 		return nil, err
 	}
