@@ -23,6 +23,8 @@
 | `--ssh-hostkey-algos`                 | strings       | The list of hostkey algorithms to use for ssh connections, arranged from most preferred to the least.                              |
 | `--ssh-kex-algos`                     | strings       | The list of key exchange algorithms to use for ssh connections, arranged from most preferred to the least.                         |
 | `--token-cache-max-size`              | int           | The maximum amount of entries in the LRU cache used for tokens. (default 100, enabled)                                             |
+| `--spiffe-broker-endpoint`            | string        | The gRPC URL of the SPIFFE Broker endpoint.                                                                                                                                              |
+| `--spiffe-broker-id`                  | strings       | SPIFFE ID of the SPIFFE Broker endpoint. Can be repeated.                                                                                                                                |
 | `--token-cache-max-duration`          | duration      | The maximum duration for which a token would be considered unexpired. This is capped at 1h. (default 1h)                           |
 | `--watch-all-namespaces`              | boolean       | Watch for custom resources in all namespaces, if set to false it will only watch the runtime namespace. (default true)             |
 | `--watch-label-selector`              | string        | Watch for resources with matching labels e.g. 'sharding.fluxcd.io/key=shard1'.                                                     |
@@ -53,6 +55,21 @@ controller's own X509-SVID.
 
 Invalid values cause image-automation-controller to fail at startup.
 
+### SPIFFE Broker API
+
+When `--spiffe-broker-endpoint` and at least one `--spiffe-broker-id` are set,
+image-automation-controller acquires an X.509-SVID from the SPIFFE Workload API and uses it to
+authenticate to the SPIFFE Broker API. The `SPIFFE_ENDPOINT_SOCKET` environment
+variable must point to the Workload API socket.
+
+The Broker is used to acquire JWT-SVIDs for object-level workload identity when
+a ServiceAccount sets `credential.auth.fluxcd.io/provider` to `spiffe`. The
+Broker endpoint is a TCP gRPC target, e.g.
+`dns:///spire-server.spire.svc.cluster.local:8443`.
+
+Each `--spiffe-broker-id` value is interpreted like the SPIFFE IDs used by the
+mTLS flags. Invalid values cause image-automation-controller to fail at startup.
+
 ### Feature Gates
 
 | Name                          | Default Value | Description                                                                                                                                                                                                               |
@@ -61,4 +78,3 @@ Invalid values cause image-automation-controller to fail at startup.
 | `GitAllBranchReferences`      | `true`        | Enables the download of all branch head references when push branches are configured.                                                                                                                                     |
 | `GitForcePushBranch`          | `true`        | Enables the use of "force push" when pushing changes to a separate branch. This fixes issues with stale push branches.                                                                                                    |
 | `GitSparseCheckout`           | `false`       | Enables the use of Git sparse checkout to only fetch the path defined in `.spec.update.path` from the repository.                                                                                                         |
-| `ObjectLevelWorkloadIdentity` | `false`       | Enables the use of object-level workload identity for the controller.                                                                                                                                                     |

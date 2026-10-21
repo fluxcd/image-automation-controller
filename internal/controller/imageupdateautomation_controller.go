@@ -42,7 +42,6 @@ import (
 	aclapi "github.com/fluxcd/pkg/apis/acl"
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/fluxcd/pkg/auth"
 	"github.com/fluxcd/pkg/cache"
 	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/runtime/acl"
@@ -52,6 +51,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	runtimereconcile "github.com/fluxcd/pkg/runtime/reconcile"
+	fluxbroker "github.com/fluxcd/pkg/spiffe/broker"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1"
@@ -108,14 +108,14 @@ type ImageUpdateAutomationReconciler struct {
 	ControllerName      string
 	NoCrossNamespaceRef bool
 
-	ObjectLevelWorkloadIdentity bool
-	DefaultServiceAccount       string
+	DefaultServiceAccount string
 
 	features map[string]bool
 
 	patchOptions []patch.Option
 
-	tokenCache *cache.TokenCache
+	tokenCache   *cache.TokenCache
+	spiffeBroker fluxbroker.Interface
 }
 
 type ImageUpdateAutomationReconcilerOptions struct {
@@ -123,6 +123,7 @@ type ImageUpdateAutomationReconcilerOptions struct {
 	RateLimiter             workqueue.TypedRateLimiter[reconcile.Request]
 	RecoverPanic            bool
 	TokenCache              *cache.TokenCache
+	SPIFFEBroker            fluxbroker.Interface
 }
 
 func (r *ImageUpdateAutomationReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, opts ImageUpdateAutomationReconcilerOptions) error {
@@ -133,6 +134,7 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(ctx context.Context, 
 	}
 
 	r.tokenCache = opts.TokenCache
+	r.spiffeBroker = opts.SPIFFEBroker
 
 	// Index the git repository object that each I-U-A refers to
 	if err := mgr.GetFieldIndexer().IndexField(ctx, &imagev1.ImageUpdateAutomation{}, repoRefKey, func(obj client.Object) []string {
@@ -357,9 +359,7 @@ func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *pat
 	smOpts := []source.SourceOption{
 		source.WithSourceOptionInvolvedObject(obj.GetName(), obj.GetNamespace()),
 		source.WithSourceOptionTokenCache(r.tokenCache),
-	}
-	if r.ObjectLevelWorkloadIdentity {
-		smOpts = append(smOpts, source.WithSourceOptionObjectLevelWorkloadIdentity())
+		source.WithSourceOptionSPIFFEBroker(r.spiffeBroker),
 	}
 	if r.DefaultServiceAccount != "" {
 		smOpts = append(smOpts, source.WithSourceOptionDefaultServiceAccount(r.DefaultServiceAccount))
@@ -379,13 +379,6 @@ func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *pat
 		}
 		if errors.Is(err, source.ErrInvalidSourceConfiguration) {
 			conditions.MarkStalled(obj, imagev1.InvalidSourceConfigReason, "%s", err)
-			result, retErr = ctrl.Result{}, nil
-			return
-		}
-		if errors.Is(err, source.ErrFeatureGateNotEnabled) {
-			const gate = auth.FeatureGateObjectLevelWorkloadIdentity
-			const msgFmt = "to use spec.serviceAccountName for provider authentication please enable the %s feature gate in the controller"
-			conditions.MarkStalled(obj, meta.FeatureGateDisabledReason, msgFmt, gate)
 			result, retErr = ctrl.Result{}, nil
 			return
 		}

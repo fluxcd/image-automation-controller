@@ -32,6 +32,7 @@ import (
 	"github.com/fluxcd/pkg/git/gogit"
 	"github.com/fluxcd/pkg/git/repository"
 	"github.com/fluxcd/pkg/runtime/acl"
+	fluxbroker "github.com/fluxcd/pkg/spiffe/broker"
 	"github.com/go-git/go-git/v5/plumbing"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -47,9 +48,6 @@ import (
 
 // ErrInvalidSourceConfiguration is an error for invalid source configuration.
 var ErrInvalidSourceConfiguration = errors.New("invalid source configuration")
-
-// ErrFeatureGateNotEnabled is an error for when a required feature gate is not enabled.
-var ErrFeatureGateNotEnabled = errors.New("required feature gate not enabled")
 
 // RemovedTemplateFieldError represents an error when a removed template field is used.
 type RemovedTemplateFieldError struct {
@@ -94,13 +92,13 @@ type SourceManager struct {
 
 // SourceOptions contains the optional attributes of SourceManager.
 type SourceOptions struct {
-	noCrossNamespaceRef         bool
-	gitAllBranchReferences      bool
-	tokenCache                  *cache.TokenCache
-	objName                     string
-	objNamespace                string
-	objectLevelWorkloadIdentity bool
-	defaultServiceAccount       string
+	noCrossNamespaceRef    bool
+	gitAllBranchReferences bool
+	tokenCache             *cache.TokenCache
+	spiffeBroker           fluxbroker.Interface
+	objName                string
+	objNamespace           string
+	defaultServiceAccount  string
 }
 
 // SourceOption configures the SourceManager options.
@@ -130,20 +128,20 @@ func WithSourceOptionTokenCache(tc *cache.TokenCache) SourceOption {
 	}
 }
 
+// WithSourceOptionSPIFFEBroker configures the SourceManager to use the given
+// SPIFFE Broker client for the `spiffe` credential provider.
+func WithSourceOptionSPIFFEBroker(client fluxbroker.Interface) SourceOption {
+	return func(so *SourceOptions) {
+		so.spiffeBroker = client
+	}
+}
+
 // WithSourceOptionInvolvedObject configures the SourceManager to use the
 // provided ImageUpdateAutomation object.
 func WithSourceOptionInvolvedObject(name, namespace string) SourceOption {
 	return func(so *SourceOptions) {
 		so.objName = name
 		so.objNamespace = namespace
-	}
-}
-
-// WithSourceOptionObjectLevelWorkloadIdentity configures the SourceManager to
-// use object-level workload identity for provider authentication.
-func WithSourceOptionObjectLevelWorkloadIdentity() SourceOption {
-	return func(so *SourceOptions) {
-		so.objectLevelWorkloadIdentity = true
 	}
 }
 
