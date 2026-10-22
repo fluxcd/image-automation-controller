@@ -211,6 +211,9 @@ func getAuthOpts(ctx context.Context, c client.Client, obj *imagev1.ImageUpdateA
 		return nil, fmt.Errorf("failed to configure authentication options: %w", err)
 	}
 	withCerts := len(opts.ClientCert) > 0 || len(opts.ClientKey) > 0 || len(opts.CAFile) > 0
+	withAuth := repo.Spec.SecretRef != nil &&
+		(opts.Username != "" || opts.Password != "" || opts.BearerToken != "" || len(opts.Identity) > 0 ||
+			len(data[githubapp.KeyAppID]) > 0 || len(data[githubapp.KeyAppClientID]) > 0)
 
 	// Configure provider authentication if specified.
 	provider := repo.GetProvider()
@@ -220,13 +223,6 @@ func getAuthOpts(ctx context.Context, c client.Client, obj *imagev1.ImageUpdateA
 	saName := repo.Spec.ServiceAccountName
 	if saName == "" {
 		saName = srcOpts.defaultServiceAccount
-	}
-
-	// Check the object-level workload identity feature gate for the providers
-	// that use the ServiceAccount for authentication.
-	if (provider == azure.ProviderName || provider == aws.ProviderName) &&
-		saName != "" && !srcOpts.objectLevelWorkloadIdentity {
-		return nil, ErrFeatureGateNotEnabled
 	}
 
 	var sa *corev1.ServiceAccount
@@ -251,6 +247,9 @@ func getAuthOpts(ctx context.Context, c client.Client, obj *imagev1.ImageUpdateA
 		if withCerts {
 			buildOpts = append(buildOpts, cryptov1.WithSecretRefCerts())
 		}
+		if withAuth {
+			buildOpts = append(buildOpts, cryptov1.WithSecretRefAuth())
+		}
 		if provider == sourcev1.GitProviderGitHub && len(data[githubapp.KeyAppBaseURL]) > 0 {
 			buildOpts = append(buildOpts, cryptov1.WithGitHubEnterpriseServer())
 		}
@@ -271,6 +270,7 @@ func getAuthOpts(ctx context.Context, c client.Client, obj *imagev1.ImageUpdateA
 				auth.WithClient(c),
 				auth.WithObject(sourcev1.GroupVersion.Group, sourcev1.GitRepositoryKind, repo),
 				auth.WithGitURL(*u),
+				auth.WithSPIFFEBroker(srcOpts.spiffeBroker),
 			)
 
 			if sa != nil {

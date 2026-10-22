@@ -159,15 +159,7 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 			},
 			wantErr: "ManagedIdentityCredential",
 		},
-		{
-			name: "azure provider with service account and feature gate for object-level identity disabled",
-			url:  "https://dev.azure.com/foo/bar/_git/baz",
-			beforeFunc: func(obj *sourcev1.GitRepository) {
-				obj.Spec.Provider = azure.ProviderName
-				obj.Spec.ServiceAccountName = "azure-sa"
-			},
-			wantErr: ErrFeatureGateNotEnabled.Error(),
-		},
+
 		{
 			name: "aws provider with non-CodeCommit URL",
 			url:  "https://example.com/org/repo",
@@ -176,32 +168,14 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 			},
 			wantErr: "invalid AWS CodeCommit Git URL: example.com",
 		},
+
 		{
-			name: "aws provider with service account and feature gate for object-level identity disabled",
+			name: "aws provider with missing service account",
 			url:  "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
 			beforeFunc: func(obj *sourcev1.GitRepository) {
 				obj.Spec.Provider = aws.ProviderName
 				obj.Spec.ServiceAccountName = "aws-sa"
 			},
-			wantErr: ErrFeatureGateNotEnabled.Error(),
-		},
-		{
-			name: "aws provider with default service account and feature gate disabled",
-			url:  "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
-			beforeFunc: func(obj *sourcev1.GitRepository) {
-				obj.Spec.Provider = aws.ProviderName
-			},
-			srcOpts: SourceOptions{defaultServiceAccount: "default-sa"},
-			wantErr: ErrFeatureGateNotEnabled.Error(),
-		},
-		{
-			name: "aws provider with missing service account and feature gate enabled",
-			url:  "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
-			beforeFunc: func(obj *sourcev1.GitRepository) {
-				obj.Spec.Provider = aws.ProviderName
-				obj.Spec.ServiceAccountName = "aws-sa"
-			},
-			srcOpts: SourceOptions{objectLevelWorkloadIdentity: true},
 			wantErr: "failed to get service account",
 		},
 		{
