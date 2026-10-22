@@ -18,13 +18,15 @@ require (
 	github.com/fluxcd/image-automation-controller/api v1.2.0
 	github.com/fluxcd/image-reflector-controller/api v1.2.5
 	github.com/fluxcd/pkg/apis/acl v0.12.0
+	github.com/fluxcd/pkg/apis/crypto v0.4.1-0.20261020182949-c5194b17fdad
 	github.com/fluxcd/pkg/apis/event v0.32.0
-	github.com/fluxcd/pkg/apis/meta v1.35.0
-	github.com/fluxcd/pkg/auth v0.62.0
-	github.com/fluxcd/pkg/cache v0.17.0
+	github.com/fluxcd/pkg/apis/meta v1.36.1-0.20261020182949-c5194b17fdad
+	github.com/fluxcd/pkg/auth v0.63.1-0.20261020182949-c5194b17fdad
+	github.com/fluxcd/pkg/cache v0.17.1-0.20261020182949-c5194b17fdad
 	github.com/fluxcd/pkg/git v0.55.0
 	github.com/fluxcd/pkg/gittestserver v0.32.0
-	github.com/fluxcd/pkg/runtime v0.119.0
+	github.com/fluxcd/pkg/runtime v0.120.1-0.20261020182949-c5194b17fdad
+	github.com/fluxcd/pkg/spiffe v0.0.0-20261020182949-c5194b17fdad
 	github.com/fluxcd/pkg/ssh v0.28.0
 	github.com/fluxcd/source-controller/api v1.9.1-0.20260728080107-065d6efd74c2
 	github.com/go-git/go-billy/v5 v5.9.2
@@ -35,6 +37,7 @@ require (
 	github.com/onsi/gomega v1.43.0
 	github.com/otiai10/copy v1.14.1
 	github.com/spf13/pflag v1.0.10
+	github.com/spiffe/go-spiffe/v2 v2.9.0
 	golang.org/x/crypto v0.58.0
 	k8s.io/api v0.37.1
 	k8s.io/apimachinery v0.37.1
@@ -98,6 +101,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.9.3 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.5 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v1.0.0 // indirect

@@ -108,6 +108,9 @@ type ImageUpdateAutomationReconciler struct {
 	ControllerName      string
 	NoCrossNamespaceRef bool
 
+	ObjectLevelWorkloadIdentity bool
+	DefaultServiceAccount       string
+
 	features map[string]bool
 
 	patchOptions []patch.Option
@@ -126,7 +129,7 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(ctx context.Context, 
 	r.patchOptions = getPatchOptions(imageUpdateAutomationOwnedConditions, r.ControllerName)
 
 	if r.features == nil {
-		r.features = features.FeatureGates()
+		r.features, _ = features.FeatureGates()
 	}
 
 	r.tokenCache = opts.TokenCache
@@ -354,6 +357,12 @@ func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *pat
 	smOpts := []source.SourceOption{
 		source.WithSourceOptionInvolvedObject(obj.GetName(), obj.GetNamespace()),
 		source.WithSourceOptionTokenCache(r.tokenCache),
+	}
+	if r.ObjectLevelWorkloadIdentity {
+		smOpts = append(smOpts, source.WithSourceOptionObjectLevelWorkloadIdentity())
+	}
+	if r.DefaultServiceAccount != "" {
+		smOpts = append(smOpts, source.WithSourceOptionDefaultServiceAccount(r.DefaultServiceAccount))
 	}
 	if r.NoCrossNamespaceRef {
 		smOpts = append(smOpts, source.WithSourceOptionNoCrossNamespaceRef())

@@ -17,10 +17,13 @@ limitations under the License.
 package main
 
 import (
+	"crypto/tls"
+	"errors"
 	"fmt"
 	"os"
 
 	flag "github.com/spf13/pflag"
+	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -47,6 +50,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/pprof"
 	"github.com/fluxcd/pkg/runtime/probes"
+	fluxspiffe "github.com/fluxcd/pkg/spiffe"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	imagev1 "github.com/fluxcd/image-automation-controller/api/v1"
@@ -79,19 +83,20 @@ func main() {
 	)
 
 	var (
-		metricsAddr           string
-		eventsAddr            string
-		healthAddr            string
-		clientOptions         client.Options
-		aclOptions            acl.Options
-		logOptions            logger.Options
-		leaderElectionOptions leaderelection.Options
-		rateLimiterOptions    helper.RateLimiterOptions
-		featureGates          feathelper.FeatureGates
-		watchOptions          helper.WatchOptions
-		concurrent            int
-		tokenCacheOptions     cache.TokenFlags
-		defaultServiceAccount string
+		metricsAddr            string
+		eventsAddr             string
+		healthAddr             string
+		clientOptions          client.Options
+		aclOptions             acl.Options
+		logOptions             logger.Options
+		leaderElectionOptions  leaderelection.Options
+		rateLimiterOptions     helper.RateLimiterOptions
+		featureGates           feathelper.FeatureGates
+		watchOptions           helper.WatchOptions
+		concurrent             int
+		tokenCacheOptions      cache.TokenFlags
+		defaultServiceAccount  string
+		authorizedEventServers []string
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -100,6 +105,8 @@ func main() {
 	flag.IntVar(&concurrent, "concurrent", 4, "The number of concurrent resource reconciles.")
 	flag.StringVar(&defaultServiceAccount, auth.ControllerFlagDefaultServiceAccount,
 		"", "Default service account to use for workload identity when not specified in resources.")
+	flag.StringArrayVar(&authorizedEventServers, fluxspiffe.ControllerFlagAuthorizedEventServerSPIFFEID, nil,
+		"SPIFFE ID of an event server authorized to receive events. Can be repeated.")
 	flag.StringSliceVar(&git.KexAlgos, "ssh-kex-algos", []string{},
 		"The list of key exchange algorithms to use for ssh connections, arranged from most preferred to the least.")
 	flag.StringSliceVar(&git.HostKeyAlgos, "ssh-hostkey-algos", []string{},
@@ -118,6 +125,8 @@ func main() {
 
 	logger.SetLogger(logger.NewLogger(logOptions))
 
+	ctx := ctrl.SetupSignalHandler()
+
 	err := featureGates.WithLogger(setupLog).
 		SupportedFeatures(features.FeatureGates())
 	if err != nil {
@@ -125,20 +134,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	switch enabled, err := features.Enabled(auth.FeatureGateObjectLevelWorkloadIdentity); {
-	case err != nil:
+	objectLevelWorkloadIdentity, err := features.Enabled(auth.FeatureGateObjectLevelWorkloadIdentity)
+	if err != nil {
 		setupLog.Error(err, "unable to check feature gate "+auth.FeatureGateObjectLevelWorkloadIdentity)
 		os.Exit(1)
-	case enabled:
-		auth.EnableObjectLevelWorkloadIdentity()
 	}
 
-	if defaultServiceAccount != "" {
-		auth.SetDefaultServiceAccount(defaultServiceAccount)
-	}
-
-	if auth.InconsistentObjectLevelConfiguration() {
-		setupLog.Error(auth.ErrInconsistentObjectLevelConfiguration, "invalid configuration")
+	if defaultServiceAccount != "" && !objectLevelWorkloadIdentity {
+		setupLog.Error(errors.New("cannot set the default service account when the "+
+			auth.FeatureGateObjectLevelWorkloadIdentity+" feature gate is not enabled"), "invalid configuration")
 		os.Exit(1)
 	}
 
@@ -213,7 +217,32 @@ func main() {
 
 	probes.SetupChecks(mgr, setupLog)
 
-	eventRecorder, err := events.NewRecorder(ctrl.Log, eventsAddr, controllerName, events.WithManager(mgr))
+	var eventTLSConfig *tls.Config
+	if len(authorizedEventServers) > 0 {
+		source, err := workloadapi.NewX509Source(ctx)
+		if err != nil {
+			setupLog.Error(err, "unable to create SPIFFE X.509 source")
+			os.Exit(1)
+		}
+		defer func() {
+			if err := source.Close(); err != nil {
+				setupLog.Error(err, "unable to close SPIFFE X.509 source")
+			}
+		}()
+
+		eventTLSConfig, err = fluxspiffe.BuildTLSConfig(source, authorizedEventServers...)
+		if err != nil {
+			setupLog.Error(err, "unable to configure SPIFFE mTLS for the event server")
+			os.Exit(1)
+		}
+		setupLog.Info("event server will use inter-controller mTLS via SPIFFE", "spiffeIDs", authorizedEventServers)
+	}
+
+	eventRecorderOpts := []events.RecorderOption{events.WithManager(mgr)}
+	if eventTLSConfig != nil {
+		eventRecorderOpts = append(eventRecorderOpts, events.WithTLSConfig(eventTLSConfig))
+	}
+	eventRecorder, err := events.NewRecorder(ctrl.Log, eventsAddr, controllerName, eventRecorderOpts...)
 	if err != nil {
 		setupLog.Error(err, "unable to create event recorder")
 		os.Exit(1)
@@ -234,14 +263,14 @@ func main() {
 		}
 	}
 
-	ctx := ctrl.SetupSignalHandler()
-
 	if err := (&controller.ImageUpdateAutomationReconciler{
-		Client:              mgr.GetClient(),
-		Recorder:            eventRecorder,
-		Metrics:             metricsH,
-		NoCrossNamespaceRef: aclOptions.NoCrossNamespaceRefs,
-		ControllerName:      controllerName,
+		Client:                      mgr.GetClient(),
+		Recorder:                    eventRecorder,
+		Metrics:                     metricsH,
+		NoCrossNamespaceRef:         aclOptions.NoCrossNamespaceRefs,
+		ControllerName:              controllerName,
+		ObjectLevelWorkloadIdentity: objectLevelWorkloadIdentity,
+		DefaultServiceAccount:       defaultServiceAccount,
 	}).SetupWithManager(ctx, mgr, controller.ImageUpdateAutomationReconcilerOptions{
 		RateLimiter: helper.GetRateLimiter(rateLimiterOptions),
 		TokenCache:  tokenCache,
