@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	. "github.com/onsi/gomega"
 	"github.com/otiai10/copy"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -317,6 +318,52 @@ func TestCommitAndPushWithRetry_RefreshFailureStopsRetrying(t *testing.T) {
 	r := &ImageUpdateAutomationReconciler{features: map[string]bool{features.GitPushRetryOnFailure: true}}
 	_, err := r.commitAndPushWithRetry(context.TODO(), f.sm, f.obj, f.policies, f.result, nil)
 	g.Expect(err).To(MatchError(ContainSubstring("failed to refresh the source to retry the push")))
+	// The push error is kept.
+	var pushErr *source.PushBranchError
+	g.Expect(errors.As(err, &pushErr)).To(BeTrue())
+	g.Expect(err.Error()).To(HavePrefix(pushErr.Error()))
+}
+
+func TestCommitAndPushWithRetry_DeadlineCancelsPush(t *testing.T) {
+	g := NewWithT(t)
+	shortenPushRetryDelay(t)
+	f := newPushRetryFixture(t, imagev1.PushSpec{Branch: "main"})
+	// The first push is rejected, and the retry hangs until the deadline.
+	pushes := f.installUpdateHook(t, "[ $count -gt 1 ] && sleep 6\nfalse")
+	f.obj.Spec.Interval = metav1.Duration{Duration: 4 * time.Second}
+
+	r := &ImageUpdateAutomationReconciler{features: map[string]bool{features.GitPushRetryOnFailure: true}}
+	start := time.Now()
+	_, err := r.commitAndPushWithRetry(context.TODO(), f.sm, f.obj, f.policies, f.result, nil)
+	g.Expect(err).To(MatchError(ContainSubstring("giving up after 2 attempts")))
+	// go-git reports the cancelled push as a string.
+	g.Expect(err.Error()).To(ContainSubstring(context.DeadlineExceeded.Error()))
+	g.Expect(time.Since(start)).To(BeNumerically("<", 5*time.Second))
+	g.Expect(pushes()).To(Equal(2))
+}
+
+func TestIsPermanentPushError(t *testing.T) {
+	pushErr := func(err error) error {
+		return &source.PushBranchError{Err: fmt.Errorf("failed to push to remote: %w", err)}
+	}
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "authentication required", err: pushErr(fmt.Errorf("%w: 401", transport.ErrAuthenticationRequired)), want: true},
+		{name: "authorization failed", err: pushErr(fmt.Errorf("%w: 403", transport.ErrAuthorizationFailed)), want: true},
+		{name: "repository not found", err: pushErr(fmt.Errorf("%w: 404", transport.ErrRepositoryNotFound)), want: true},
+		{name: "non-fast-forward", err: pushErr(errors.New("non-fast-forward update: refs/heads/main")), want: false},
+		{name: "rejected by hook", err: pushErr(errors.New("command error on refs/heads/main: hook declined")), want: false},
+		{name: "timeout", err: pushErr(context.DeadlineExceeded), want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+			g.Expect(isPermanentPushError(tt.err)).To(Equal(tt.want))
+		})
+	}
 }
 
 func TestCommitAndPushWithRetry_DoesNotRetryOtherErrors(t *testing.T) {

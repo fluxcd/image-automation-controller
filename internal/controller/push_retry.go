@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	"k8s.io/apimachinery/pkg/util/wait"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -58,8 +59,11 @@ var pushRetryBaseDelay = 2 * time.Second
 //
 // Any failure to push to the push branch is retried, as Git servers report a
 // push that lost a race against another writer in too many ways to tell it
-// apart reliably. Other errors, such as failing to render the commit message
-// or to push to the push refspec, are returned without retrying.
+// apart reliably. The exceptions are authentication and authorization
+// failures and a missing repository, as the source was just cloned with the
+// same credentials and retrying can't succeed. Other errors, such as failing
+// to render the commit message or to push to the push refspec, are returned
+// without retrying.
 //
 // A failed push can still have reached the remote, for example when it timed
 // out after the remote accepted it. If the push branch is at the commit of
@@ -68,10 +72,10 @@ var pushRetryBaseDelay = 2 * time.Second
 // changes.
 //
 // Retrying stops when the working directory can't be caught up with the
-// remote, after pushRetryMaxAttempts attempts, or when the next attempt would
-// start later than min(interval/2, pushRetryMaxBudget) after the first one
-// failed, so that a contended branch can't hold up a reconcile worker for
-// long.
+// remote, after pushRetryMaxAttempts attempts, or at min(interval/2,
+// pushRetryMaxBudget) after the first attempt failed, cancelling any clone or
+// push in progress, so that a contended branch or an unresponsive Git server
+// can't hold up a reconcile worker for long.
 func (r *ImageUpdateAutomationReconciler) commitAndPushWithRetry(ctx context.Context, sm *source.SourceManager,
 	obj *imagev1.ImageUpdateAutomation, policies []reflectorv1.ImagePolicy, policyResult update.Result,
 	pushCfg []source.PushConfig) (*source.PushResult, error) {
@@ -82,10 +86,12 @@ func (r *ImageUpdateAutomationReconciler) commitAndPushWithRetry(ctx context.Con
 
 	log := ctrl.LoggerFrom(ctx)
 	deadline := time.Now().Add(min(obj.GetRequeueAfter()/2, pushRetryMaxBudget))
+	retryCtx, cancel := context.WithDeadline(ctx, deadline)
+	defer cancel()
 	delay := pushRetryBaseDelay
 	for attempt := 1; ; attempt++ {
 		var pushErr *source.PushBranchError
-		if !errors.As(err, &pushErr) {
+		if !errors.As(err, &pushErr) || isPermanentPushError(err) {
 			return nil, err
 		}
 		jitteredDelay := wait.Jitter(delay, pushRetryJitter)
@@ -99,16 +105,16 @@ func (r *ImageUpdateAutomationReconciler) commitAndPushWithRetry(ctx context.Con
 
 		log.Info("push failed, retrying", "attempt", attempt, "delay", jitteredDelay.String(), "error", err.Error())
 		select {
-		case <-ctx.Done():
+		case <-retryCtx.Done():
 			return nil, err
 		case <-time.After(jitteredDelay):
 		}
 
-		if err := sm.RefreshToRemote(ctx); err != nil {
-			return nil, fmt.Errorf("failed to refresh the source to retry the push: %w", err)
+		if refreshErr := sm.RefreshToRemote(retryCtx); refreshErr != nil {
+			return nil, fmt.Errorf("%w; failed to refresh the source to retry the push: %w", err, refreshErr)
 		}
 		var pushed bool
-		pushResult, pushed, err = sm.CompletePush(ctx, pushErr, pushCfg...)
+		pushResult, pushed, err = sm.CompletePush(retryCtx, pushErr, pushCfg...)
 		if err != nil {
 			return nil, err
 		}
@@ -116,13 +122,17 @@ func (r *ImageUpdateAutomationReconciler) commitAndPushWithRetry(ctx context.Con
 			log.Info("the failed push reached the remote", "attempts", attempt)
 			return pushResult, nil
 		}
-		policyResult, err = policy.ApplyPolicies(ctx, sm.WorkDirectory(), obj, policies)
+		policyResult, err = policy.ApplyPolicies(retryCtx, sm.WorkDirectory(), obj, policies)
 		if err != nil {
 			return nil, fmt.Errorf("failed to apply policies to retry the push: %w", err)
 		}
-		pushResult, err = sm.CommitAndPush(ctx, obj, policyResult, pushCfg...)
+		pushResult, err = sm.CommitAndPush(retryCtx, obj, policyResult, pushCfg...)
 		if err == nil {
 			if pushResult == nil {
+				// The failed push may have reached the remote before another
+				// writer pushed on top of it. It can't be told apart from
+				// another writer pushing the same changes, as the clone is
+				// shallow, so it's neither recorded nor pushed to the refspec.
 				log.Info("the remote already has the changes, nothing left to push", "attempts", attempt)
 			} else {
 				log.Info("push succeeded after retrying", "attempts", attempt+1)
@@ -130,4 +140,14 @@ func (r *ImageUpdateAutomationReconciler) commitAndPushWithRetry(ctx context.Con
 			return pushResult, nil
 		}
 	}
+}
+
+// isPermanentPushError reports whether err means that the remote denied
+// access to the repository or can't find it. Retrying such a push can't
+// succeed. Only the HTTP(S) transport reports these errors in a way that can
+// be told apart.
+func isPermanentPushError(err error) bool {
+	return errors.Is(err, transport.ErrAuthenticationRequired) ||
+		errors.Is(err, transport.ErrAuthorizationFailed) ||
+		errors.Is(err, transport.ErrRepositoryNotFound)
 }

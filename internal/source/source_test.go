@@ -1009,6 +1009,8 @@ func TestSourceManager_RefreshToRemote(t *testing.T) {
 		// after the checkout, and that the refreshed push branch must be
 		// based on.
 		winnerBranch string
+		// refspec is the push refspec, which pushes the checkout branch.
+		refspec string
 		// wantOnlyPushBranch expects only the push branch to be cloned.
 		wantOnlyPushBranch bool
 	}{
@@ -1047,6 +1049,14 @@ func TestSourceManager_RefreshToRemote(t *testing.T) {
 			remotePushBranch:   true,
 			winnerBranch:       "auto",
 			wantOnlyPushBranch: true,
+		},
+		{
+			name:             "clones the checkout branch with a push refspec",
+			pushBranch:       "auto",
+			srcOpts:          []SourceOption{WithSourceOptionGitAllBranchReferences()},
+			refspec:          "refs/heads/main:refs/heads/release",
+			remotePushBranch: true,
+			winnerBranch:     "auto",
 		},
 		{
 			name:         "clones the checkout branch when the push branch is missing on the remote",
@@ -1118,7 +1128,7 @@ func TestSourceManager_RefreshToRemote(t *testing.T) {
 					Path:     updatePath,
 				},
 				GitSpec: &imagev1.GitSpec{
-					Push: &imagev1.PushSpec{Branch: tt.pushBranch},
+					Push: &imagev1.PushSpec{Branch: tt.pushBranch, Refspec: tt.refspec},
 				},
 			}
 
@@ -1198,6 +1208,14 @@ func TestSourceManager_RefreshToRemote(t *testing.T) {
 
 			remoteRepo, cloneDir, err := testutil.Clone(ctx, repoURL, tt.pushBranch, originRemote)
 			g.Expect(err).ToNot(HaveOccurred())
+			if tt.refspec != "" {
+				// The checkout branch is pushed to the refspec destination.
+				mainHead, err := testutil.GetRemoteHead(remoteRepo, "main", originRemote)
+				g.Expect(err).ToNot(HaveOccurred())
+				release, err := testutil.GetRemoteHead(remoteRepo, "release", originRemote)
+				g.Expect(err).ToNot(HaveOccurred())
+				g.Expect(release).To(Equal(mainHead))
+			}
 			defer os.RemoveAll(cloneDir)
 			remoteHead, err := remoteRepo.Head()
 			g.Expect(err).ToNot(HaveOccurred())
@@ -1778,4 +1796,16 @@ func getSSHIdentitySecret(name, namespace, repoURL string) (*corev1.Secret, erro
 	sec.Name = name
 	sec.Namespace = namespace
 	return sec, nil
+}
+
+func TestSourceManager_CompletePushIgnoresLocalPushBranch(t *testing.T) {
+	g := NewWithT(t)
+
+	// With GitAllBranchReferences disabled, the push branch is created from
+	// the checkout branch, so its HEAD can't tell that the push landed.
+	sm := &SourceManager{srcCfg: &gitSrcCfg{switchBranch: true, ignoreRemotePushBranch: true}}
+	pushResult, pushed, err := sm.CompletePush(context.TODO(), &PushBranchError{Revision: "main@sha1:abc"})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(pushed).To(BeFalse())
+	g.Expect(pushResult).To(BeNil())
 }

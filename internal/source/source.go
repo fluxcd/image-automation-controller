@@ -423,6 +423,11 @@ func (sm SourceManager) CommitAndPush(ctx context.Context, obj *imagev1.ImageUpd
 // any, and returns the result and true. Otherwise, it returns false, and the
 // changes have to be applied and pushed again.
 func (sm SourceManager) CompletePush(ctx context.Context, pushErr *PushBranchError, pushOptions ...PushConfig) (*PushResult, bool, error) {
+	// A push branch created from the checkout branch tells nothing about the
+	// state of the push branch on the remote.
+	if sm.srcCfg.switchBranch && sm.srcCfg.ignoreRemotePushBranch {
+		return nil, false, nil
+	}
 	head, err := sm.gitClient.Head()
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to resolve HEAD: %w", err)
@@ -462,20 +467,23 @@ func (sm SourceManager) pushToRefspec(ctx context.Context, rev, commitMsg string
 // the source again into a new working directory, discarding local commits
 // and changes, so that they can be recomputed and pushed again. A separate
 // push branch that is based on its remote state is cloned on its own, as
-// only its tip is needed. If that fails, for example because the branch does
-// not exist on the remote, the source is cloned as at the last checkout.
+// only its tip is needed, unless a push refspec is set, as it can refer to
+// the checkout branch. If cloning the push branch fails, for example because
+// it does not exist on the remote, the source is cloned as at the last
+// checkout.
 //
 // Fetching into the existing clone is avoided, as it does not work with every
 // Git server with go-git, and a shallow clone of a single branch costs about
 // as much.
 func (sm *SourceManager) RefreshToRemote(ctx context.Context) error {
-	if sm.srcCfg.switchBranch && !sm.srcCfg.ignoreRemotePushBranch {
+	if sm.srcCfg.switchBranch && !sm.srcCfg.ignoreRemotePushBranch && sm.srcCfg.pushRefspec == "" {
 		err := sm.cloneAgain(ctx, true)
 		if err == nil || ctx.Err() != nil {
 			return err
 		}
+		// The error is left out, as it can contain the repository URL.
 		log.FromContext(ctx).Info("failed to clone the push branch, cloning the checkout reference",
-			"branch", sm.srcCfg.pushBranch, "error", err.Error())
+			"branch", sm.srcCfg.pushBranch)
 	}
 	return sm.cloneAgain(ctx, false)
 }
