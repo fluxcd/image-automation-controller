@@ -101,7 +101,7 @@ func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []
 	// iterates.
 	imageRefs := make(map[string]imageRef)
 	setAllCallback := func(file, setterName string, node *yaml.RNode, old, new string) {
-		_, ok := imageRefs[setterName]
+		ref, ok := imageRefs[setterName]
 		if !ok {
 			return
 		}
@@ -120,6 +120,7 @@ func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []
 		}
 		// Append the change for the file and identifier.
 		result.AddChange(file, oid, ch)
+		result.addImage(setterName, ref.latestRef)
 	}
 
 	defs := map[string]spec.Schema{}
@@ -144,6 +145,7 @@ func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []
 				Name:      policy.Name,
 				Namespace: policy.Namespace,
 			},
+			latestRef: *policy.Status.LatestRef,
 		}
 
 		tag := policy.Status.LatestRef.Tag

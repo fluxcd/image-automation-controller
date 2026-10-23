@@ -62,6 +62,8 @@ import (
 
 const (
 	originRemote              = "origin"
+	testSummaryOldDigest      = "sha256:1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b"
+	testSummaryNewDigest      = "sha256:7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b"
 	testCommitTemplateRemoved = `Commit summary
 
 Automation: {{ .AutomationObject }}
@@ -272,6 +274,131 @@ func TestTemplateMsgIsDeterministicForChangeIDTemplates(t *testing.T) {
 	}
 
 	g.Expect(rendered).To(HaveLen(1))
+}
+
+// summaryTemplateData applies setters to a fixture, preserving the real template data.
+func summaryTemplateData(t *testing.T, ref reflectorv1.ImageRef) *TemplateData {
+	t.Helper()
+	g := NewWithT(t)
+	result, err := update.UpdateWithSetters(logr.Discard(),
+		"../update/testdata/summary/components/original", t.TempDir(),
+		[]reflectorv1.ImagePolicy{{
+			ObjectMeta: metav1.ObjectMeta{Namespace: "automation-ns", Name: "policy"},
+			Status:     reflectorv1.ImagePolicyStatus{LatestRef: &ref},
+		}})
+	g.Expect(err).ToNot(HaveOccurred())
+	return &TemplateData{
+		AutomationObject: types.NamespacedName{Namespace: "flux-system", Name: "podinfo"},
+		Changed:          result,
+	}
+}
+
+func TestTemplateMsgResultCompatibility(t *testing.T) {
+	g := NewWithT(t)
+	data := summaryTemplateData(t, reflectorv1.ImageRef{
+		Name: "ghcr.io/stefanprodan/podinfo", Tag: "6.5.1", Digest: testSummaryNewDigest,
+	})
+
+	const gerritTemplate = `Perform automatic image update
+
+Automation name: {{ .AutomationObject }}
+
+{{- $ChangeId := .AutomationObject -}}
+{{- $ChangeId = printf "%s%s" $ChangeId ( .Changed.FileChanges | toString ) -}}
+{{- $ChangeId = printf "%s%s" $ChangeId ( .Changed.Objects | toString ) -}}
+{{- $ChangeId = printf "%s%s" $ChangeId ( .Changed.Changes | toString ) }}
+Change-Id: {{ printf "I%s" ( sha256sum $ChangeId | trunc 40 ) }}
+`
+	msg, err := templateMsg(gerritTemplate, data)
+	g.Expect(err).ToNot(HaveOccurred())
+	// Captured from main before adding Result.Summary and its image metadata.
+	g.Expect(msg).To(Equal("Perform automatic image update\n\nAutomation name: flux-system/podinfo\nChange-Id: I259d1aef3018f022cdfe785c464210ad464ddc9e\n"))
+
+	const changes = "[{6.5.0 6.5.1 automation-ns:policy:tag} {sha256:1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b sha256:7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b automation-ns:policy:digest}]"
+	const objects = "map[{{{kustomize.config.k8s.io/v1beta1 Kustomization} { }}}:" + changes + "]"
+	for _, tt := range []struct {
+		field string
+		want  string
+	}{
+		{field: "FileChanges", want: "map[kustomization.yaml:" + objects + "]"},
+		{field: "Objects", want: objects},
+		{field: "Changes", want: changes},
+	} {
+		t.Run(tt.field, func(t *testing.T) {
+			g := NewWithT(t)
+			for _, conversion := range []string{"", " | toString"} {
+				msg, err := templateMsg("{{ .Changed."+tt.field+conversion+" }}", data)
+				g.Expect(err).ToNot(HaveOccurred())
+				g.Expect(msg).To(Equal(tt.want))
+			}
+		})
+	}
+}
+
+func TestTemplateMsgSummary(t *testing.T) {
+	tests := []struct {
+		name     string
+		tag      string
+		digest   string
+		template string
+		want     string
+	}{
+		{
+			name:     "summary in commit body",
+			tag:      "6.5.1",
+			digest:   testSummaryNewDigest,
+			template: "Update container images\n\n{{ .Changed.Summary }}",
+			want: "Update container images\n\nghcr.io/stefanprodan/podinfo tag 6.5.0 -> 6.5.1\n" +
+				"ghcr.io/stefanprodan/podinfo:6.5.1 digest " + testSummaryOldDigest + " -> " + testSummaryNewDigest,
+		},
+		{
+			name:     "bulleted single change",
+			tag:      "6.5.1",
+			digest:   testSummaryOldDigest,
+			template: `{{ with .Changed.Summary }}{{ . | replace "\n" "\n- " | printf "- %s" }}{{ end }}`,
+			want:     "- ghcr.io/stefanprodan/podinfo tag 6.5.0 -> 6.5.1",
+		},
+		{
+			name:     "bulleted two changes",
+			tag:      "6.5.1",
+			digest:   testSummaryNewDigest,
+			template: `{{ with .Changed.Summary }}{{ . | replace "\n" "\n- " | printf "- %s" }}{{ end }}`,
+			want: "- ghcr.io/stefanprodan/podinfo tag 6.5.0 -> 6.5.1\n" +
+				"- ghcr.io/stefanprodan/podinfo:6.5.1 digest " + testSummaryOldDigest + " -> " + testSummaryNewDigest,
+		},
+		{
+			name:     "bulleted no changes",
+			tag:      "6.5.0",
+			digest:   testSummaryOldDigest,
+			template: `{{ with .Changed.Summary }}{{ . | replace "\n" "\n- " | printf "- %s" }}{{ end }}`,
+			want:     "",
+		},
+		{
+			name:     "deep copy falls back without image metadata",
+			tag:      "6.5.1",
+			digest:   testSummaryNewDigest,
+			template: "{{ (deepCopy .Changed).Summary }}",
+			want:     "6.5.0 -> 6.5.1\n" + testSummaryOldDigest + " -> " + testSummaryNewDigest,
+		},
+		{
+			name:     "default message unchanged",
+			tag:      "6.5.1",
+			digest:   testSummaryNewDigest,
+			template: "",
+			want:     "Update from image update automation",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+			data := summaryTemplateData(t, reflectorv1.ImageRef{
+				Name: "ghcr.io/stefanprodan/podinfo", Tag: tt.tag, Digest: tt.digest,
+			})
+			msg, err := templateMsg(tt.template, data)
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(msg).To(Equal(tt.want))
+		})
+	}
 }
 
 func TestNewSourceManager(t *testing.T) {
