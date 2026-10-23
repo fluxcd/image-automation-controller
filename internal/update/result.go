@@ -20,54 +20,12 @@ import (
 	"cmp"
 	"maps"
 	"slices"
+	"strings"
 
-	"github.com/google/go-containerregistry/pkg/name"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
+
+	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1"
 )
-
-// ImageRef represents the image reference used to replace a field
-// value in an update.
-type ImageRef interface {
-	// String returns a string representation of the image ref as it
-	// is used in the update; e.g., "helloworld:v1.0.1"
-	String() string
-	// Identifier returns the tag or digest; e.g., "v1.0.1"
-	Identifier() string
-	// Repository returns the repository component of the ImageRef,
-	// with an implied defaults, e.g., "library/helloworld"
-	Repository() string
-	// Registry returns the registry component of the ImageRef, e.g.,
-	// "index.docker.io"
-	Registry() string
-	// Name gives the fully-qualified reference name, e.g.,
-	// "index.docker.io/library/helloworld:v1.0.1"
-	Name() string
-	// Policy gives the namespaced name of the image policy that led
-	// to the update.
-	Policy() types.NamespacedName
-}
-
-type imageRef struct {
-	name.Reference
-	policy types.NamespacedName
-}
-
-// Policy gives the namespaced name of the policy that led to the
-// update.
-func (i imageRef) Policy() types.NamespacedName {
-	return i.policy
-}
-
-// Repository gives the repository component of the image ref.
-func (i imageRef) Repository() string {
-	return i.Context().RepositoryStr()
-}
-
-// Registry gives the registry component of the image ref.
-func (i imageRef) Registry() string {
-	return i.Context().Registry.String()
-}
 
 // ObjectIdentifier holds the identifying data for a particular
 // object. This won't always have a name (e.g., a kustomization.yaml).
@@ -80,6 +38,9 @@ type ObjectIdentifier struct {
 // It has a nested structure file->objects->changes.
 type Result struct {
 	FileChanges map[string]ObjectChanges
+
+	// images maps changed setter names to copies of their policies' latest refs.
+	images map[string]reflectorv1.ImageRef
 }
 
 // ObjectChanges contains all the changes made to objects.
@@ -106,6 +67,44 @@ func (r *Result) AddChange(file string, objectID ObjectIdentifier, changes ...Ch
 	}
 	// Append to the changes for the object.
 	r.FileChanges[file][objectID] = append(r.FileChanges[file][objectID], changes...)
+}
+
+// addImage records the policy's latest reference for a setter that made a change.
+func (r *Result) addImage(setter string, ref reflectorv1.ImageRef) {
+	if r.images == nil {
+		r.images = make(map[string]reflectorv1.ImageRef)
+	}
+	r.images[setter] = ref
+}
+
+// Summary returns a description of the changes, one line per distinct change,
+// sorted and joined by newlines, without a trailing newline. A change made by a
+// full-reference setter is described as "<old> -> <new>". A change made by a
+// tag, name or digest setter is prefixed with the policy's image name and the
+// field, e.g. "<image> tag <old> -> <new>"; the digest label also carries the
+// policy's tag. Values are printed as written to the file. A result without
+// changes gives an empty string.
+func (r Result) Summary() string {
+	var lines []string
+	for _, change := range r.Changes() {
+		line := change.OldValue + " -> " + change.NewValue
+		parts := strings.Split(change.Setter, ":")
+		if image, ok := r.images[change.Setter]; ok && len(parts) == 3 {
+			switch parts[2] {
+			case "tag", "name":
+				line = image.Name + " " + parts[2] + " " + line
+			case "digest":
+				label := image.Name
+				if image.Tag != "" {
+					label += ":" + image.Tag
+				}
+				line = label + " digest " + line
+			}
+		}
+		lines = append(lines, line)
+	}
+	slices.Sort(lines)
+	return strings.Join(slices.Compact(lines), "\n")
 }
 
 // Changes returns all the changes that were made in at least one update,

@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+  - name: podinfo
+    newName: ghcr.io/stefanprodan/podinfo # {"$imagepolicy": "automation-ns:policy:name"}
+    newTag: latest # {"$imagepolicy": "automation-ns:policy:tag"}
+    digest: sha256:7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b # {"$imagepolicy": "automation-ns:policy:digest"}

@@ -62,6 +62,10 @@ spec:
       author:
         email: fluxcdbot@users.noreply.github.com
         name: fluxcdbot
+      messageTemplate: |
+        Update container images
+
+        {{ .Changed.Summary }}
     push:
       branch: main
   update:
@@ -95,7 +99,10 @@ In the above example:
   in `ImageUpdateAutomation.spec.update.path` and applies updates based on the
   latest images from the image policies. The source changes are saved as a Git
   commit with the commit author defined in
-  `ImageUpdateAutomation.spec.git.commit.author`. The commit is then push to the
+  `ImageUpdateAutomation.spec.git.commit.author`. The commit message is
+  rendered from `ImageUpdateAutomation.spec.git.commit.messageTemplate`, where
+  `.Changed.Summary` lists the image updates, see
+  [Message Template](#message-template). The commit is then pushed to the
   remote Git repository's `main` branch, indicated by
   `ImageUpdateAutomation.spec.git.push.branch`.
 - The push commit hash is reported in the
@@ -145,7 +152,9 @@ Events:
   ----    ------     ----             ----                         -------
   Normal  Succeeded  5s (x2 over 6s)  image-automation-controller  repository up-to-date
   Normal  Succeeded  5s               image-automation-controller  pushed commit '3ebb95c' to branch 'main'
-Update from image update automation
+                                                                   Update container images
+
+                                                                   ghcr.io/stefanprodan/podinfo:5.0.2 -> ghcr.io/stefanprodan/podinfo:5.0.3
 ```
 
 ## Writing an ImageUpdateAutomation spec
@@ -423,18 +432,81 @@ metadata:
 spec:
   git:
     commit:
-      messageTemplate: |-
-        Automated image update by Flux
+      messageTemplate: |
+        Update container images
+
+        {{ .Changed.Summary }}
 ```
 
-**Removal Note:** The `Updated` template data has been removed from the API.
-Use `Changed` template data instead, as it accommodates for all the updates,
-including partial updates to just the image name or the tag, not just full image
-with name and tag update. Templates using `Updated` will result in an error and
-the ImageUpdateAutomation will be marked as Stalled.
+For a `:tag` setter that updates `6.5.0` to `6.5.1`, the commit message is:
 
+```
+Update container images
 
-The message template also has access to the data related to the changes made by
+ghcr.io/stefanprodan/podinfo tag 6.5.0 -> 6.5.1
+```
+
+`.Changed.Summary` describes the changes made by the automation in a form ready
+for the commit message, one line per change. The controller runs an update as
+soon as an ImagePolicy reports a new image, so the summary usually describes a
+single image update. Place the summary in the commit body, after a subject line
+and a blank line, as in the example above.
+
+The form of each line depends on the setter that made the change (see
+[Marking images for update](#marking-images-for-update)):
+
+| Setter                            | Line                                    |
+|-----------------------------------|-----------------------------------------|
+| `<namespace>:<policy>`            | `<old> -> <new>`                        |
+| `<namespace>:<policy>:tag`        | `<image> tag <old> -> <new>`            |
+| `<namespace>:<policy>:digest`     | `<image>:<tag> digest <old> -> <new>`   |
+| `<namespace>:<policy>:name`       | `<image> name <old> -> <new>`           |
+
+`<image>` and `<tag>` are the name and the tag of the latest image reported by
+the ImagePolicy at the time of the update. The digest line carries the policy's
+tag, not the tag in the file, because the new digest is the digest of that tag.
+Old and new values are printed exactly as they appear in the file, and digests
+are not shortened.
+
+When an update makes several changes, the lines are sorted and identical lines
+are merged, so a change made in several files, for example in multiple
+overlays, is listed once. An image marked with both a tag and a digest setter
+gets a tag line and a digest line when both values change.
+
+For example, with an ImagePolicy that selects the `latest` tag and has
+`.spec.digestReflectionPolicy` set to `Always`, and the following
+`kustomization.yaml`:
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+  - name: podinfo
+    newName: ghcr.io/stefanprodan/podinfo # {"$imagepolicy": "flux-system:podinfo:name"}
+    newTag: latest # {"$imagepolicy": "flux-system:podinfo:tag"}
+    digest: sha256:6129bb944cada32b4662eafd13fd9904d34c77286bf2ec4523eaedb711757cb0 # {"$imagepolicy": "flux-system:podinfo:digest"}
+```
+
+a new image pushed with the `latest` tag only changes the digest, and the
+summary is:
+
+```
+ghcr.io/stefanprodan/podinfo:latest digest sha256:6129bb944cada32b4662eafd13fd9904d34c77286bf2ec4523eaedb711757cb0 -> sha256:5f8c3b1e7a0d9b2c4e6f8a1b3c5d7e9f0a2b4c6d8e0f1a3b5c7d9e1f3a5b7c9d
+```
+
+To write the summary as a list, prefix each line in the template:
+
+```yaml
+spec:
+  git:
+    commit:
+      messageTemplate: |
+        Update container images
+
+        {{ with .Changed.Summary }}{{ . | replace "\n" "\n- " | printf "- %s" }}{{ end }}
+```
+
+The message template has access to the data related to the changes made by
 the automation. The template is a [Go text template][go-text-template]. The data
 available to the template have the following structure (not reproduced
 verbatim):
@@ -475,8 +547,7 @@ type Change struct {
 }
 ```
 
-The `Changed` template data field also has a few helper methods to easily range
-over the changed objects and changes:
+The `Changed` template data field also has helper methods:
 
 ```go
 // Changes returns all the changes that were made in at least one update.
@@ -484,31 +555,35 @@ func (r Result) Changes() []Change
 
 // Objects returns ObjectChanges, regardless of which file they appear in.
 func (r Result) Objects() ObjectChanges
+
+// Summary returns a description of the changes, one line per distinct change.
+func (r Result) Summary() string
 ```
 
-Example of using the methods in a template:
+For other formats, range over the fields and methods above, for example:
 
 ```yaml
 spec:
-  commit:
-    messageTemplate: |
-      Automated image update
-      
-      Automation name: {{ .AutomationObject }}
+  git:
+    commit:
+      messageTemplate: |
+        Automated image update
+        
+        Automation name: {{ .AutomationObject }}
 
-      Files:
-      {{ range $filename, $_ := .Changed.FileChanges -}}
-      - {{ $filename }}
-      {{ end -}}
+        Files:
+        {{ range $filename, $_ := .Changed.FileChanges -}}
+        - {{ $filename }}
+        {{ end -}}
 
-      Objects:
-      {{ range $resource, $changes := .Changed.Objects -}}
-      - {{ $resource.Kind }} {{ $resource.Name }}
-        Changes:
-      {{- range $_, $change := $changes }}
-          - {{ $change.OldValue }} -> {{ $change.NewValue }}
-      {{ end -}}
-      {{ end -}}
+        Objects:
+        {{ range $resource, $changes := .Changed.Objects -}}
+        - {{ $resource.Kind }} {{ $resource.Name }}
+          Changes:
+        {{- range $_, $change := $changes }}
+            - {{ $change.OldValue }} -> {{ $change.NewValue }}
+        {{ end -}}
+        {{ end -}}
 ```
 
 With template functions, it is possible to manipulate and transform the supplied
@@ -516,29 +591,30 @@ data in order to generate more complex commit messages.
 
 ```yaml
 spec:
-  commit:
-    messageTemplate: |
-      Automated image update
-      
-      Automation name: {{ .AutomationObject }}
+  git:
+    commit:
+      messageTemplate: |
+        Automated image update
+        
+        Automation name: {{ .AutomationObject }}
 
-      Files:
-      {{ range $filename, $_ := .Changed.FileChanges -}}
-      - {{ $filename }}
-      {{ end -}}
-
-      Objects:
-      {{ range $resource, $changes := .Changed.Objects -}}
-      - {{ $resource.Kind | lower }} {{ $resource.Name | lower }}
-        Changes:
-      {{- range $_, $change := $changes }}
-        {{ if contains "5.0.3" $change.NewValue -}}
-          - {{ $change.OldValue }} -> {{ $change.NewValue }}
-        {{ else -}}
-          [skip ci] wrong image
+        Files:
+        {{ range $filename, $_ := .Changed.FileChanges -}}
+        - {{ $filename }}
         {{ end -}}
-      {{ end -}}
-      {{ end -}}
+
+        Objects:
+        {{ range $resource, $changes := .Changed.Objects -}}
+        - {{ $resource.Kind | lower }} {{ $resource.Name | lower }}
+          Changes:
+        {{- range $_, $change := $changes }}
+          {{ if contains "5.0.3" $change.NewValue -}}
+            - {{ $change.OldValue }} -> {{ $change.NewValue }}
+          {{ else -}}
+            [skip ci] wrong image
+          {{ end -}}
+        {{ end -}}
+        {{ end -}}
 ```
 
 There are over 70 available functions. Some of them are defined by the [Go
