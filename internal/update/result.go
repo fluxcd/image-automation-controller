@@ -22,58 +22,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/google/go-containerregistry/pkg/name"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 
 	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1"
 )
-
-// ImageRef represents the image reference used to replace a field
-// value in an update.
-type ImageRef interface {
-	// String returns a string representation of the image ref as it
-	// is used in the update; e.g., "helloworld:v1.0.1"
-	String() string
-	// Identifier returns the tag or digest; e.g., "v1.0.1"
-	Identifier() string
-	// Repository returns the repository component of the ImageRef,
-	// with an implied defaults, e.g., "library/helloworld"
-	Repository() string
-	// Registry returns the registry component of the ImageRef, e.g.,
-	// "index.docker.io"
-	Registry() string
-	// Name gives the fully-qualified reference name, e.g.,
-	// "index.docker.io/library/helloworld:v1.0.1"
-	Name() string
-	// Policy gives the namespaced name of the image policy that led
-	// to the update.
-	Policy() types.NamespacedName
-}
-
-// imageRef associates a parsed reference with its policy and the policy's
-// latest image reference.
-type imageRef struct {
-	name.Reference
-	policy    types.NamespacedName
-	latestRef reflectorv1.ImageRef
-}
-
-// Policy gives the namespaced name of the policy that led to the
-// update.
-func (i imageRef) Policy() types.NamespacedName {
-	return i.policy
-}
-
-// Repository gives the repository component of the image ref.
-func (i imageRef) Repository() string {
-	return i.Context().RepositoryStr()
-}
-
-// Registry gives the registry component of the image ref.
-func (i imageRef) Registry() string {
-	return i.Context().Registry.String()
-}
 
 // ObjectIdentifier holds the identifying data for a particular
 // object. This won't always have a name (e.g., a kustomization.yaml).

@@ -21,7 +21,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/google/go-containerregistry/pkg/name"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/kube-openapi/pkg/validation/spec"
 	"sigs.k8s.io/kustomize/kyaml/fieldmeta"
 	"sigs.k8s.io/kustomize/kyaml/kio"
@@ -99,7 +98,7 @@ func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []
 	// which can be used to look up the image ref; the file and object
 	// we will get from `setAll` which keeps track of those as it
 	// iterates.
-	imageRefs := make(map[string]imageRef)
+	imageRefs := make(map[string]reflectorv1.ImageRef)
 	setAllCallback := func(file, setterName string, node *yaml.RNode, old, new string) {
 		ref, ok := imageRefs[setterName]
 		if !ok {
@@ -120,7 +119,7 @@ func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []
 		}
 		// Append the change for the file and identifier.
 		result.AddChange(file, oid, ch)
-		result.addImage(setterName, ref.latestRef)
+		result.addImage(setterName, ref)
 	}
 
 	defs := map[string]spec.Schema{}
@@ -135,18 +134,10 @@ func UpdateWithSetters(tracelog logr.Logger, inpath, outpath string, policies []
 		// being `latest` if empty in the input; but I'm assuming here
 		// that the policy won't have a tagless ref.
 		image := policy.Status.LatestRef.String()
-		r, err := name.ParseReference(image, name.WeakValidation)
-		if err != nil {
+		if _, err := name.ParseReference(image, name.WeakValidation); err != nil {
 			return Result{}, fmt.Errorf("encountered invalid image ref %q: %w", image, err)
 		}
-		ref := imageRef{
-			Reference: r,
-			policy: types.NamespacedName{
-				Name:      policy.Name,
-				Namespace: policy.Namespace,
-			},
-			latestRef: *policy.Status.LatestRef,
-		}
+		ref := *policy.Status.LatestRef
 
 		tag := policy.Status.LatestRef.Tag
 		name := policy.Status.LatestRef.Name

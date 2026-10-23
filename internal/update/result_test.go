@@ -19,46 +19,11 @@ package update
 import (
 	"testing"
 
-	"github.com/google/go-containerregistry/pkg/name"
 	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 
 	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1"
 )
-
-// mustRef creates an imageRef for use in tests. It panics if the ref
-// given is invalid.
-func mustRef(ref string) imageRef {
-	r, err := name.ParseReference(ref)
-	if err != nil {
-		panic(err)
-	}
-	return imageRef{Reference: r, policy: types.NamespacedName{}}
-}
-
-func TestMustRef(t *testing.T) {
-	g := NewWithT(t)
-
-	t.Run("gives each component of an image ref", func(t *testing.T) {
-		ref := mustRef("helloworld:v1.0.1")
-		g.Expect(ref.String()).To(Equal("helloworld:v1.0.1"))
-		g.Expect(ref.Identifier()).To(Equal("v1.0.1"))
-		g.Expect(ref.Repository()).To(Equal("library/helloworld"))
-		g.Expect(ref.Registry()).To(Equal("index.docker.io"))
-		g.Expect(ref.Name()).To(Equal("index.docker.io/library/helloworld:v1.0.1"))
-	})
-
-	t.Run("deals with hostnames and digests", func(t *testing.T) {
-		image := "localhost:5000/org/helloworld@sha256:6745aaad46d795c9836632e1fb62f24b7e7f4c843144da8e47a5465c411a14be"
-		ref := mustRef(image)
-		g.Expect(ref.String()).To(Equal(image))
-		g.Expect(ref.Identifier()).To(Equal("sha256:6745aaad46d795c9836632e1fb62f24b7e7f4c843144da8e47a5465c411a14be"))
-		g.Expect(ref.Repository()).To(Equal("org/helloworld"))
-		g.Expect(ref.Registry()).To(Equal("localhost:5000"))
-		g.Expect(ref.Name()).To(Equal(image))
-	})
-}
 
 func TestResult(t *testing.T) {
 	g := NewWithT(t)
