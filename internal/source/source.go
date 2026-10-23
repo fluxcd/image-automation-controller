@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"text/template"
 	"time"
@@ -72,6 +73,25 @@ func (e *RemovedTemplateFieldError) Is(target error) bool {
 // ErrRemovedTemplateField is a sentinel error for removed template field usage.
 var ErrRemovedTemplateField = &RemovedTemplateFieldError{}
 
+// PushBranchError is returned by CommitAndPush when pushing the commit to the
+// push branch fails. The push may still have reached the remote, for example
+// when it timed out after the remote accepted it.
+type PushBranchError struct {
+	// Revision is the revision of the commit that failed to be pushed.
+	Revision string
+	// Message is the message of the commit that failed to be pushed.
+	Message string
+	Err     error
+}
+
+func (e *PushBranchError) Error() string {
+	return e.Err.Error()
+}
+
+func (e *PushBranchError) Unwrap() error {
+	return e.Err
+}
+
 const defaultMessageTemplate = `Update from image update automation`
 
 // TemplateData is the type of the value given to the commit message
@@ -88,6 +108,7 @@ type SourceManager struct {
 	automationObjKey types.NamespacedName
 	gitClient        *gogit.Client
 	workingDir       string
+	cloneCfg         repository.CloneConfig
 }
 
 // SourceOptions contains the optional attributes of SourceManager.
@@ -191,7 +212,7 @@ func NewSourceManager(ctx context.Context, c client.Client, obj *imagev1.ImageUp
 		return nil, err
 	}
 
-	workDir, err := os.MkdirTemp("", fmt.Sprintf("%s-%s", gitSrcCfg.srcKey.Namespace, gitSrcCfg.srcKey.Name))
+	workDir, err := newWorkingDir(gitSrcCfg.srcKey)
 	if err != nil {
 		return nil, err
 	}
@@ -202,6 +223,11 @@ func NewSourceManager(ctx context.Context, c client.Client, obj *imagev1.ImageUp
 		workingDir:       workDir,
 	}
 	return sm, nil
+}
+
+// newWorkingDir creates a temporary working directory for the given source.
+func newWorkingDir(srcKey types.NamespacedName) (string, error) {
+	return os.MkdirTemp("", fmt.Sprintf("%s-%s", srcKey.Namespace, srcKey.Name))
 }
 
 // CreateWorkingDirectory creates a working directory for the SourceManager.
@@ -269,7 +295,13 @@ func (sm *SourceManager) CheckoutSource(ctx context.Context, options ...Checkout
 	for _, o := range options {
 		o(&cloneCfg)
 	}
+	sm.cloneCfg = cloneCfg
+	return sm.clone(ctx, cloneCfg)
+}
 
+// clone clones the source into the working directory, and checks out the push
+// branch if it differs from the checkout branch.
+func (sm *SourceManager) clone(ctx context.Context, cloneCfg repository.CloneConfig) (*git.Commit, error) {
 	var err error
 	sm.gitClient, err = gogit.NewClient(sm.workingDir, sm.srcCfg.authOpts, sm.srcCfg.clientOpts...)
 	if err != nil {
@@ -298,6 +330,15 @@ func WithPushConfigForce() PushConfig {
 	return func(pc *repository.PushConfig) {
 		pc.Force = true
 	}
+}
+
+// buildPushConfig returns the push configuration set by the given options.
+func buildPushConfig(pushOptions []PushConfig) repository.PushConfig {
+	pushConfig := repository.PushConfig{}
+	for _, po := range pushOptions {
+		po(&pushConfig)
+	}
+	return pushConfig
 }
 
 // buildRefspecPushConfig returns a push configuration for an explicit refspec.
@@ -366,24 +407,52 @@ func (sm SourceManager) CommitAndPush(ctx context.Context, obj *imagev1.ImageUpd
 	// Push the commit to push branch.
 	gitOpCtx, cancel := context.WithTimeout(ctx, sm.srcCfg.timeout.Duration)
 	defer cancel()
-	pushConfig := repository.PushConfig{}
-	for _, po := range pushOptions {
-		po(&pushConfig)
-	}
+	pushConfig := buildPushConfig(pushOptions)
 	if err := sm.gitClient.Push(gitOpCtx, pushConfig); err != nil {
-		return nil, err
+		return nil, &PushBranchError{Revision: rev, Message: commitMsg, Err: err}
 	}
 	tracelog.Info("pushed commit to push branch", "revision", rev, "branch", sm.srcCfg.pushBranch)
 
-	// Push to any provided refspec.
+	return sm.pushToRefspec(gitOpCtx, rev, commitMsg, pushConfig)
+}
+
+// CompletePush completes a push that failed with pushErr, but reached the
+// remote nonetheless, for example because it timed out after the remote
+// accepted it. Call it after RefreshToRemote. If the push branch is at the
+// commit of the failed push, it pushes the commit to the push refspec, if
+// any, and returns the result and true. Otherwise, it returns false, and the
+// changes have to be applied and pushed again.
+func (sm SourceManager) CompletePush(ctx context.Context, pushErr *PushBranchError, pushOptions ...PushConfig) (*PushResult, bool, error) {
+	// A push branch created from the checkout branch tells nothing about the
+	// state of the push branch on the remote.
+	if sm.srcCfg.switchBranch && sm.srcCfg.ignoreRemotePushBranch {
+		return nil, false, nil
+	}
+	head, err := sm.gitClient.Head()
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to resolve HEAD: %w", err)
+	}
+	if head != pushErr.Revision {
+		return nil, false, nil
+	}
+
+	gitOpCtx, cancel := context.WithTimeout(ctx, sm.srcCfg.timeout.Duration)
+	defer cancel()
+	pushResult, err := sm.pushToRefspec(gitOpCtx, pushErr.Revision, pushErr.Message, buildPushConfig(pushOptions))
+	return pushResult, true, err
+}
+
+// pushToRefspec pushes the commit rev, which is on the push branch, to the
+// push refspec, if any, and returns the result of pushing the commit.
+func (sm SourceManager) pushToRefspec(ctx context.Context, rev, commitMsg string, pushConfig repository.PushConfig) (*PushResult, error) {
 	var pushedRefspecs []string
 	if sm.srcCfg.pushRefspec != "" {
 		refspecPushConfig := buildRefspecPushConfig(pushConfig, sm.srcCfg.pushRefspec)
-		if err := sm.gitClient.Push(gitOpCtx, refspecPushConfig); err != nil {
+		if err := sm.gitClient.Push(ctx, refspecPushConfig); err != nil {
 			return nil, err
 		}
 		pushedRefspecs = refspecPushConfig.Refspecs
-		tracelog.Info("pushed commit to refspec", "revision", rev, "refspecs", pushedRefspecs)
+		log.FromContext(ctx).V(logger.TraceLevel).Info("pushed commit to refspec", "revision", rev, "refspecs", pushedRefspecs)
 	}
 
 	// Construct the result of the push operation and return.
@@ -392,6 +461,65 @@ func (sm SourceManager) CommitAndPush(ctx context.Context, obj *imagev1.ImageUpd
 		prOpts = append(prOpts, WithPushResultSwitchBranch())
 	}
 	return NewPushResult(sm.srcCfg.pushBranch, rev, commitMsg, prOpts...)
+}
+
+// RefreshToRemote catches up with the remote after a failed push by cloning
+// the source again into a new working directory, discarding local commits
+// and changes, so that they can be recomputed and pushed again. A separate
+// push branch that is based on its remote state is cloned on its own, as
+// only its tip is needed, unless a push refspec is set, as it can refer to
+// the checkout branch. If cloning the push branch fails, for example because
+// it does not exist on the remote, the source is cloned as at the last
+// checkout.
+//
+// Fetching into the existing clone is avoided, as it does not work with every
+// Git server with go-git, and a shallow clone of a single branch costs about
+// as much.
+func (sm *SourceManager) RefreshToRemote(ctx context.Context) error {
+	if sm.srcCfg.switchBranch && !sm.srcCfg.ignoreRemotePushBranch && sm.srcCfg.pushRefspec == "" {
+		err := sm.cloneAgain(ctx, true)
+		if err == nil || ctx.Err() != nil {
+			return err
+		}
+		// The error is left out, as it can contain the repository URL.
+		log.FromContext(ctx).Info("failed to clone the push branch, cloning the checkout reference",
+			"branch", sm.srcCfg.pushBranch)
+	}
+	return sm.cloneAgain(ctx, false)
+}
+
+// cloneAgain replaces the working directory with a new clone of the source,
+// using the configuration of the last checkout. With pushBranchOnly, only the
+// push branch is cloned and checked out.
+func (sm *SourceManager) cloneAgain(ctx context.Context, pushBranchOnly bool) error {
+	if err := os.RemoveAll(sm.workingDir); err != nil {
+		return fmt.Errorf("failed to remove working directory: %w", err)
+	}
+	workDir, err := newWorkingDir(sm.srcCfg.srcKey)
+	if err != nil {
+		return err
+	}
+	sm.workingDir = workDir
+
+	// With the last observed commit set, nothing is cloned if the remote has
+	// not changed since.
+	cloneCfg := sm.cloneCfg
+	cloneCfg.LastObservedCommit = ""
+	if !pushBranchOnly {
+		_, err = sm.clone(ctx, cloneCfg)
+		return err
+	}
+
+	cloneCfg.CheckoutStrategy = repository.CheckoutStrategy{Branch: sm.srcCfg.pushBranch}
+	clientOpts := append(slices.Clone(sm.srcCfg.clientOpts), gogit.WithSingleBranch(true))
+	sm.gitClient, err = gogit.NewClient(sm.workingDir, sm.srcCfg.authOpts, clientOpts...)
+	if err != nil {
+		return err
+	}
+	gitOpCtx, cancel := context.WithTimeout(ctx, sm.srcCfg.timeout.Duration)
+	defer cancel()
+	_, err = sm.gitClient.Clone(gitOpCtx, sm.srcCfg.url, cloneCfg)
+	return err
 }
 
 // templateMsg renders a msg template, returning the message or an error.
