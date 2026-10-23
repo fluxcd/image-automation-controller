@@ -564,25 +564,26 @@ For other formats, range over the fields and methods above, for example:
 
 ```yaml
 spec:
-  commit:
-    messageTemplate: |
-      Automated image update
-      
-      Automation name: {{ .AutomationObject }}
+  git:
+    commit:
+      messageTemplate: |
+        Automated image update
+        
+        Automation name: {{ .AutomationObject }}
 
-      Files:
-      {{ range $filename, $_ := .Changed.FileChanges -}}
-      - {{ $filename }}
-      {{ end -}}
+        Files:
+        {{ range $filename, $_ := .Changed.FileChanges -}}
+        - {{ $filename }}
+        {{ end -}}
 
-      Objects:
-      {{ range $resource, $changes := .Changed.Objects -}}
-      - {{ $resource.Kind }} {{ $resource.Name }}
-        Changes:
-      {{- range $_, $change := $changes }}
-          - {{ $change.OldValue }} -> {{ $change.NewValue }}
-      {{ end -}}
-      {{ end -}}
+        Objects:
+        {{ range $resource, $changes := .Changed.Objects -}}
+        - {{ $resource.Kind }} {{ $resource.Name }}
+          Changes:
+        {{- range $_, $change := $changes }}
+            - {{ $change.OldValue }} -> {{ $change.NewValue }}
+        {{ end -}}
+        {{ end -}}
 ```
 
 With template functions, it is possible to manipulate and transform the supplied
@@ -590,29 +591,30 @@ data in order to generate more complex commit messages.
 
 ```yaml
 spec:
-  commit:
-    messageTemplate: |
-      Automated image update
-      
-      Automation name: {{ .AutomationObject }}
+  git:
+    commit:
+      messageTemplate: |
+        Automated image update
+        
+        Automation name: {{ .AutomationObject }}
 
-      Files:
-      {{ range $filename, $_ := .Changed.FileChanges -}}
-      - {{ $filename }}
-      {{ end -}}
-
-      Objects:
-      {{ range $resource, $changes := .Changed.Objects -}}
-      - {{ $resource.Kind | lower }} {{ $resource.Name | lower }}
-        Changes:
-      {{- range $_, $change := $changes }}
-        {{ if contains "5.0.3" $change.NewValue -}}
-          - {{ $change.OldValue }} -> {{ $change.NewValue }}
-        {{ else -}}
-          [skip ci] wrong image
+        Files:
+        {{ range $filename, $_ := .Changed.FileChanges -}}
+        - {{ $filename }}
         {{ end -}}
-      {{ end -}}
-      {{ end -}}
+
+        Objects:
+        {{ range $resource, $changes := .Changed.Objects -}}
+        - {{ $resource.Kind | lower }} {{ $resource.Name | lower }}
+          Changes:
+        {{- range $_, $change := $changes }}
+          {{ if contains "5.0.3" $change.NewValue -}}
+            - {{ $change.OldValue }} -> {{ $change.NewValue }}
+          {{ else -}}
+            [skip ci] wrong image
+          {{ end -}}
+        {{ end -}}
+        {{ end -}}
 ```
 
 There are over 70 available functions. Some of them are defined by the [Go
