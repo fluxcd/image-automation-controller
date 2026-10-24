@@ -1,5 +1,102 @@
 # Changelog
 
+## 1.3.0
+
+**Release date:** 2026-10-24
+
+This minor release graduates object-level workload identity, now renamed to
+object identity, introduces SPIFFE mTLS between the controllers, and adds
+`.spec.policyChangeDelay` to batch image updates into a single commit.
+
+### Object Identity
+
+Object-level workload identity is now generally available and renamed to object
+identity. Workload identity refers exclusively to identities assigned to Flux
+controllers, while object identity refers to identities assigned to Flux
+objects. The `ObjectLevelWorkloadIdentity` feature gate is retired and the
+feature is always enabled.
+
+⚠️ **Breaking change:** the default Flux RBAC no longer grants the `create`
+verb on the `serviceaccounts/token` resource. If your installation relies on
+the default RBAC, bind a ClusterRole with this permission to the controller
+ServiceAccount before upgrading. See
+[fluxcd/flux2#6139](https://github.com/fluxcd/flux2/pull/6139) for the required
+ClusterRole and ClusterRoleBinding, and the
+[object identity documentation](https://fluxcd.io/flux/integrations/object-identity/)
+for the API reference.
+
+Two credential providers can now supply the credential: `kubernetes`, which
+uses the Kubernetes TokenRequest API and was already available, and `spiffe`,
+which fetches a JWT-SVID from the SPIFFE Broker API. The provider is configured
+on the ServiceAccount with `credential.auth.fluxcd.io/provider`, independently
+of the service provider in `.spec.provider`.
+
+### Inter-Controller mTLS
+
+This release introduces SPIFFE mTLS for inter-controller communication. Flux
+controllers authenticate each other with X.509-SVIDs, and each traffic type is
+enabled independently by configuring the SPIFFE Workload API socket and the
+SPIFFE IDs that the controller authorizes. See the
+[inter-controller mTLS documentation](https://fluxcd.io/flux/installation/configuration/intercontroller-mtls/)
+for the controller flags and an example configuration.
+
+### ImageUpdateAutomation
+
+A new optional `.spec.policyChangeDelay` defers the automation after an
+`ImagePolicy` change, so image updates that arrive within the delay land in one
+commit. The delay starts at the first change and is not extended by later ones.
+`.spec.policySelector` still limits which policy changes trigger a run.
+
+The `GitPushRetryOnFailure` feature gate enables retrying a rejected push on top
+of the latest remote state, with exponential backoff, instead of failing the
+reconciliation.
+
+The commit message template can now use `.Changed.Summary`, which describes the
+changes one line per image update. Template change ordering is now deterministic,
+so the same update set produces the same rendered commit message and Gerrit
+`Change-Id`.
+
+### Git authentication
+
+GitHub App credentials accept a Client ID as an alternative to the numeric App
+ID (`githubAppClientID`), with exactly one of the two required.
+
+Authentication for the referenced GitRepository now uses the object identity
+credential providers, including the `spiffe` provider and the
+`credential.auth.fluxcd.io` ServiceAccount annotations.
+
+### General updates
+
+The controller is built with Kubernetes 1.37 and Go 1.27.
+
+Fixes:
+- Reconcile spec changes when the Git source is unchanged
+  [#1110](https://github.com/fluxcd/image-automation-controller/pull/1110)
+- Make template change ordering deterministic
+  [#1043](https://github.com/fluxcd/image-automation-controller/pull/1043)
+
+Improvements:
+- Add `spec.policyChangeDelay` to batch image updates
+  [#1112](https://github.com/fluxcd/image-automation-controller/pull/1112)
+- Add opt-in retry with backoff for rejected pushes
+  [#1090](https://github.com/fluxcd/image-automation-controller/pull/1090)
+- Add `Summary` to the commit message template data
+  [#1108](https://github.com/fluxcd/image-automation-controller/pull/1108)
+- Add `githubAppClientID` as an alternative to `githubAppID`
+  [#1097](https://github.com/fluxcd/image-automation-controller/pull/1097)
+- Add SPIFFE mTLS for the event recorder
+  [#1104](https://github.com/fluxcd/image-automation-controller/pull/1104)
+- Add the `spiffe` credential provider and SPIFFE Broker API
+  [#1107](https://github.com/fluxcd/image-automation-controller/pull/1107)
+- Retire the `ObjectLevelWorkloadIdentity` feature gate
+  [#1107](https://github.com/fluxcd/image-automation-controller/pull/1107)
+- Update to Kubernetes 1.37 and Go 1.27
+  [#1092](https://github.com/fluxcd/image-automation-controller/pull/1092)
+  [#1101](https://github.com/fluxcd/image-automation-controller/pull/1101)
+- Various dependency updates
+  [#1068](https://github.com/fluxcd/image-automation-controller/pull/1068)
+  [#1109](https://github.com/fluxcd/image-automation-controller/pull/1109)
+
 ## 1.2.5
 
 **Release date:** 2026-08-31
