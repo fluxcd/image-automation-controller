@@ -311,6 +311,7 @@ func (r *ImageUpdateAutomationReconciler) reconcile(ctx context.Context, sp *pat
 	// Persist reconciling if generation differs or reconciliation is requested.
 	switch {
 	case obj.Generation != obj.Status.ObservedGeneration:
+		syncNeeded = true
 		runtimereconcile.ProgressiveStatus(false, obj, meta.ProgressingReason,
 			"processing object: new generation %d -> %d", obj.Status.ObservedGeneration, obj.Generation)
 		if err := sp.Patch(ctx, obj, r.patchOptions...); err != nil {

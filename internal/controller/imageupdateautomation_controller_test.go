@@ -1244,6 +1244,46 @@ func TestImageUpdateAutomationReconciler_updatePath(t *testing.T) {
 			condns := &conditionscheck.Conditions{NegativePolarity: imageUpdateAutomationNegativeConditions}
 			checker := conditionscheck.NewChecker(testEnv.Client, condns)
 			checker.WithT(g).CheckErr(ctx, &update)
+
+			// Wait for the first push to be recorded before changing the path.
+			g.Eventually(func(g Gomega) {
+				g.Expect(testEnv.Get(ctx, updateKey, &update)).To(Succeed())
+				g.Expect(conditions.IsReady(&update)).To(BeTrue())
+				g.Expect(update.Status.LastPushCommit).To(Equal(head.Hash().String()))
+				g.Expect(update.Status.ObservedGeneration).To(Equal(update.Generation))
+			}, timeout).Should(Succeed())
+
+			file, err := commit.File("no/deploy.yaml")
+			g.Expect(err).ToNot(HaveOccurred())
+			content, err := file.Contents()
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(content).To(ContainSubstring("image: helloworld:1.0.0"))
+
+			// Changing the path must trigger an update without a new commit or image.
+			preChangeCommitId = head.Hash().String()
+			patch := client.MergeFrom(update.DeepCopy())
+			update.Spec.Update.Path = "./no"
+			g.Expect(testEnv.Patch(ctx, &update, patch)).To(Succeed())
+			generation := update.Generation
+			g.Eventually(func(g Gomega) {
+				g.Expect(testEnv.Get(ctx, updateKey, &update)).To(Succeed())
+				g.Expect(update.Status.ObservedGeneration).To(Equal(generation))
+				g.Expect(conditions.IsReady(&update)).To(BeTrue())
+			}, timeout).Should(Succeed())
+			g.Expect(update.Status.LastPushCommit).ToNot(Equal(preChangeCommitId))
+
+			waitForNewHead(g, localRepo, s.branch, preChangeCommitId)
+			head, err = localRepo.Head()
+			g.Expect(err).ToNot(HaveOccurred())
+			commit, err = localRepo.CommitObject(head.Hash())
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(commit.Message).To(ContainSubstring("update-no"))
+			g.Expect(commit.Message).ToNot(ContainSubstring("update-yes"))
+			file, err = commit.File("no/deploy.yaml")
+			g.Expect(err).ToNot(HaveOccurred())
+			content, err = file.Contents()
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(content).To(ContainSubstring("image: " + latest))
 		},
 	)
 }
