@@ -19,6 +19,7 @@ package controller
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -40,6 +41,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -166,6 +168,28 @@ func TestImageUpdateAutomationRefspecValidation(t *testing.T) {
 	}
 }
 
+func TestImageUpdateAutomationPolicyChangeDelayValidation(t *testing.T) {
+	g := NewWithT(t)
+	namespace, err := testEnv.CreateNamespace(ctx, "policy-delay-validation")
+	g.Expect(err).NotTo(HaveOccurred())
+	defer func() { g.Expect(testEnv.Delete(ctx, namespace)).To(Succeed()) }()
+
+	obj := &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": imagev1.GroupVersion.String(),
+		"kind":       imagev1.ImageUpdateAutomationKind,
+		"metadata": map[string]interface{}{
+			"name": "invalid-delay", "namespace": namespace.Name,
+		},
+		"spec": map[string]interface{}{
+			"interval": "1h", "policyChangeDelay": "abc", "suspend": true,
+			"sourceRef": map[string]interface{}{"kind": "GitRepository", "name": "unused"},
+		},
+	}}
+	err = k8sClient.Create(ctx, obj)
+	g.Expect(apierrors.IsInvalid(err)).To(BeTrue(), "expected invalid object error, got %v", err)
+	g.Expect(err.Error()).To(ContainSubstring("spec.policyChangeDelay"))
+}
+
 func TestImageUpdateAutomationReconciler_deleteBeforeFinalizer(t *testing.T) {
 	g := NewWithT(t)
 
@@ -287,6 +311,163 @@ func TestImageUpdateAutomationReconciler_watchSourceAndLatestImage(t *testing.T)
 			return conditions.IsFalse(&imageUpdate, meta.ReadyCondition)
 		}, timeout).Should(BeTrue())
 	})
+}
+
+func TestImageUpdateAutomationReconciler_policyChangeDelay(t *testing.T) {
+	g := NewWithT(t)
+	const delay = 5 * time.Second
+	const smokeTimeout = 30 * time.Second
+	policySpec := reflectorv1.ImagePolicySpec{
+		ImageRepositoryRef: meta.NamespacedObjectReference{Name: "unused"},
+		Policy: reflectorv1.ImagePolicyChoice{
+			SemVer: &reflectorv1.SemVerPolicy{Range: "1.x"},
+		},
+	}
+	namespace, err := testEnv.CreateNamespace(ctx, "policy-delay")
+	g.Expect(err).NotTo(HaveOccurred())
+	defer func() { g.Expect(testEnv.Delete(ctx, namespace)).To(Succeed()) }()
+
+	testWithRepoAndImagePolicy(ctx, g, k8sClient, namespace.Name, "testdata/appconfig", policySpec, "helloworld:v1.0.0",
+		func(g *WithT, s repoAndPolicyArgs, repoURL string, localRepo *extgogit.Repository) {
+			secondPolicy := s.imagePolicyName + "-second"
+			g.Expect(createImagePolicyWithLatestImageForSpec(ctx, k8sClient, secondPolicy, s.namespace, policySpec, "helloworld:v1.0.0")).To(Succeed())
+			testutil.CommitInRepo(ctx, g, repoURL, s.branch, originRemote, "Install two setter markers", func(tmp string) {
+				manifest, err := os.ReadFile(filepath.Join(tmp, "deploy.yaml"))
+				g.Expect(err).NotTo(HaveOccurred())
+				manifest = bytes.Replace(manifest, []byte("name: test"), []byte("name: second"), 1)
+				g.Expect(os.WriteFile(filepath.Join(tmp, "second.yaml"), manifest, 0o644)).To(Succeed())
+				g.Expect(testutil.ReplaceMarker(filepath.Join(tmp, "deploy.yaml"),
+					types.NamespacedName{Namespace: s.namespace, Name: s.imagePolicyName})).To(Succeed())
+				g.Expect(testutil.ReplaceMarker(filepath.Join(tmp, "second.yaml"),
+					types.NamespacedName{Namespace: s.namespace, Name: secondPolicy})).To(Succeed())
+			})
+
+			g.Expect(createImageUpdateAutomation(ctx, k8sClient, "update-test", s.namespace, s.gitRepoName,
+				s.gitRepoNamespace, s.branch, s.branch, "", testCommitTemplate, "",
+				&imagev1.UpdateStrategy{Strategy: imagev1.UpdateStrategySetters})).To(Succeed())
+			defer func() {
+				g.Expect(deleteImageUpdateAutomation(ctx, k8sClient, "update-test", s.namespace)).To(Succeed())
+			}()
+
+			key := types.NamespacedName{Namespace: s.namespace, Name: "update-test"}
+			var auto imagev1.ImageUpdateAutomation
+			waitReady := func() {
+				g.Eventually(func(g Gomega) {
+					g.Expect(k8sClient.Get(ctx, key, &auto)).To(Succeed())
+					g.Expect(auto.Status.ObservedGeneration).To(Equal(auto.Generation))
+					g.Expect(conditions.IsReady(&auto)).To(BeTrue())
+					g.Expect(conditions.IsStalled(&auto)).To(BeFalse())
+				}, smokeTimeout, 100*time.Millisecond).Should(Succeed())
+			}
+			waitReady()
+			g.Expect(auto.Status.ObservedPolicies).To(HaveLen(2))
+			beforePatch, err := fetchBranchHead(ctx, localRepo, s.branch)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(auto.Status.LastPushCommit).To(Equal(beforePatch.Hash.String()))
+
+			patch := client.MergeFrom(auto.DeepCopy())
+			auto.Spec.PolicyChangeDelay = &metav1.Duration{Duration: delay}
+			g.Expect(k8sClient.Patch(ctx, &auto, patch)).To(Succeed())
+			waitReady()
+			baseline, err := fetchBranchHead(ctx, localRepo, s.branch)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(baseline.Hash).To(Equal(beforePatch.Hash), "changing only the delay must not push")
+
+			g.Expect(updateImagePolicyWithLatestImage(ctx, k8sClient, s.imagePolicyName, s.namespace, "helloworld:v1.1.0")).To(Succeed())
+			g.Expect(updateImagePolicyWithLatestImage(ctx, k8sClient, secondPolicy, s.namespace, "helloworld:v1.2.0")).To(Succeed())
+			g.Consistently(func(g Gomega) {
+				head, err := fetchBranchHead(ctx, localRepo, s.branch)
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(head.Hash).To(Equal(baseline.Hash))
+			}, delay-2*time.Second, 200*time.Millisecond).Should(Succeed())
+
+			var batched *object.Commit
+			g.Eventually(func(g Gomega) {
+				head, err := fetchBranchHead(ctx, localRepo, s.branch)
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(head.Hash).NotTo(Equal(baseline.Hash))
+				g.Expect(head.ParentHashes).To(Equal([]plumbing.Hash{baseline.Hash}))
+				for file, image := range map[string]string{
+					"deploy.yaml": "helloworld:v1.1.0",
+					"second.yaml": "helloworld:v1.2.0",
+				} {
+					f, err := head.File(file)
+					g.Expect(err).NotTo(HaveOccurred())
+					contents, err := f.Contents()
+					g.Expect(err).NotTo(HaveOccurred())
+					g.Expect(contents).To(ContainSubstring("image: " + image))
+				}
+				g.Expect(k8sClient.Get(ctx, key, &auto)).To(Succeed())
+				g.Expect(conditions.IsReady(&auto)).To(BeTrue())
+				g.Expect(auto.Status.LastPushCommit).To(Equal(head.Hash.String()))
+				batched = head
+			}, smokeTimeout, 200*time.Millisecond).Should(Succeed())
+			g.Consistently(func(g Gomega) {
+				head, err := fetchBranchHead(ctx, localRepo, s.branch)
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(head.Hash).To(Equal(batched.Hash))
+			}, 2*delay, 200*time.Millisecond).Should(Succeed())
+		})
+}
+
+func TestImageUpdateAutomationReconciler_selectorRecovery(t *testing.T) {
+	g := NewWithT(t)
+	policySpec := reflectorv1.ImagePolicySpec{
+		ImageRepositoryRef: meta.NamespacedObjectReference{Name: "unused"},
+		Policy: reflectorv1.ImagePolicyChoice{
+			SemVer: &reflectorv1.SemVerPolicy{Range: "1.x"},
+		},
+	}
+	namespace, err := testEnv.CreateNamespace(ctx, "selector-recovery")
+	g.Expect(err).NotTo(HaveOccurred())
+	defer func() { g.Expect(testEnv.Delete(ctx, namespace)).To(Succeed()) }()
+
+	testWithRepoAndImagePolicy(ctx, g, k8sClient, namespace.Name, "testdata/appconfig", policySpec, "helloworld:v1.0.0",
+		func(g *WithT, s repoAndPolicyArgs, repoURL string, localRepo *extgogit.Repository) {
+			testutil.CommitInRepo(ctx, g, repoURL, s.branch, originRemote, "Install setter marker", func(tmp string) {
+				g.Expect(testutil.ReplaceMarker(filepath.Join(tmp, "deploy.yaml"),
+					types.NamespacedName{Namespace: s.namespace, Name: s.imagePolicyName})).To(Succeed())
+			})
+			g.Expect(createImageUpdateAutomation(ctx, k8sClient, "update-test", s.namespace, s.gitRepoName,
+				s.gitRepoNamespace, s.branch, s.branch, "", testCommitTemplate, "",
+				&imagev1.UpdateStrategy{Strategy: imagev1.UpdateStrategySetters})).To(Succeed())
+			defer func() {
+				g.Expect(deleteImageUpdateAutomation(ctx, k8sClient, "update-test", s.namespace)).To(Succeed())
+			}()
+
+			key := types.NamespacedName{Namespace: s.namespace, Name: "update-test"}
+			var auto imagev1.ImageUpdateAutomation
+			waitReady := func() {
+				g.Eventually(func(g Gomega) {
+					g.Expect(k8sClient.Get(ctx, key, &auto)).To(Succeed())
+					g.Expect(auto.Status.ObservedGeneration).To(Equal(auto.Generation))
+					g.Expect(conditions.IsReady(&auto)).To(BeTrue())
+					g.Expect(conditions.IsStalled(&auto)).To(BeFalse())
+				}, timeout, 100*time.Millisecond).Should(Succeed())
+			}
+			waitReady()
+			baseline, err := fetchBranchHead(ctx, localRepo, s.branch)
+			g.Expect(err).NotTo(HaveOccurred())
+
+			// A generation change must recover from a selector error without a policy event.
+			patch := client.MergeFrom(auto.DeepCopy())
+			auto.Spec.PolicyChangeDelay = &metav1.Duration{Duration: 5 * time.Second}
+			auto.Spec.PolicySelector = &metav1.LabelSelector{MatchLabels: map[string]string{"invalid/key/key": "value"}}
+			g.Expect(k8sClient.Patch(ctx, &auto, patch)).To(Succeed())
+			g.Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, key, &auto)).To(Succeed())
+				g.Expect(auto.Status.ObservedGeneration).To(Equal(auto.Generation))
+				g.Expect(conditions.IsStalled(&auto)).To(BeTrue())
+				g.Expect(conditions.GetReason(&auto, meta.StalledCondition)).To(Equal(imagev1.InvalidPolicySelectorReason))
+			}, timeout, 100*time.Millisecond).Should(Succeed())
+			patch = client.MergeFrom(auto.DeepCopy())
+			auto.Spec.PolicySelector = &metav1.LabelSelector{}
+			g.Expect(k8sClient.Patch(ctx, &auto, patch)).To(Succeed())
+			waitReady()
+			head, err := fetchBranchHead(ctx, localRepo, s.branch)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(head.Hash).To(Equal(baseline.Hash))
+		})
 }
 
 func TestImageUpdateAutomationReconciler_suspended(t *testing.T) {
@@ -2248,6 +2429,7 @@ func Test_getPolicies(t *testing.T) {
 		selector      *metav1.LabelSelector
 		policies      []policyArgs
 		wantPolicies  []string
+		wantErr       error
 	}{
 		{
 			name:          "lists policies with image and in same namespace",
@@ -2276,6 +2458,22 @@ func Test_getPolicies(t *testing.T) {
 			wantPolicies: []string{"p1"},
 		},
 		{
+			name:          "empty selector selects all policies",
+			listNamespace: testNS1,
+			selector:      &metav1.LabelSelector{},
+			policies: []policyArgs{
+				{name: "p1", namespace: testNS1, latestImage: "aaa:bbb"},
+				{name: "p2", namespace: testNS1, latestImage: "ccc:ddd", labels: map[string]string{"label": "one"}},
+			},
+			wantPolicies: []string{"p1", "p2"},
+		},
+		{
+			name:          "invalid selector wraps parse error",
+			listNamespace: testNS1,
+			selector:      &metav1.LabelSelector{MatchLabels: map[string]string{"invalid/key/key": "value"}},
+			wantErr:       errParsePolicySelector,
+		},
+		{
 			name:          "no policies in empty namespace",
 			listNamespace: testNS2,
 			policies: []policyArgs{
@@ -2294,8 +2492,8 @@ func Test_getPolicies(t *testing.T) {
 				aPolicy := &reflectorv1.ImagePolicy{}
 				aPolicy.Name = p.name
 				aPolicy.Namespace = p.namespace
-				aPolicy.Status = reflectorv1.ImagePolicyStatus{
-					LatestRef: testutil.ImageToRef(p.latestImage),
+				if p.latestImage != "" {
+					aPolicy.Status.LatestRef = testutil.ImageToRef(p.latestImage)
 				}
 				aPolicy.Labels = p.labels
 				testObjects = append(testObjects, aPolicy)
@@ -2305,6 +2503,11 @@ func Test_getPolicies(t *testing.T) {
 				WithObjects(testObjects...).Build()
 
 			result, err := getPolicies(context.TODO(), kClient, tt.listNamespace, tt.selector)
+			if tt.wantErr != nil {
+				g.Expect(errors.Is(err, tt.wantErr)).To(BeTrue(), "expected %v, got %v", tt.wantErr, err)
+				g.Expect(result).To(BeNil())
+				return
+			}
 			g.Expect(err).ToNot(HaveOccurred())
 
 			// Extract policy name from the result and compare with the expected
@@ -2313,7 +2516,7 @@ func Test_getPolicies(t *testing.T) {
 			for _, r := range result {
 				resultPolicyNames = append(resultPolicyNames, r.Name)
 			}
-			g.Expect(resultPolicyNames).To(ContainElements(tt.wantPolicies))
+			g.Expect(resultPolicyNames).To(ConsistOf(tt.wantPolicies))
 		})
 	}
 }
@@ -2416,6 +2619,29 @@ func compareRepoWithExpected(ctx context.Context, g *WithT, repoURL, branch, fix
 
 	g.Expect(err).ToNot(HaveOccurred())
 	testutil.ExpectMatchingDirectories(g, wt.Filesystem.Root(), expected)
+}
+
+// fetchBranchHead reads the remote branch without changing the local worktree.
+func fetchBranchHead(ctx context.Context, repo *extgogit.Repository, branch string) (*object.Commit, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	remoteRef := plumbing.NewRemoteReferenceName(originRemote, branch)
+	refspec := config.RefSpec("+" + plumbing.NewBranchReferenceName(branch).String() + ":" + remoteRef.String())
+	if err := repo.FetchContext(ctx, &extgogit.FetchOptions{
+		RemoteName: originRemote,
+		RefSpecs:   []config.RefSpec{refspec},
+	}); err != nil && !errors.Is(err, extgogit.NoErrAlreadyUpToDate) {
+		return nil, fmt.Errorf("failed to fetch branch: %w", err)
+	}
+	ref, err := repo.Reference(remoteRef, true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve branch: %w", err)
+	}
+	commit, err := repo.CommitObject(ref.Hash())
+	if err != nil {
+		return nil, fmt.Errorf("failed to read branch head: %w", err)
+	}
+	return commit, nil
 }
 
 func waitForNewHead(g *WithT, repo *extgogit.Repository, branch, preChangeHash string) {
