@@ -124,8 +124,8 @@ github.com/fluxcd/cli-utils v1.4.0 h1:zlTiCWcVDQvvwZXILYeu5rpbnGt1sS+w32y3+rkOpi
 github.com/fluxcd/cli-utils v1.4.0/go.mod h1:OupUOj2boEKTbiguMbGMz5Z/d59JUcb1c7pPESe8Pjw=
 github.com/fluxcd/gitkit v0.6.0 h1:iNg5LTx6ePo+Pl0ZwqHTAkhbUHxGVSY3YCxCdw7VIFg=
 github.com/fluxcd/gitkit v0.6.0/go.mod h1:svOHuKi0fO9HoawdK4HfHAJJseZDHHjk7I3ihnCIqNo=
-github.com/fluxcd/image-reflector-controller/api v1.2.5 h1:3lUBpBuefeO1UtVmGnvJOP5iSI2B2Lm6+CnPRdb8F54=
-github.com/fluxcd/image-reflector-controller/api v1.2.5/go.mod h1:90RGazjs5cq7Ivbc3J8c/ZLJHb+k3Z+7KbXwTsMf5SE=
+github.com/fluxcd/image-reflector-controller/api v1.3.0 h1:RoU4EutcI2ke180tVK6IEEPw9nr1LGItephyyiB+DDA=
+github.com/fluxcd/image-reflector-controller/api v1.3.0/go.mod h1:QNc5i2Wiw+qUHJ3cBMtTn0yqx8G9v8kLvjistjDqE+0=
 github.com/fluxcd/pkg/apis/acl v0.12.0 h1:UWpZDqKxpKDW38wdXIMHV8Uv3POPu2vUrra0JH1frH0=
 github.com/fluxcd/pkg/apis/acl v0.12.0/go.mod h1:PJrGIu5Bw/6/siO95uhS+pi5oKSU+gVJqHqsPHb8Kok=
 github.com/fluxcd/pkg/apis/crypto v0.5.0 h1:buy9YCvrD8IpKqOVCSV9k2wlF2iVPaETLOZBqsbyfVs=
@@ -150,8 +150,8 @@ github.com/fluxcd/pkg/ssh v0.29.0 h1:sw25lljJsA54Lcr1oiw7sBLU1c3vWroZf9uLy87rltg
 github.com/fluxcd/pkg/ssh v0.29.0/go.mod h1:193HoPaYQ/SJ9zsJZSMwVsQA/XL02ouOwAHj7jekHCw=
 github.com/fluxcd/pkg/version v0.20.0 h1:uPT60sOPMPd0q3n1Go7dYC1fOjkq8wznwNwZ5vv7AJ0=
 github.com/fluxcd/pkg/version v0.20.0/go.mod h1:n+JDY4+3Wb2NpFF3jWTSEEKvJC97ed+hN+o7QnBCHDA=
-github.com/fluxcd/source-controller/api v1.9.1-0.20260728080107-065d6efd74c2 h1:tJheyWdvdWK3zfkuWVPfgycMw9ckKoa6gwNPDmvBJEU=
-github.com/fluxcd/source-controller/api v1.9.1-0.20260728080107-065d6efd74c2/go.mod h1:yUAGeRpUQcTtrOvmugTmQqAAIYlvtjag+7PctMegHdA=
+github.com/fluxcd/source-controller/api v1.10.0 h1:th1PYE0f27GWumb/7HoLB9g2zR6YpJue5+I66IuQCww=
+github.com/fluxcd/source-controller/api v1.10.0/go.mod h1:ar4cOwOZ9aMei+7eChKuJFJmnN1Mm5LOTZ9q46Yp4c0=
 github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHkI4W8=
 github.com/frankban/quicktest v1.14.6/go.mod h1:4ptaffx2x8+WTWXmUCuVU6aPUX1/Mz7zb5vbUoiM6w0=
 github.com/fsnotify/fsnotify v1.10.1 h1:b0/UzAf9yR5rhf3RPm9gf3ehBPpf0oZKIjtpKrx59Ho=
