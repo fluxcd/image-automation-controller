@@ -212,10 +212,9 @@ below.
 For a complete guide on how to set up authentication for cloud providers,
 see the integration [docs](/flux/integrations/).
 
-For a complete guide to the ServiceAccount annotations used for object-level
-workload identity, including the `spiffe` credential provider, see the
-[ServiceAccount annotations](/flux/integrations/serviceaccount-annotations)
-docs.
+For a complete guide to the ServiceAccount annotations used for object
+identity, including the `spiffe` credential provider, see the
+[Object Identity](/flux/integrations/object-identity/) docs.
 
 ##### Azure
 
