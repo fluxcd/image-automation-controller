@@ -159,7 +159,7 @@ func (r *ImageUpdateAutomationReconciler) SetupWithManager(ctx context.Context, 
 		).
 		Watches(
 			&reflectorv1.ImagePolicy{},
-			handler.EnqueueRequestsFromMapFunc(r.automationsForImagePolicy),
+			r.imagePolicyHandler(),
 			builder.WithPredicates(latestImageChangePredicate{}),
 		).
 		WithOptions(controller.Options{
@@ -175,24 +175,6 @@ func (r *ImageUpdateAutomationReconciler) automationsForGitRepo(ctx context.Cont
 	objKey := fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetName())
 	if err := r.List(ctx, &autoList, client.MatchingFields{repoRefKey: objKey}); err != nil {
 		ctrl.LoggerFrom(ctx).Error(err, "failed to list ImageUpdateAutomations for GitRepository change")
-		return nil
-	}
-	reqs := make([]reconcile.Request, len(autoList.Items))
-	for i := range autoList.Items {
-		reqs[i].NamespacedName.Name = autoList.Items[i].GetName()
-		reqs[i].NamespacedName.Namespace = autoList.Items[i].GetNamespace()
-	}
-	return reqs
-}
-
-// automationsForImagePolicy fetches all the automation objects that
-// might depend on a image policy object. Since the link is via
-// markers in the git repo, _any_ automation object in the same
-// namespace could be affected.
-func (r *ImageUpdateAutomationReconciler) automationsForImagePolicy(ctx context.Context, obj client.Object) []reconcile.Request {
-	var autoList imagev1.ImageUpdateAutomationList
-	if err := r.List(ctx, &autoList, client.InNamespace(obj.GetNamespace())); err != nil {
-		ctrl.LoggerFrom(ctx).Error(err, "failed to list ImageUpdateAutomations for ImagePolicy change")
 		return nil
 	}
 	reqs := make([]reconcile.Request, len(autoList.Items))
@@ -559,19 +541,24 @@ func (r *ImageUpdateAutomationReconciler) reconcileDelete(obj *imagev1.ImageUpda
 	return ctrl.Result{}, nil
 }
 
+// policySelector treats an omitted selector as selecting all policies.
+func policySelector(selector *metav1.LabelSelector) (labels.Selector, error) {
+	if selector == nil {
+		return labels.Everything(), nil
+	}
+	return metav1.LabelSelectorAsSelector(selector)
+}
+
 // getPolicies returns list of policies in the given namespace that have latest
 // image.
 func getPolicies(ctx context.Context, kclient client.Client, namespace string, selector *metav1.LabelSelector) ([]reflectorv1.ImagePolicy, error) {
-	policySelector := labels.Everything()
-	var err error
-	if selector != nil {
-		if policySelector, err = metav1.LabelSelectorAsSelector(selector); err != nil {
-			return nil, fmt.Errorf("%w: %w", errParsePolicySelector, err)
-		}
+	labelSelector, err := policySelector(selector)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errParsePolicySelector, err)
 	}
 
 	var policies reflectorv1.ImagePolicyList
-	if err := kclient.List(ctx, &policies, &client.ListOptions{Namespace: namespace, LabelSelector: policySelector}); err != nil {
+	if err := kclient.List(ctx, &policies, &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}); err != nil {
 		return nil, fmt.Errorf("failed to list policies: %w", err)
 	}
 

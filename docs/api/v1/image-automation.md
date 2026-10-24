@@ -441,6 +441,23 @@ run should be attempted.</p>
 </tr>
 <tr>
 <td>
+<code>policyChangeDelay</code><br>
+<em>
+<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PolicyChangeDelay delays the run triggered by ImagePolicy changes, so
+that image updates arriving within the delay are committed together.
+If PolicySelector is also set, only changes to the selected policies
+trigger a run. By default, the automation runs as soon as a policy changes.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>policySelector</code><br>
 <em>
 <a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#labelselector-v1-meta">
@@ -560,6 +577,23 @@ Kubernetes meta/v1.Duration
 <td>
 <p>Interval gives an lower bound for how often the automation
 run should be attempted.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>policyChangeDelay</code><br>
+<em>
+<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PolicyChangeDelay delays the run triggered by ImagePolicy changes, so
+that image updates arriving within the delay are committed together.
+If PolicySelector is also set, only changes to the selected policies
+trigger a run. By default, the automation runs as soon as a policy changes.</p>
 </td>
 </tr>
 <tr>

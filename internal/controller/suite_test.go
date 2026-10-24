@@ -87,7 +87,7 @@ func runTestsWithFeatures(m *testing.M, feats map[string]bool) int {
 	controllerName := "image-automation-controller"
 	if err := (&ImageUpdateAutomationReconciler{
 		Client:         testEnv,
-		Recorder:       events.NewFakeRecorder(32, false),
+		Recorder:       events.NewNopRecorder(),
 		features:       feats,
 		ControllerName: controllerName,
 	}).SetupWithManager(ctx, testEnv, ImageUpdateAutomationReconcilerOptions{

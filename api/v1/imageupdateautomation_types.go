@@ -49,6 +49,15 @@ type ImageUpdateAutomationSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
+	// PolicyChangeDelay delays the run triggered by ImagePolicy changes, so
+	// that image updates arriving within the delay are committed together.
+	// If PolicySelector is also set, only changes to the selected policies
+	// trigger a run. By default, the automation runs as soon as a policy changes.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
+	// +optional
+	PolicyChangeDelay *metav1.Duration `json:"policyChangeDelay,omitempty"`
+
 	// PolicySelector allows to filter applied policies based on labels.
 	// By default includes all policies in namespace.
 	// +optional
@@ -152,6 +161,15 @@ type ImageUpdateAutomation struct {
 // must be reconciled again.
 func (auto ImageUpdateAutomation) GetRequeueAfter() time.Duration {
 	return auto.Spec.Interval.Duration
+}
+
+// GetPolicyChangeDelay returns the delay applied to ImagePolicy change
+// events, or zero if not set.
+func (auto ImageUpdateAutomation) GetPolicyChangeDelay() time.Duration {
+	if auto.Spec.PolicyChangeDelay == nil {
+		return 0
+	}
+	return auto.Spec.PolicyChangeDelay.Duration
 }
 
 // GetConditions returns the status conditions of the object.

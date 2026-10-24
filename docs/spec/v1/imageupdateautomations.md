@@ -785,6 +785,38 @@ e.g. `10m0s` to reconcile the object every 10 minutes.
 If the `.metadata.generation` of a resource changes (due to e.g. a change to
 the spec), this is handled instantly outside the interval window.
 
+ImagePolicy changes also trigger a run outside the interval window (see
+[Policy change delay](#policy-change-delay)).
+
+### Policy change delay
+
+`.spec.policyChangeDelay` is an optional field that delays the run triggered by
+an ImagePolicy reporting a new latest image, so that image updates arriving close
+together go into one commit. When not set, or set to `0s`, the automation runs
+as soon as a policy changes.
+
+```yaml
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageUpdateAutomation
+metadata:
+  name: <automation-name>
+spec:
+  interval: 30m
+  policyChangeDelay: 2m
+```
+
+The delay starts at the first policy change and is not extended by later
+changes.
+
+The batching is best-effort. Runs triggered by the interval, spec changes,
+GitRepository changes and [manual reconciliation requests](#triggering-a-reconciliation)
+are not delayed, and they replace the pending run. Pending runs are
+not persisted: after a controller restart, every automation runs right away.
+
+This field respects [`.spec.policySelector`](#policyselector). If both are set,
+only changes to the selected policies trigger a run.
+
 ### Update
 
 `.spec.update` is an optional field that specifies how to carry out the updates
@@ -819,7 +851,8 @@ removed, it will resume.
 ImageUpdateAutomation takes into account. It supports the same selectors as 
 `Deployment.spec.selector` (`matchLabels` and `matchExpressions` fields). If
 not specified, it defaults to `matchLabels: {}` which means all policies in
-namespace.
+namespace. When [`.spec.policyChangeDelay`](#policy-change-delay) is set, the
+selector also filters which ImagePolicy changes trigger a run.
 
 ```yaml
 ---
