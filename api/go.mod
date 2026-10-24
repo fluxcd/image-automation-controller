@@ -4,7 +4,7 @@ go 1.27.0
 
 require (
 	github.com/fluxcd/pkg/apis/meta v1.38.0
-	github.com/fluxcd/source-controller/api v1.9.1-0.20260728080107-065d6efd74c2
+	github.com/fluxcd/source-controller/api v1.10.0
 	k8s.io/apimachinery v0.37.1
 )
 
@@ -20,6 +20,7 @@ require (
 	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
+	k8s.io/apiextensions-apiserver v0.37.1 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad // indirect
 	k8s.io/utils v0.0.0-20260626114624-be93311217bd // indirect
