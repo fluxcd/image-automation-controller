@@ -209,6 +209,11 @@ func (in *ImageUpdateAutomationSpec) DeepCopyInto(out *ImageUpdateAutomationSpec
 		(*in).DeepCopyInto(*out)
 	}
 	out.Interval = in.Interval
+	if in.PolicyChangeDelay != nil {
+		in, out := &in.PolicyChangeDelay, &out.PolicyChangeDelay
+		*out = new(metav1.Duration)
+		**out = **in
+	}
 	if in.PolicySelector != nil {
 		in, out := &in.PolicySelector, &out.PolicySelector
 		*out = new(metav1.LabelSelector)
