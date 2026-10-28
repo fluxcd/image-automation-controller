@@ -23,7 +23,7 @@ require (
 	github.com/fluxcd/pkg/apis/meta v1.38.0
 	github.com/fluxcd/pkg/auth v0.66.0
 	github.com/fluxcd/pkg/cache v0.19.0
-	github.com/fluxcd/pkg/git v0.56.0
+	github.com/fluxcd/pkg/git v0.56.1-0.20261028083428-324a184807b0
 	github.com/fluxcd/pkg/gittestserver v0.33.0
 	github.com/fluxcd/pkg/runtime v0.122.0
 	github.com/fluxcd/pkg/spiffe v0.2.0
