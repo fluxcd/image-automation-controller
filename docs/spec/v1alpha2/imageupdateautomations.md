@@ -79,7 +79,7 @@ go-git implementation rather than libgit2.
 Other fields particular to how the Git repository is used are in the `git` field, [described
 below](#git-specific-specification).
 
-The `update` field is described in [its own section below](update-strategy).
+The `update` field is described in [its own section below](#update-strategy).
 
 The required field `interval` gives a period for automation runs, in [duration notation][durations];
 e.g., `"5m"`.
