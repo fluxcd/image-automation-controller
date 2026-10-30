@@ -490,7 +490,7 @@ spec:
 
 There are over 70 available functions. Some of them are defined by the [Go
 template language](https://pkg.go.dev/text/template) itself. Most of the others
-are part of the [Sprig template library](http://masterminds.github.io/sprig/).  
+are part of the [Sprig template library](https://masterminds.github.io/sprig/).  
 
 Additional data can be provided with `.spec.git.commit.messageTemplateValues`.
 
