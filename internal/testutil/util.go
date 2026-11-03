@@ -343,6 +343,11 @@ func Clone(ctx context.Context, repoURL, branchName, remote string) (*extgogit.R
 	if err != nil {
 		return nil, "", err
 	}
+	// BoundOS rejects nested paths when the base dir is reached through a
+	// symlink, as with the temp dir on macOS.
+	if dir, err = filepath.EvalSymlinks(dir); err != nil {
+		return nil, "", err
+	}
 
 	opts := &extgogit.CloneOptions{
 		URL:           repoURL,
