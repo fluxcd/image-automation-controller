@@ -21,13 +21,13 @@ require (
 	github.com/fluxcd/pkg/apis/crypto v0.5.0
 	github.com/fluxcd/pkg/apis/event v0.32.0
 	github.com/fluxcd/pkg/apis/meta v1.38.0
-	github.com/fluxcd/pkg/auth v0.66.1
+	github.com/fluxcd/pkg/auth v0.66.2
 	github.com/fluxcd/pkg/cache v0.19.0
-	github.com/fluxcd/pkg/git v0.56.0
+	github.com/fluxcd/pkg/git v0.56.1
 	github.com/fluxcd/pkg/gittestserver v0.33.0
 	github.com/fluxcd/pkg/runtime v0.122.0
 	github.com/fluxcd/pkg/spiffe v0.2.0
-	github.com/fluxcd/pkg/ssh v0.29.0
+	github.com/fluxcd/pkg/ssh v0.29.1
 	github.com/fluxcd/source-controller/api v1.10.0
 	github.com/go-git/go-billy/v5 v5.9.2
 	github.com/go-git/go-git/v5 v5.19.3
