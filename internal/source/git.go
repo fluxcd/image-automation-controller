@@ -223,19 +223,22 @@ func getAuthOpts(ctx context.Context, c client.Client, obj *imagev1.ImageUpdateA
 	// Configure provider authentication if specified.
 	provider := repo.GetProvider()
 
-	// Resolve the ServiceAccount once, applying the default ServiceAccount when
-	// the object does not specify one.
-	saName := repo.Spec.ServiceAccountName
-	if saName == "" {
-		saName = srcOpts.defaultServiceAccount
-	}
-
+	// Resolve the ServiceAccount only for the providers that use it for
+	// authentication. The default ServiceAccount does not apply to the generic
+	// and github providers, which do not use a ServiceAccount.
 	var sa *corev1.ServiceAccount
-	if saName != "" {
-		sa = &corev1.ServiceAccount{}
-		saRef := types.NamespacedName{Namespace: repo.GetNamespace(), Name: saName}
-		if err := c.Get(ctx, saRef, sa); err != nil {
-			return nil, fmt.Errorf("failed to get service account '%s': %w", saRef, err)
+	switch provider {
+	case azure.ProviderName, aws.ProviderName:
+		saName := repo.Spec.ServiceAccountName
+		if saName == "" {
+			saName = srcOpts.defaultServiceAccount
+		}
+		if saName != "" {
+			sa = &corev1.ServiceAccount{}
+			saRef := types.NamespacedName{Namespace: repo.GetNamespace(), Name: saName}
+			if err := c.Get(ctx, saRef, sa); err != nil {
+				return nil, fmt.Errorf("failed to get service account '%s': %w", saRef, err)
+			}
 		}
 	}
 
