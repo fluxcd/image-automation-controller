@@ -284,6 +284,46 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 			},
 		},
 		{
+			name: "generic provider ignores default service account",
+			url:  "https://example.com/org/repo",
+			beforeFunc: func(obj *sourcev1.GitRepository) {
+				obj.Spec.Provider = sourcev1.GitProviderGeneric
+			},
+			srcOpts: SourceOptions{defaultServiceAccount: "missing-sa"},
+		},
+		{
+			name:    "no provider ignores default service account",
+			url:     "https://example.com/org/repo",
+			srcOpts: SourceOptions{defaultServiceAccount: "missing-sa"},
+		},
+		{
+			name: "github provider ignores default service account",
+			url:  "https://github.com/org/repo.git",
+			beforeFunc: func(obj *sourcev1.GitRepository) {
+				obj.Spec.Provider = sourcev1.GitProviderGitHub
+			},
+			srcOpts: SourceOptions{defaultServiceAccount: "missing-sa"},
+			wantErr: "secretRef with github app data must be specified when provider is set to github",
+		},
+		{
+			name: "aws provider resolves default service account",
+			url:  "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
+			beforeFunc: func(obj *sourcev1.GitRepository) {
+				obj.Spec.Provider = aws.ProviderName
+			},
+			srcOpts: SourceOptions{defaultServiceAccount: "missing-sa"},
+			wantErr: "failed to get service account",
+		},
+		{
+			name: "azure provider resolves default service account",
+			url:  "https://dev.azure.com/foo/bar/_git/baz",
+			beforeFunc: func(obj *sourcev1.GitRepository) {
+				obj.Spec.Provider = azure.ProviderName
+			},
+			srcOpts: SourceOptions{defaultServiceAccount: "missing-sa"},
+			wantErr: "failed to get service account",
+		},
+		{
 			name: "no provider",
 			url:  "https://example.com/org/repo",
 		},
