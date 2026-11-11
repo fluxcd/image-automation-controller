@@ -33,7 +33,7 @@ import (
 	"github.com/fluxcd/pkg/git/gogit"
 	"github.com/fluxcd/pkg/git/repository"
 	"github.com/fluxcd/pkg/runtime/acl"
-	fluxbroker "github.com/fluxcd/pkg/spiffe/broker"
+	fluxbroker "github.com/fluxcd/pkg/spiffe/brokerapi"
 	"github.com/go-git/go-git/v5/plumbing"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"

@@ -275,7 +275,7 @@ func getAuthOpts(ctx context.Context, c client.Client, obj *imagev1.ImageUpdateA
 				auth.WithClient(c),
 				auth.WithObject(sourcev1.GroupVersion.Group, sourcev1.GitRepositoryKind, repo),
 				auth.WithGitURL(*u),
-				auth.WithSPIFFEBroker(srcOpts.spiffeBroker),
+				auth.WithSPIFFEBrokerAPI(srcOpts.spiffeBroker),
 			)
 
 			if sa != nil {
