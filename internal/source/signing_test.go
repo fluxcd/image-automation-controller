@@ -22,7 +22,6 @@ import (
 
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -99,7 +98,7 @@ func Test_loadGPGSigner(t *testing.T) {
 
 		_, keyBytes := testutil.GetSigningKeyPair(g, "")
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: "k"},
+			Name: "k",
 			Data: map[string][]byte{
 				signingSecretKeyGPG: keyBytes,
 			},
@@ -116,7 +115,7 @@ func Test_loadGPGSigner(t *testing.T) {
 		passphrase := "abcde12345"
 		_, keyBytes := testutil.GetSigningKeyPair(g, passphrase)
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: "k"},
+			Name: "k",
 			Data: map[string][]byte{
 				signingSecretKeyGPG:        keyBytes,
 				signingSecretPassphraseGPG: []byte(passphrase),
@@ -133,7 +132,7 @@ func Test_loadGPGSigner(t *testing.T) {
 
 		_, keyBytes := testutil.GetSigningKeyPair(g, "abcde12345")
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: "k"},
+			Name: "k",
 			Data: map[string][]byte{
 				signingSecretKeyGPG: keyBytes,
 			},
@@ -151,7 +150,7 @@ func Test_loadSSHSigner(t *testing.T) {
 
 		pemBytes, _ := testutil.GetSSHSigningKey(g, "")
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: "k"},
+			Name: "k",
 			Data: map[string][]byte{
 				signingSecretKeySSH: pemBytes,
 			},
@@ -168,7 +167,7 @@ func Test_loadSSHSigner(t *testing.T) {
 		passphrase := "abcde12345"
 		pemBytes, _ := testutil.GetSSHSigningKey(g, passphrase)
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: "k"},
+			Name: "k",
 			Data: map[string][]byte{
 				signingSecretKeySSH:      pemBytes,
 				signingSecretPasswordSSH: []byte(passphrase),
@@ -185,7 +184,7 @@ func Test_loadSSHSigner(t *testing.T) {
 
 		pemBytes, _ := testutil.GetSSHSigningKey(g, "abcde12345")
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: "k"},
+			Name: "k",
 			Data: map[string][]byte{
 				signingSecretKeySSH: pemBytes,
 			},
@@ -200,7 +199,7 @@ func Test_loadSSHSigner(t *testing.T) {
 		g := NewWithT(t)
 
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: "k"},
+			Name: "k",
 			Data: map[string][]byte{
 				signingSecretKeySSH: []byte("not a real ssh key"),
 			},
@@ -237,12 +236,12 @@ func Test_resolveSigner(t *testing.T) {
 			_, gpgKey := testutil.GetSigningKeyPair(g, "")
 			sshPEM, _ := testutil.GetSSHSigningKey(g, "")
 			gpgSecret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{Name: "gpg-key", Namespace: namespace},
-				Data:       map[string][]byte{signingSecretKeyGPG: gpgKey},
+				Name: "gpg-key", Namespace: namespace,
+				Data: map[string][]byte{signingSecretKeyGPG: gpgKey},
 			}
 			sshSecret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{Name: "ssh-key", Namespace: namespace},
-				Data:       map[string][]byte{signingSecretKeySSH: sshPEM},
+				Name: "ssh-key", Namespace: namespace,
+				Data: map[string][]byte{signingSecretKeySSH: sshPEM},
 			}
 
 			c := fakeclient.NewClientBuilder().

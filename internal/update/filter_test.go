@@ -80,13 +80,11 @@ func TestGetExtFromSchema(t *testing.T) {
 		{
 			name: "Extension Present",
 			schema: &spec.Schema{
-				VendorExtensible: spec.VendorExtensible{
-					Extensions: map[string]interface{}{
-						K8sCliExtensionKey: &extension{
-							Setter: &setter{
-								Name:  "testSetter",
-								Value: "testValue",
-							},
+				Extensions: map[string]any{
+					K8sCliExtensionKey: &extension{
+						Setter: &setter{
+							Name:  "testSetter",
+							Value: "testValue",
 						},
 					},
 				},

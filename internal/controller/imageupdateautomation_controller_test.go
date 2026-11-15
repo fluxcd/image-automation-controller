@@ -137,10 +137,8 @@ func TestImageUpdateAutomationRefspecValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
 			obj := &imagev1.ImageUpdateAutomation{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "refspec-" + rand.String(5),
-					Namespace: namespace.Name,
-				},
+				Name:      "refspec-" + rand.String(5),
+				Namespace: namespace.Name,
 				Spec: imagev1.ImageUpdateAutomationSpec{
 					Interval: metav1.Duration{Duration: time.Hour},
 					SourceRef: imagev1.CrossNamespaceSourceReference{
@@ -174,15 +172,15 @@ func TestImageUpdateAutomationPolicyChangeDelayValidation(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	defer func() { g.Expect(testEnv.Delete(ctx, namespace)).To(Succeed()) }()
 
-	obj := &unstructured.Unstructured{Object: map[string]interface{}{
+	obj := &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": imagev1.GroupVersion.String(),
 		"kind":       imagev1.ImageUpdateAutomationKind,
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name": "invalid-delay", "namespace": namespace.Name,
 		},
-		"spec": map[string]interface{}{
+		"spec": map[string]any{
 			"interval": "1h", "policyChangeDelay": "abc", "suspend": true,
-			"sourceRef": map[string]interface{}{"kind": "GitRepository", "name": "unused"},
+			"sourceRef": map[string]any{"kind": "GitRepository", "name": "unused"},
 		},
 	}}
 	err = k8sClient.Create(ctx, obj)
@@ -2070,10 +2068,8 @@ func TestImageUpdateAutomationReconciler_DefaultUpdate(t *testing.T) {
 		Namespace: namespace.Name,
 	}
 	auto := &imagev1.ImageUpdateAutomation{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      key.Name,
-			Namespace: key.Namespace,
-		},
+		Name:      key.Name,
+		Namespace: key.Namespace,
 		Spec: imagev1.ImageUpdateAutomationSpec{
 			SourceRef: imagev1.CrossNamespaceSourceReference{
 				Kind: "GitRepository",
@@ -2129,10 +2125,8 @@ func TestImageUpdateAutomationReconciler_DefaultStrategy(t *testing.T) {
 		Namespace: namespace.Name,
 	}
 	auto := &imagev1.ImageUpdateAutomation{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      key.Name,
-			Namespace: key.Namespace,
-		},
+		Name:      key.Name,
+		Namespace: key.Namespace,
 		Spec: imagev1.ImageUpdateAutomationSpec{
 			SourceRef: imagev1.CrossNamespaceSourceReference{
 				Kind: "GitRepository",
@@ -2339,10 +2333,8 @@ func TestImageUpdateAutomationReconciler_notify(t *testing.T) {
 			g.Expect(err).ToNot(HaveOccurred())
 
 			oldObj := &imagev1.ImageUpdateAutomation{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "update-test",
-					Namespace: "default",
-				},
+				Name:      "update-test",
+				Namespace: "default",
 				Spec: imagev1.ImageUpdateAutomationSpec{
 					SourceRef: imagev1.CrossNamespaceSourceReference{
 						Kind: sourcev1.GitRepositoryKind,

@@ -110,7 +110,7 @@ func TestImagePolicyHandlerMapping(t *testing.T) {
 				scheme := runtime.NewScheme()
 				g.Expect(imagev1.AddToScheme(scheme)).To(Succeed())
 				auto := &imagev1.ImageUpdateAutomation{
-					ObjectMeta: metav1.ObjectMeta{Name: "automation", Namespace: "default"},
+					Name: "automation", Namespace: "default",
 					Spec: imagev1.ImageUpdateAutomationSpec{
 						PolicySelector: tt.selector, PolicyChangeDelay: delay.value, Suspend: tt.suspended,
 					},
@@ -119,8 +119,8 @@ func TestImagePolicyHandlerMapping(t *testing.T) {
 					auto.Status.ObservedPolicies = imagev1.ObservedPolicies{"policy": {}}
 				}
 				another := &imagev1.ImageUpdateAutomation{
-					ObjectMeta: metav1.ObjectMeta{Name: "another", Namespace: "default"},
-					Spec:       imagev1.ImageUpdateAutomationSpec{PolicyChangeDelay: delay.anotherValue},
+					Name: "another", Namespace: "default",
+					Spec: imagev1.ImageUpdateAutomationSpec{PolicyChangeDelay: delay.anotherValue},
 				}
 				foreign := another.DeepCopy()
 				foreign.Namespace = "foreign"
@@ -131,8 +131,8 @@ func TestImagePolicyHandlerMapping(t *testing.T) {
 				q := &recordingPolicyQueue{}
 				ctx := context.Background()
 				oldPolicy := &reflectorv1.ImagePolicy{
-					ObjectMeta: metav1.ObjectMeta{Name: "policy", Namespace: "default", Labels: tt.oldLabels},
-					Status:     reflectorv1.ImagePolicyStatus{LatestRef: &reflectorv1.ImageRef{Name: "app", Tag: "v1"}},
+					Name: "policy", Namespace: "default", Labels: tt.oldLabels,
+					Status: reflectorv1.ImagePolicyStatus{LatestRef: &reflectorv1.ImageRef{Name: "app", Tag: "v1"}},
 				}
 				newPolicy := oldPolicy.DeepCopy()
 				newPolicy.Labels = tt.newLabels
@@ -423,7 +423,7 @@ func TestImagePolicyHandlerQueue(t *testing.T) {
 				scheme := runtime.NewScheme()
 				g.Expect(imagev1.AddToScheme(scheme)).To(Succeed())
 				auto := &imagev1.ImageUpdateAutomation{
-					ObjectMeta: metav1.ObjectMeta{Name: "automation", Namespace: "default"},
+					Name: "automation", Namespace: "default",
 				}
 				if tt.delay > 0 {
 					auto.Spec.PolicyChangeDelay = &metav1.Duration{Duration: tt.delay}
@@ -440,8 +440,8 @@ func TestImagePolicyHandlerQueue(t *testing.T) {
 					g: g, q: q, req: reconcile.Request{NamespacedName: client.ObjectKeyFromObject(auto)},
 					enqueue: func() {
 						oldPolicy := &reflectorv1.ImagePolicy{
-							ObjectMeta: metav1.ObjectMeta{Name: "policy", Namespace: auto.Namespace},
-							Status:     reflectorv1.ImagePolicyStatus{LatestRef: &reflectorv1.ImageRef{Name: "app", Tag: "v1"}},
+							Name: "policy", Namespace: auto.Namespace,
+							Status: reflectorv1.ImagePolicyStatus{LatestRef: &reflectorv1.ImageRef{Name: "app", Tag: "v1"}},
 						}
 						newPolicy := oldPolicy.DeepCopy()
 						newPolicy.Status.LatestRef.Tag = "v2"

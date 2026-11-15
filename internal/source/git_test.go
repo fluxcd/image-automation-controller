@@ -46,20 +46,16 @@ func Test_getAuthOpts(t *testing.T) {
 	namespace := "default"
 
 	invalidAuthSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "invalid-auth",
-			Namespace: namespace,
-		},
+		Name:      "invalid-auth",
+		Namespace: namespace,
 		Data: map[string][]byte{
 			"password": []byte("pass"),
 		},
 	}
 
 	validAuthSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "valid-auth",
-			Namespace: namespace,
-		},
+		Name:      "valid-auth",
+		Namespace: namespace,
 		Data: map[string][]byte{
 			"username": []byte("user"),
 			"password": []byte("pass"),
@@ -201,9 +197,7 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 			name: "github provider with github app data in secret",
 			url:  "https://example.com/org/repo",
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "githubAppSecret",
-				},
+				Name: "githubAppSecret",
 				Data: map[string][]byte{
 					githubapp.KeyAppID:             []byte("123"),
 					githubapp.KeyAppInstallationID: []byte("456"),
@@ -222,9 +216,7 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 			name: "github provider with basic auth in secret",
 			url:  "https://example.com/org/repo",
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "basic-auth-secret",
-				},
+				Name: "basic-auth-secret",
 				Data: map[string][]byte{
 					"username": []byte("abc"),
 					"password": []byte(""),
@@ -242,9 +234,7 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 			name: "generic provider with github app data in secret",
 			url:  "https://example.com/org/repo",
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "githubAppSecret",
-				},
+				Name: "githubAppSecret",
 				Data: map[string][]byte{
 					githubapp.KeyAppID: []byte("123"),
 				},
@@ -261,9 +251,7 @@ func Test_getAuthOpts_providerAuth(t *testing.T) {
 			name: "generic provider with github app client id in secret",
 			url:  "https://example.com/org/repo",
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "githubAppSecret",
-				},
+				Name: "githubAppSecret",
 				Data: map[string][]byte{
 					githubapp.KeyAppClientID: []byte("Iv23liXXXXXXX"),
 				},
@@ -588,11 +576,9 @@ func Test_buildGitConfig(t *testing.T) {
 			var proxySecret *corev1.Secret
 			if tt.gitRepoProxyData != nil {
 				proxySecret = &corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "valid-proxy",
-						Namespace: namespace,
-					},
-					Data: tt.gitRepoProxyData,
+					Name:      "valid-proxy",
+					Namespace: namespace,
+					Data:      tt.gitRepoProxyData,
 				}
 				testObjects = append(testObjects, proxySecret)
 			}

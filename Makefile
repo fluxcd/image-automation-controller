@@ -81,7 +81,7 @@ ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml:
 		-o ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml
 
 KUBEBUILDER_ASSETS?="$(shell $(ENVTEST) --arch=$(ENVTEST_ARCH) use -i $(ENVTEST_KUBERNETES_VERSION) --bin-dir=$(ENVTEST_ASSETS_DIR) -p path)"
-test: tidy test-api test_deps generate fmt vet manifests api-docs install-envtest ## Run tests
+test: tidy fix test-api test_deps generate fmt vet manifests api-docs install-envtest ## Run tests
 	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) \
 	go test $(GO_TEST_ARGS) ./... -coverprofile cover.out
 
@@ -128,6 +128,10 @@ fmt:	## Run go fmt against code
 vet: ## Run go vet against code
 	go vet ./...
 	cd api; go vet ./...
+
+fix: ## Run go fix against code
+	go fix ./...
+	cd api; go fix ./...
 
 
 generate: controller-gen	## Generate code
