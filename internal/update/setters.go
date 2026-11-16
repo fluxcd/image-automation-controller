@@ -241,8 +241,8 @@ func setAll(schema *spec.Schema, tracelog logr.Logger, callback func(file, sette
 
 func setterSchema(name, value string) spec.Schema {
 	schema := spec.StringProperty()
-	schema.Extensions = map[string]interface{}{}
-	schema.Extensions.Add(K8sCliExtensionKey, map[string]interface{}{
+	schema.Extensions = map[string]any{}
+	schema.Extensions.Add(K8sCliExtensionKey, map[string]any{
 		"setter": map[string]string{
 			"name":  name,
 			"value": value,

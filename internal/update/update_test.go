@@ -22,7 +22,6 @@ import (
 
 	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 
 	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1"
@@ -35,28 +34,22 @@ func TestUpdateWithSetters(t *testing.T) {
 
 	policies := []reflectorv1.ImagePolicy{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "automation-ns",
-				Name:      "policy",
-			},
+			Namespace: "automation-ns",
+			Name:      "policy",
 			Status: reflectorv1.ImagePolicyStatus{
 				LatestRef: testutil.ImageToRef("index.repo.fake/updated:v1.0.1"),
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "automation-ns",
-				Name:      "unchanged",
-			},
+			Namespace: "automation-ns",
+			Name:      "unchanged",
 			Status: reflectorv1.ImagePolicyStatus{
 				LatestRef: testutil.ImageToRef("image:v1.0.0"),
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "automation-ns",
-				Name:      "policy-with-digest",
-			},
+			Namespace: "automation-ns",
+			Name:      "policy-with-digest",
 			Status: reflectorv1.ImagePolicyStatus{
 				LatestRef: testutil.ImageToRef("image:v1.0.0@sha256:6745aaad46d795c9836632e1fb62f24b7e7f4c843144da8e47a5465c411a14be"),
 			},
@@ -70,20 +63,14 @@ func TestUpdateWithSetters(t *testing.T) {
 	testutil.ExpectMatchingDirectories(g, tmp, "testdata/setters/expected")
 
 	kustomizeResourceID := ObjectIdentifier{yaml.ResourceIdentifier{
-		TypeMeta: yaml.TypeMeta{
-			APIVersion: "kustomize.config.k8s.io/v1beta1",
-			Kind:       "Kustomization",
-		},
+		APIVersion: "kustomize.config.k8s.io/v1beta1",
+		Kind:       "Kustomization",
 	}}
 	markedResourceID := ObjectIdentifier{yaml.ResourceIdentifier{
-		TypeMeta: yaml.TypeMeta{
-			APIVersion: "batch/v1beta1",
-			Kind:       "CronJob",
-		},
-		NameMeta: yaml.NameMeta{
-			Namespace: "bar",
-			Name:      "foo",
-		},
+		APIVersion: "batch/v1beta1",
+		Kind:       "CronJob",
+		Namespace:  "bar",
+		Name:       "foo",
 	}}
 
 	expectedResult := Result{
@@ -207,8 +194,8 @@ func TestUpdateWithSettersSummary(t *testing.T) {
 			g := NewWithT(t)
 			ref := tt.ref
 			policies := []reflectorv1.ImagePolicy{{
-				ObjectMeta: metav1.ObjectMeta{Namespace: "automation-ns", Name: "policy"},
-				Status:     reflectorv1.ImagePolicyStatus{LatestRef: &ref},
+				Namespace: "automation-ns", Name: "policy",
+				Status: reflectorv1.ImagePolicyStatus{LatestRef: &ref},
 			}}
 			path := filepath.Join("testdata/summary", tt.fixture)
 			out := t.TempDir()

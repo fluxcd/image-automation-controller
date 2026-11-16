@@ -44,7 +44,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/kustomize/kyaml/yaml"
 
 	reflectorv1 "github.com/fluxcd/image-reflector-controller/api/v1"
 	"github.com/fluxcd/pkg/apis/meta"
@@ -154,16 +153,11 @@ func Fuzz_templateMsg(f *testing.F) {
 func TestTemplateMsgAggregatesObjectChangesAcrossFiles(t *testing.T) {
 	g := NewWithT(t)
 
-	objectID := update.ObjectIdentifier{ResourceIdentifier: yaml.ResourceIdentifier{
-		TypeMeta: yaml.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		NameMeta: yaml.NameMeta{
-			Namespace: "default",
-			Name:      "podinfo",
-		},
-	}}
+	objectID := update.ObjectIdentifier{
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Namespace:  "default",
+		Name:       "podinfo"}
 
 	templateValues := &TemplateData{
 		AutomationObject: types.NamespacedName{
@@ -203,26 +197,16 @@ func TestTemplateMsgAggregatesObjectChangesAcrossFiles(t *testing.T) {
 func TestTemplateMsgIsDeterministicForChangeIDTemplates(t *testing.T) {
 	g := NewWithT(t)
 
-	firstObjectID := update.ObjectIdentifier{ResourceIdentifier: yaml.ResourceIdentifier{
-		TypeMeta: yaml.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		NameMeta: yaml.NameMeta{
-			Namespace: "default",
-			Name:      "podinfo",
-		},
-	}}
-	secondObjectID := update.ObjectIdentifier{ResourceIdentifier: yaml.ResourceIdentifier{
-		TypeMeta: yaml.TypeMeta{
-			APIVersion: "batch/v1",
-			Kind:       "CronJob",
-		},
-		NameMeta: yaml.NameMeta{
-			Namespace: "default",
-			Name:      "cleanup",
-		},
-	}}
+	firstObjectID := update.ObjectIdentifier{
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Namespace:  "default",
+		Name:       "podinfo"}
+	secondObjectID := update.ObjectIdentifier{
+		APIVersion: "batch/v1",
+		Kind:       "CronJob",
+		Namespace:  "default",
+		Name:       "cleanup"}
 
 	templateValues := &TemplateData{
 		AutomationObject: types.NamespacedName{
@@ -283,8 +267,8 @@ func summaryTemplateData(t *testing.T, ref reflectorv1.ImageRef) *TemplateData {
 	result, err := update.UpdateWithSetters(logr.Discard(),
 		"../update/testdata/summary/components/original", t.TempDir(),
 		[]reflectorv1.ImagePolicy{{
-			ObjectMeta: metav1.ObjectMeta{Namespace: "automation-ns", Name: "policy"},
-			Status:     reflectorv1.ImagePolicyStatus{LatestRef: &ref},
+			Namespace: "automation-ns", Name: "policy",
+			Status: reflectorv1.ImagePolicyStatus{LatestRef: &ref},
 		}})
 	g.Expect(err).ToNot(HaveOccurred())
 	return &TemplateData{

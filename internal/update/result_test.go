@@ -31,10 +31,10 @@ func TestResult(t *testing.T) {
 	var result Result
 	objectNames := []ObjectIdentifier{
 		{yaml.ResourceIdentifier{
-			NameMeta: yaml.NameMeta{Namespace: "ns", Name: "foo"},
+			Namespace: "ns", Name: "foo",
 		}},
 		{yaml.ResourceIdentifier{
-			NameMeta: yaml.NameMeta{Namespace: "ns", Name: "bar"},
+			Namespace: "ns", Name: "bar",
 		}},
 	}
 
@@ -106,14 +106,10 @@ func TestResultObjectsAggregatesSameObjectAcrossFiles(t *testing.T) {
 	g := NewWithT(t)
 
 	objectID := ObjectIdentifier{yaml.ResourceIdentifier{
-		TypeMeta: yaml.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		NameMeta: yaml.NameMeta{
-			Namespace: "default",
-			Name:      "podinfo",
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Namespace:  "default",
+		Name:       "podinfo",
 	}}
 
 	result := Result{
@@ -159,12 +155,12 @@ func TestResultIsDeterministic(t *testing.T) {
 	g := NewWithT(t)
 
 	deployment := ObjectIdentifier{yaml.ResourceIdentifier{
-		TypeMeta: yaml.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
-		NameMeta: yaml.NameMeta{Namespace: "default", Name: "podinfo"},
+		APIVersion: "apps/v1", Kind: "Deployment",
+		Namespace: "default", Name: "podinfo",
 	}}
 	cronJob := ObjectIdentifier{yaml.ResourceIdentifier{
-		TypeMeta: yaml.TypeMeta{APIVersion: "batch/v1", Kind: "CronJob"},
-		NameMeta: yaml.NameMeta{Namespace: "default", Name: "cleanup"},
+		APIVersion: "batch/v1", Kind: "CronJob",
+		Namespace: "default", Name: "cleanup",
 	}}
 
 	image := Change{OldValue: "podinfo:v1.0.0", NewValue: "podinfo:v1.0.1", Setter: "flux-system:podinfo"}
@@ -198,15 +194,15 @@ func TestResultSummary(t *testing.T) {
 	const oldDigest = "sha256:1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b"
 	const newDigest = "sha256:7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b"
 	object := ObjectIdentifier{yaml.ResourceIdentifier{
-		TypeMeta: yaml.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
-		NameMeta: yaml.NameMeta{Namespace: "default", Name: "podinfo"},
+		APIVersion: "apps/v1", Kind: "Deployment",
+		Namespace: "default", Name: "podinfo",
 	}}
 	otherObject := ObjectIdentifier{yaml.ResourceIdentifier{
-		TypeMeta: yaml.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
-		NameMeta: yaml.NameMeta{Namespace: "default", Name: "other"},
+		APIVersion: "apps/v1", Kind: "Deployment",
+		Namespace: "default", Name: "other",
 	}}
 	kustomization := ObjectIdentifier{yaml.ResourceIdentifier{
-		TypeMeta: yaml.TypeMeta{APIVersion: "kustomize.config.k8s.io/v1beta1", Kind: "Kustomization"},
+		APIVersion: "kustomize.config.k8s.io/v1beta1", Kind: "Kustomization",
 	}}
 	tag := Change{OldValue: "6.5.0", NewValue: "6.5.1", Setter: "ns:policy:tag"}
 	olderTag := Change{OldValue: "6.4.0", NewValue: "6.5.1", Setter: "ns:policy:tag"}

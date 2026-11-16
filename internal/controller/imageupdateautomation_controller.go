@@ -643,7 +643,7 @@ func (r *ImageUpdateAutomationReconciler) notify(ctx context.Context, oldObj, ne
 // This log is different from the debug log in the EventRecorder, in the sense
 // that this is a simple log. While the debug log contains complete details
 // about the event.
-func eventLogf(ctx context.Context, r events.Recorder, obj, related runtime.Object, eventType string, reason string, action imagev1.Action, messageFmt string, args ...interface{}) {
+func eventLogf(ctx context.Context, r events.Recorder, obj, related runtime.Object, eventType string, reason string, action imagev1.Action, messageFmt string, args ...any) {
 	msg := fmt.Sprintf(messageFmt, args...)
 	// Log and emit event.
 	if eventType == corev1.EventTypeWarning {
@@ -691,13 +691,9 @@ func sourceRefObject(obj conditions.Setter) *sourcev1.GitRepository {
 		ns = auto.Namespace
 	}
 	return &sourcev1.GitRepository{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       sourcev1.GitRepositoryKind,
-			APIVersion: sourcev1.GroupVersion.String(),
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ref.Name,
-			Namespace: ns,
-		},
+		Kind:       sourcev1.GitRepositoryKind,
+		APIVersion: sourcev1.GroupVersion.String(),
+		Name:       ref.Name,
+		Namespace:  ns,
 	}
 }

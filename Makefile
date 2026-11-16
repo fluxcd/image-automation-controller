@@ -40,6 +40,7 @@ FUZZ_TIME ?= 1m
 # API (doc) generation utilities
 CONTROLLER_GEN_VERSION ?= v0.21.0
 GEN_API_REF_DOCS_VERSION ?= e327d0730470cbd61b06300f81c5fcf91c23c113
+GOPLS_VERSION ?= v0.24.0
 
 # If gobin not set, create one on ./build and add to path.
 GOBIN ?= $(BUILD_DIR)/gobin
@@ -81,7 +82,7 @@ ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml:
 		-o ${CACHE}/imagepolicies_${REFLECTOR_VER}.yaml
 
 KUBEBUILDER_ASSETS?="$(shell $(ENVTEST) --arch=$(ENVTEST_ARCH) use -i $(ENVTEST_KUBERNETES_VERSION) --bin-dir=$(ENVTEST_ASSETS_DIR) -p path)"
-test: tidy test-api test_deps generate fmt vet manifests api-docs install-envtest ## Run tests
+test: tidy fix test-api test_deps generate fmt vet unused manifests api-docs install-envtest ## Run tests
 	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) \
 	go test $(GO_TEST_ARGS) ./... -coverprofile cover.out
 
@@ -129,6 +130,22 @@ vet: ## Run go vet against code
 	go vet ./...
 	cd api; go vet ./...
 
+unused: gopls ## Check for unused code and parameters
+	@out=$$($(GOPLS) check -severity=info $$(git ls-files '*.go') | grep -E 'unused parameter:| is unused$$' || true); \
+	if [ -n "$$out" ]; then \
+		printf '%s\n' "$$out"; \
+		exit 1; \
+	fi
+
+fix: ## Run go fix against code until it makes no changes
+	@set -e; while :; do \
+		before=$$(git diff --no-ext-diff --no-color HEAD -- '*.go' | cksum); \
+		go fix ./...; \
+		( cd api && go fix ./... ); \
+		after=$$(git diff --no-ext-diff --no-color HEAD -- '*.go' | cksum); \
+		if [ "$$before" = "$$after" ]; then break; fi; \
+	done
+
 
 generate: controller-gen	## Generate code
 	cd api; $(CONTROLLER_GEN) object:headerFile="../hack/boilerplate.go.txt" paths="./..."
@@ -144,6 +161,12 @@ docker-push:	## Push the Docker image
 
 docker-deploy:	## Set the Docker image in-cluster
 	kubectl -n flux-system set image deployment/image-automation-controller manager=$(IMG):$(TAG)
+
+# Find or download gopls
+GOPLS = $(GOBIN)/gopls
+.PHONY: gopls
+gopls: ## Download gopls locally if necessary.
+	$(call go-install-tool,$(GOPLS),golang.org/x/tools/gopls@$(GOPLS_VERSION))
 
 # Find or download controller-gen
 CONTROLLER_GEN = $(GOBIN)/controller-gen
