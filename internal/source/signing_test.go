@@ -17,9 +17,12 @@ limitations under the License.
 package source
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
+	"github.com/ProtonMail/go-crypto/openpgp"
+	"github.com/ProtonMail/go-crypto/openpgp/armor"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -125,6 +128,30 @@ func Test_loadGPGSigner(t *testing.T) {
 		s, err := loadGPGSigner(secret)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(s).ToNot(BeNil())
+	})
+
+	t.Run("armored block without key material errors", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// A well-formed armored public key block that carries no packets
+		// is decoded by ReadArmoredKeyRing without error, but yields zero
+		// entities. loadGPGSigner must not index into the empty slice.
+		var buf bytes.Buffer
+		w, err := armor.Encode(&buf, openpgp.PublicKeyType, nil)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(w.Close()).To(Succeed())
+
+		secret := &corev1.Secret{
+			Data: map[string][]byte{
+				signingSecretKeyGPG: buf.Bytes(),
+			},
+		}
+		secret.Name = "k"
+
+		s, err := loadGPGSigner(secret)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(s).To(BeNil())
+		g.Expect(err.Error()).To(ContainSubstring("no signing key found in secret 'k'"))
 	})
 
 	t.Run("encrypted key without passphrase errors", func(t *testing.T) {
