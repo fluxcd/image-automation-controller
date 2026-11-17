@@ -102,6 +102,9 @@ func loadGPGSigner(secret *corev1.Secret) (signature.Signer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not read signing key from secret '%s': %w", secret.Name, err)
 	}
+	if len(entities) == 0 {
+		return nil, fmt.Errorf("no signing key found in secret '%s'", secret.Name)
+	}
 	if len(entities) > 1 {
 		return nil, fmt.Errorf("multiple entities read from secret '%s', could not determine which signing key to use", secret.Name)
 	}
