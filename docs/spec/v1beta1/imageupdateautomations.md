@@ -119,7 +119,7 @@ reconciliations are executed using the `go-git` implementation.
 Other fields particular to how the Git repository is used are in the `git` field, [described
 below](#git-specific-specification).
 
-The `update` field is described in [its own section below](update-strategy).
+The `update` field is described in [its own section below](#update-strategy).
 
 The required field `interval` gives a period for automation runs, in [duration notation][durations];
 e.g., `"5m"`.
@@ -397,7 +397,7 @@ spec:
         email: fluxcdbot@users.noreply.github.com
         name: fluxcdbot
 ```
-There are over 70 available functions. Some of them are defined by the [Go template language](https://pkg.go.dev/text/template) itself. Most of the others are part of the [Sprig template library](http://masterminds.github.io/sprig/). 
+There are over 70 available functions. Some of them are defined by the [Go template language](https://pkg.go.dev/text/template) itself. Most of the others are part of the [Sprig template library](https://masterminds.github.io/sprig/). 
 
 ### Push
 
@@ -833,5 +833,5 @@ spec:
 [image-auto-guide]: https://fluxcd.io/flux/guides/image-update/#configure-image-update-for-custom-resources
 [git-repo-ref]: https://fluxcd.io/flux/components/source/gitrepositories/#writing-a-gitrepository-spec
 [durations]: https://godoc.org/time#ParseDuration
-[source-docs]: https://fluxcd.io/flux/components/source/api/v1beta2/#source.toolkit.fluxcd.io/v1beta2.GitRepositorySpec
+[source-docs]: https://github.com/fluxcd/source-controller/blob/v1.0.0/docs/api/v1beta2/source.md#source.toolkit.fluxcd.io/v1beta2.GitRepositorySpec
 [go-text-template]: https://golang.org/pkg/text/template/
