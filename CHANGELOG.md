@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.3.1
+
+**Release date:** 2026-11-20
+
+This patch release fixes Git checkouts that could get permanently stuck when the
+push branch removes a file that relative symlinks point to: removing a symlink
+deleted its target instead, so switching branches failed with
+`remove <path>: no such file or directory` and the automation never recovered.
+It also stops resolving the default ServiceAccount for the `generic` and
+`github` Git providers, which do not use one, and fixes the credentials cache
+key so a changed credential username takes effect on the next reconcile instead
+of reusing the previously cached Git credentials.
+
+Fixes:
+- Fix checkout deleting symlink targets when the push branch removes a symlinked
+  file
+  [#1130](https://github.com/fluxcd/image-automation-controller/pull/1130),
+  [#1132](https://github.com/fluxcd/image-automation-controller/pull/1132)
+- Fix resolving the default ServiceAccount for Git providers that don't use it
+  [#1128](https://github.com/fluxcd/image-automation-controller/pull/1128)
+- Update fluxcd/pkg dependencies
+  [#1121](https://github.com/fluxcd/image-automation-controller/pull/1121)
+
+Improvements:
+- Remove leftover object-level workload identity log message
+  [#1129](https://github.com/fluxcd/image-automation-controller/pull/1129)
+- Update fluxcd/pkg dependencies
+  [#1122](https://github.com/fluxcd/image-automation-controller/pull/1122)
+
 ## 1.3.0
 
 **Release date:** 2026-10-24
