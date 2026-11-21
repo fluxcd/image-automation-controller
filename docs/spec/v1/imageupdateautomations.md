@@ -653,15 +653,21 @@ will fall back to the branch specified in the associated GitRepository's
 `.spec.sourceRef`. If none of these yield a push branch name, the automation
 will fail.
 
-The push branch will be created locally if it does not already exist, starting
-from the checkout branch. If the push branch already exists, it will be
-overwritten with the cloned version plus the changes made by the controller.
-Alternatively, force push can be disabled by starting the controller with flag
-`--feature-gates=GitForcePushBranch=false`, in which case the updates will be
-calculated on top of any commits already on the push branch. Note that without
-force push in push branches, if the target branch is stale, the controller may
-not be able to conclude the operation and will consistently fail until the
-branch is either deleted or refreshed.
+The push branch will be created locally if it does not already exist on the
+remote, starting from the checkout branch. If it already exists, the controller
+checks it out and makes its changes on top of the commits already on it, so
+commits pushed to the push branch by others are kept. This requires the
+`GitAllBranchReferences` feature gate, which is enabled by default.
+
+When the controller is started with
+`--feature-gates=GitAllBranchReferences=false`, it ignores the state of the push
+branch on the remote: at every reconciliation, the push branch is created from
+the checkout branch, and the remote branch is overwritten with the cloned
+version plus the changes made by the controller. This relies on force push,
+which is enabled by default and can be disabled with
+`--feature-gates=GitForcePushBranch=false`. Without force push, the push fails
+whenever the remote push branch has commits that the checkout branch does not,
+until the push branch is either deleted or refreshed.
 
 In the following snippet, updates will be pushed as commits to the branch
 `auto`, and when that branch does not exist at the origin, it will be created
